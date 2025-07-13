@@ -410,7 +410,7 @@ __metadata:
     "@midnight-ntwrk/midnight-js-network-id": "npm:^2.0.1"
     "@midnight-ntwrk/zswap": "npm:^4.0.0"
     "@openzeppelin-compact/compact": "workspace:^"
-    "@types/node": "npm:^22.15.29"
+    "@types/node": "npm:22.14.0"
     fast-check: "npm:^3.15.0"
     typescript: "npm:^5.8.3"
     vitest: "npm:^3.1.4"
@@ -722,7 +722,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:^22, @types/node@npm:^22.15.29":
+"@types/node@npm:^22":
   version: 22.16.3
   resolution: "@types/node@npm:22.16.3"
   dependencies:
