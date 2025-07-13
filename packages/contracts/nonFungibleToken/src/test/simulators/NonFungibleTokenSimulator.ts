@@ -1,47 +1,51 @@
 import {
   type CircuitContext,
   type CoinPublicKey,
-  type ContractState,
   QueryContext,
   constructorContext,
   emptyZswapLocalState,
 } from '@midnight-ntwrk/compact-runtime';
 import { sampleContractAddress } from '@midnight-ntwrk/zswap';
+import type {
+  ContractAddress,
+  Either,
+  ZswapCoinPublicKey,
+} from '@openzeppelin-compact/compact-std';
 import {
-  type ContractAddress,
-  type Either,
+  AbstractContractSimulator,
+  type ContextlessCircuits,
+} from '@openzeppelin-compact/testing';
+import {
   type Ledger,
   Contract as MockNonFungibleToken,
-  type ZswapCoinPublicKey,
   ledger,
-} from '../../artifacts/MockNonFungibleToken/contract/index.cjs'; // Combined imports
+} from '../../artifacts/MockNonFungibleToken/contract/index.cjs';
 import {
   type NonFungibleTokenPrivateState,
   NonFungibleTokenWitnesses,
 } from '../../witnesses/NonFungibleTokenWitnesses.js';
-import type { IContractSimulator } from '../types/test.js';
 
-/**
- * @description A simulator implementation of an nonFungibleToken contract for testing purposes.
- * @template P - The private state type, fixed to NonFungibleTokenPrivateState.
- * @template L - The ledger type, fixed to Contract.Ledger.
- */
-export class NonFungibleTokenSimulator
-  implements IContractSimulator<NonFungibleTokenPrivateState, Ledger>
-{
-  /** @description The underlying contract instance managing contract logic. */
+export class NonFungibleTokenSimulator extends AbstractContractSimulator<
+  NonFungibleTokenPrivateState,
+  Ledger
+> {
   readonly contract: MockNonFungibleToken<NonFungibleTokenPrivateState>;
-
-  /** @description The deployed address of the contract. */
   readonly contractAddress: string;
-
-  /** @description The current circuit context, updated by contract operations. */
   circuitContext: CircuitContext<NonFungibleTokenPrivateState>;
+  private callerOverride: CoinPublicKey | null = null;
 
-  /**
-   * @description Initializes the mock contract.
-   */
+  private _pureCircuitProxy?: ContextlessCircuits<
+    MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits'],
+    NonFungibleTokenPrivateState
+  >;
+
+  private _impureCircuitProxy?: ContextlessCircuits<
+    MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits'],
+    NonFungibleTokenPrivateState
+  >;
+
   constructor(name: string, symbol: string, init: boolean) {
+    super();
     this.contract = new MockNonFungibleToken<NonFungibleTokenPrivateState>(
       NonFungibleTokenWitnesses,
     );
@@ -67,28 +71,66 @@ export class NonFungibleTokenSimulator
     this.contractAddress = this.circuitContext.transactionContext.address;
   }
 
-  /**
-   * @description Retrieves the current public ledger state of the contract.
-   * @returns The ledger state as defined by the contract.
-   */
+  protected getCallerContext(): CircuitContext<NonFungibleTokenPrivateState> {
+    return {
+      ...this.circuitContext,
+      currentZswapLocalState: this.callerOverride
+        ? emptyZswapLocalState(this.callerOverride)
+        : this.circuitContext.currentZswapLocalState,
+    };
+  }
+
+  protected get pureCircuit(): ContextlessCircuits<
+    MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits'],
+    NonFungibleTokenPrivateState
+  > {
+    if (!this._pureCircuitProxy) {
+      this._pureCircuitProxy = this.createPureCircuitProxy(
+        this.contract.circuits,
+        () => this.circuitContext,
+      );
+    }
+    return this._pureCircuitProxy;
+  }
+
+  protected get impureCircuit(): ContextlessCircuits<
+    MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits'],
+    NonFungibleTokenPrivateState
+  > {
+    if (!this._impureCircuitProxy) {
+      this._impureCircuitProxy = this.createImpureCircuitProxy(
+        this.contract.impureCircuits,
+        () => this.getCallerContext(),
+        (ctx: any) => {
+          this.circuitContext = ctx;
+        },
+      );
+    }
+    return this._impureCircuitProxy;
+  }
+
+  public setCaller(caller: CoinPublicKey | null): void {
+    this.callerOverride = caller;
+  }
+
+  public resetCircuitProxies(): void {
+    this._pureCircuitProxy = undefined;
+    this._impureCircuitProxy = undefined;
+  }
+
+  public get circuits() {
+    return {
+      pure: this.pureCircuit,
+      impure: this.impureCircuit,
+    };
+  }
+
   public getCurrentPublicState(): Ledger {
     return ledger(this.circuitContext.transactionContext.state);
   }
 
-  /**
-   * @description Retrieves the current private state of the contract.
-   * @returns The private state of type NonFungibleTokenPrivateState.
-   */
-  public getCurrentPrivateState(): NonFungibleTokenPrivateState {
-    return this.circuitContext.currentPrivateState;
-  }
-
-  /**
-   * @description Retrieves the current contract state.
-   * @returns The contract state object.
-   */
-  public getCurrentContractState(): ContractState {
-    return this.circuitContext.originalState;
+  public getCurrentPublicStatef() {
+    return this.getCurrentPrivateState;
   }
 
   /**
@@ -96,7 +138,7 @@ export class NonFungibleTokenSimulator
    * @returns The token name.
    */
   public name(): string {
-    return this.contract.impureCircuits.name(this.circuitContext).result;
+    return this.circuits.impure.name();
   }
 
   /**
@@ -104,7 +146,7 @@ export class NonFungibleTokenSimulator
    * @returns The token name.
    */
   public symbol(): string {
-    return this.contract.impureCircuits.symbol(this.circuitContext).result;
+    return this.circuits.impure.symbol();
   }
 
   /**
@@ -115,8 +157,7 @@ export class NonFungibleTokenSimulator
   public balanceOf(
     account: Either<ZswapCoinPublicKey, ContractAddress>,
   ): bigint {
-    return this.contract.impureCircuits.balanceOf(this.circuitContext, account)
-      .result;
+    return this.circuits.impure.balanceOf(account);
   }
 
   /**
@@ -125,8 +166,7 @@ export class NonFungibleTokenSimulator
    * @return The public key that owns the token.
    */
   public ownerOf(tokenId: bigint): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.impureCircuits.ownerOf(this.circuitContext, tokenId)
-      .result;
+    return this.circuits.impure.ownerOf(tokenId);
   }
 
   /**
@@ -140,8 +180,7 @@ export class NonFungibleTokenSimulator
    * @returns The token id's URI.
    */
   public tokenURI(tokenId: bigint): string {
-    return this.contract.impureCircuits.tokenURI(this.circuitContext, tokenId)
-      .result;
+    return this.circuits.impure.tokenURI(tokenId);
   }
 
   /**
@@ -162,20 +201,8 @@ export class NonFungibleTokenSimulator
   public approve(
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
-    sender?: CoinPublicKey,
   ) {
-    const res = this.contract.impureCircuits.approve(
-      {
-        ...this.circuitContext,
-        currentZswapLocalState: sender
-          ? emptyZswapLocalState(sender)
-          : this.circuitContext.currentZswapLocalState,
-      },
-      to,
-      tokenId,
-    );
-
-    this.circuitContext = res.context;
+    return this.circuits.impure.approve(to, tokenId);
   }
 
   /**
@@ -186,10 +213,7 @@ export class NonFungibleTokenSimulator
   public getApproved(
     tokenId: bigint,
   ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.impureCircuits.getApproved(
-      this.circuitContext,
-      tokenId,
-    ).result;
+    return this.circuits.impure.getApproved(tokenId);
   }
 
   /**
@@ -207,20 +231,8 @@ export class NonFungibleTokenSimulator
   public setApprovalForAll(
     operator: Either<ZswapCoinPublicKey, ContractAddress>,
     approved: boolean,
-    sender?: CoinPublicKey,
   ) {
-    const res = this.contract.impureCircuits.setApprovalForAll(
-      {
-        ...this.circuitContext,
-        currentZswapLocalState: sender
-          ? emptyZswapLocalState(sender)
-          : this.circuitContext.currentZswapLocalState,
-      },
-      operator,
-      approved,
-    );
-
-    this.circuitContext = res.context;
+    return this.circuits.impure.setApprovalForAll(operator, approved);
   }
 
   /**
@@ -234,11 +246,7 @@ export class NonFungibleTokenSimulator
     owner: Either<ZswapCoinPublicKey, ContractAddress>,
     operator: Either<ZswapCoinPublicKey, ContractAddress>,
   ): boolean {
-    return this.contract.impureCircuits.isApprovedForAll(
-      this.circuitContext,
-      owner,
-      operator,
-    ).result;
+    return this.circuits.impure.isApprovedForAll(owner, operator);
   }
 
   /**
@@ -260,21 +268,8 @@ export class NonFungibleTokenSimulator
     from: Either<ZswapCoinPublicKey, ContractAddress>,
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
-    sender?: CoinPublicKey,
   ) {
-    const res = this.contract.impureCircuits.transferFrom(
-      {
-        ...this.circuitContext,
-        currentZswapLocalState: sender
-          ? emptyZswapLocalState(sender)
-          : this.circuitContext.currentZswapLocalState,
-      },
-      from,
-      to,
-      tokenId,
-    );
-
-    this.circuitContext = res.context;
+    return this.circuits.impure.transferFrom(from, to, tokenId);
   }
 
   /**
@@ -289,10 +284,7 @@ export class NonFungibleTokenSimulator
   public _requireOwned(
     tokenId: bigint,
   ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.impureCircuits._requireOwned(
-      this.circuitContext,
-      tokenId,
-    ).result;
+    return this.circuits.impure._requireOwned(tokenId);
   }
 
   /**
@@ -304,8 +296,7 @@ export class NonFungibleTokenSimulator
   public _ownerOf(
     tokenId: bigint,
   ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.impureCircuits._ownerOf(this.circuitContext, tokenId)
-      .result;
+    return this.circuits.impure._ownerOf(tokenId);
   }
 
   /**
@@ -324,12 +315,7 @@ export class NonFungibleTokenSimulator
     tokenId: bigint,
     auth: Either<ZswapCoinPublicKey, ContractAddress>,
   ) {
-    this.circuitContext = this.contract.impureCircuits._approve(
-      this.circuitContext,
-      to,
-      tokenId,
-      auth,
-    ).context;
+    return this.circuits.impure._approve(to, tokenId, auth);
   }
 
   /**
@@ -351,12 +337,7 @@ export class NonFungibleTokenSimulator
     spender: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ) {
-    this.circuitContext = this.contract.impureCircuits._checkAuthorized(
-      this.circuitContext,
-      owner,
-      spender,
-      tokenId,
-    ).context;
+    return this.circuits.impure._checkAuthorized(owner, spender, tokenId);
   }
 
   /**
@@ -376,12 +357,7 @@ export class NonFungibleTokenSimulator
     spender: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ): boolean {
-    return this.contract.impureCircuits._isAuthorized(
-      this.circuitContext,
-      owner,
-      spender,
-      tokenId,
-    ).result;
+    return this.circuits.impure._isAuthorized(owner, spender, tokenId);
   }
 
   /**
@@ -393,10 +369,7 @@ export class NonFungibleTokenSimulator
   public _getApproved(
     tokenId: bigint,
   ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.impureCircuits._getApproved(
-      this.circuitContext,
-      tokenId,
-    ).result;
+    return this.circuits.impure._getApproved(tokenId);
   }
 
   /**
@@ -416,12 +389,7 @@ export class NonFungibleTokenSimulator
     operator: Either<ZswapCoinPublicKey, ContractAddress>,
     approved: boolean,
   ) {
-    this.circuitContext = this.contract.impureCircuits._setApprovalForAll(
-      this.circuitContext,
-      owner,
-      operator,
-      approved,
-    ).context;
+    return this.circuits.impure._setApprovalForAll(owner, operator, approved);
   }
 
   /**
@@ -440,11 +408,7 @@ export class NonFungibleTokenSimulator
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ) {
-    this.circuitContext = this.contract.impureCircuits._mint(
-      this.circuitContext,
-      to,
-      tokenId,
-    ).context;
+    return this.circuits.impure._mint(to, tokenId);
   }
 
   /**
@@ -460,10 +424,7 @@ export class NonFungibleTokenSimulator
    * @return None.
    */
   public _burn(tokenId: bigint) {
-    this.circuitContext = this.contract.impureCircuits._burn(
-      this.circuitContext,
-      tokenId,
-    ).context;
+    return this.circuits.impure._burn(tokenId);
   }
 
   /**
@@ -485,12 +446,7 @@ export class NonFungibleTokenSimulator
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ) {
-    this.circuitContext = this.contract.impureCircuits._transfer(
-      this.circuitContext,
-      from,
-      to,
-      tokenId,
-    ).context;
+    return this.circuits.impure._transfer(from, to, tokenId);
   }
 
   /**
@@ -504,11 +460,7 @@ export class NonFungibleTokenSimulator
    * @return None
    */
   public _setTokenURI(tokenId: bigint, tokenURI: string) {
-    this.circuitContext = this.contract.impureCircuits._setTokenURI(
-      this.circuitContext,
-      tokenId,
-      tokenURI,
-    ).context;
+    return this.circuits.impure._setTokenURI(tokenId, tokenURI);
   }
 
   /**
@@ -534,21 +486,8 @@ export class NonFungibleTokenSimulator
     from: Either<ZswapCoinPublicKey, ContractAddress>,
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
-    sender?: CoinPublicKey,
   ) {
-    const res = this.contract.impureCircuits._unsafeTransferFrom(
-      {
-        ...this.circuitContext,
-        currentZswapLocalState: sender
-          ? emptyZswapLocalState(sender)
-          : this.circuitContext.currentZswapLocalState,
-      },
-      from,
-      to,
-      tokenId,
-    );
-
-    this.circuitContext = res.context;
+    return this.circuits.impure._unsafeTransferFrom(from, to, tokenId);
   }
 
   /**
@@ -575,12 +514,7 @@ export class NonFungibleTokenSimulator
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ) {
-    this.circuitContext = this.contract.impureCircuits._unsafeTransfer(
-      this.circuitContext,
-      from,
-      to,
-      tokenId,
-    ).context;
+    return this.circuits.impure._unsafeTransfer(from, to, tokenId);
   }
 
   /**
@@ -603,10 +537,6 @@ export class NonFungibleTokenSimulator
     to: Either<ZswapCoinPublicKey, ContractAddress>,
     tokenId: bigint,
   ) {
-    this.circuitContext = this.contract.impureCircuits._unsafeMint(
-      this.circuitContext,
-      to,
-      tokenId,
-    ).context;
+    return this.circuits.impure._unsafeMint(to, tokenId);
   }
 }

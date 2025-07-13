@@ -4,8 +4,6 @@ import CompactStandardLibrary;
 
 import "../../NonFungibleToken" prefix NonFungibleToken_;
 
-export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
-
 /**
  * @description `init` is a param for testing.
  * If `init` is true, initialize the contract with `_name` and `_symbol`.
