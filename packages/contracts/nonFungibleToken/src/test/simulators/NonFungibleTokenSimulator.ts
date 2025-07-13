@@ -129,10 +129,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     return ledger(this.circuitContext.transactionContext.state);
   }
 
-  public getCurrentPublicStatef() {
-    return this.getCurrentPrivateState;
-  }
-
   /**
    * @description Returns the token name.
    * @returns The token name.
