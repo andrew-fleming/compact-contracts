@@ -71,6 +71,12 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     this.contractAddress = this.circuitContext.transactionContext.address;
   }
 
+  /**
+   * @description Constructs a caller-specific circuit context.
+   * If a caller override is present, it replaces the current Zswap local state with an empty one
+   * scoped to the overridden caller. Otherwise, the existing context is reused as-is.
+   * @returns A circuit context adjusted for the current simulated caller.
+   */
   protected getCallerContext(): CircuitContext<NonFungibleTokenPrivateState> {
     return {
       ...this.circuitContext,
@@ -80,6 +86,15 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     };
   }
 
+  /**
+   * @description Initializes and returns a proxy to pure contract circuits.
+   * The proxy automatically injects the current circuit context into each call,
+   * and returns only the result portion of each circuit's output.
+   * @notice The proxy is created only when first accessed a.k.a lazy initialization.
+   * This approach is efficient in cases where only pure or only impure circuits are used,
+   * avoiding unnecessary proxy creation.
+   * @returns A proxy object exposing pure circuit functions without requiring explicit context.
+   */
   protected get pureCircuit(): ContextlessCircuits<
     MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits'],
     NonFungibleTokenPrivateState
@@ -93,6 +108,15 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     return this._pureCircuitProxy;
   }
 
+  /**
+   * @description Initializes and returns a proxy to impure contract circuits.
+   * The proxy automatically injects the current (possibly caller-modified) context into each call,
+   * and updates the circuit context with the one returned by the circuit after execution.
+   * @notice The proxy is created only when first accessed a.k.a. lazy initialization.
+   * This approach is efficient in cases where only pure or only impure circuits are used,
+   * avoiding unnecessary proxy creation.
+   * @returns A proxy object exposing impure circuit functions without requiring explicit context management.
+   */
   protected get impureCircuit(): ContextlessCircuits<
     MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits'],
     NonFungibleTokenPrivateState
@@ -109,15 +133,29 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     return this._impureCircuitProxy;
   }
 
+  /**
+   * @description Sets the caller context.
+   * @param caller The caller in context of the proceeding circuit calls.
+   */
   public setCaller(caller: CoinPublicKey | null): void {
     this.callerOverride = caller;
   }
 
+  /**
+   * @description Resets the cached circuit proxy instances.
+   * This is useful if the underlying contract state or circuit context has changed,
+   * and you want to ensure the proxies are recreated with updated context on next access.
+   */
   public resetCircuitProxies(): void {
     this._pureCircuitProxy = undefined;
     this._impureCircuitProxy = undefined;
   }
 
+  /**
+   * @description Helper method that provides access to both pure and impure circuit proxies.
+   * These proxies automatically inject the appropriate circuit context when invoked.
+   * @returns An object containing `pure` and `impure` circuit proxy interfaces.
+   */
   public get circuits() {
     return {
       pure: this.pureCircuit,
@@ -125,6 +163,10 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     };
   }
 
+  /**
+   * @description Retrieves the current public ledger state of the contract.
+   * @returns The ledger state as defined by the contract.
+   */
   public getCurrentPublicState(): Ledger {
     return ledger(this.circuitContext.transactionContext.state);
   }
