@@ -236,6 +236,7 @@ describe('NonFungibleToken', () => {
     it('should allow operator to approve', () => {
       token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
+
       token.setCaller(SPENDER);
       token.approve(Z_OTHER, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(Z_OTHER);
@@ -268,17 +269,19 @@ describe('NonFungibleToken', () => {
     });
 
     it('should approve after token burn and remint', () => {
-      token.setCaller(OWNER);
       token._burn(TOKENID_1);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.approve(Z_SPENDER, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(Z_SPENDER);
     });
 
     it('should approve with very long token ID', () => {
-      token.setCaller(OWNER);
       const longTokenId = BigInt('18446744073709551615');
       token._mint(Z_OWNER, longTokenId);
+
+      token.setCaller(OWNER);
       token.approve(Z_SPENDER, longTokenId);
       expect(token.getApproved(longTokenId)).toEqual(Z_SPENDER);
     });
@@ -315,15 +318,15 @@ describe('NonFungibleToken', () => {
 
   describe('setApprovalForAll', () => {
     it('should not approve zero address', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+      token.setCaller(OWNER);
+
       expect(() => {
         token.setApprovalForAll(ZERO_KEY, true);
       }).toThrow('NonFungibleToken: Invalid Operator');
     });
 
     it('should set operator', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
 
       token.setCaller(OWNER);
@@ -335,6 +338,7 @@ describe('NonFungibleToken', () => {
       token._mint(Z_OWNER, TOKENID_1);
       token._mint(Z_OWNER, TOKENID_2);
       token._mint(Z_OWNER, TOKENID_3);
+
       token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
 
@@ -350,8 +354,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should revoke approval for all', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       expect(token.isApprovedForAll(Z_OWNER, Z_SPENDER)).toBe(true);
 
@@ -365,15 +370,15 @@ describe('NonFungibleToken', () => {
     });
 
     it('should set approval for all to same address multiple times', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       token.setApprovalForAll(Z_SPENDER, true);
       expect(token.isApprovedForAll(Z_OWNER, Z_SPENDER)).toBe(true);
     });
 
     it('should set approval for all after token transfer', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
       token._transfer(Z_OWNER, Z_SPENDER, TOKENID_1);
 
@@ -383,8 +388,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should set approval for all with multiple operators', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       token.setApprovalForAll(Z_OTHER, true);
       expect(token.isApprovedForAll(Z_OWNER, Z_SPENDER)).toBe(true);
@@ -392,9 +398,10 @@ describe('NonFungibleToken', () => {
     });
 
     it('should set approval for all with very long token IDs', () => {
-      token.setCaller(OWNER);
       const longTokenId = BigInt('18446744073709551615');
       token._mint(Z_OWNER, longTokenId);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       expect(token.isApprovedForAll(Z_OWNER, Z_SPENDER)).toBe(true);
     });
@@ -406,7 +413,6 @@ describe('NonFungibleToken', () => {
     });
 
     it('should return true if approval set', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
 
       token.setCaller(OWNER);
@@ -477,9 +483,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should allow transfer to same address', () => {
-      token.setCaller(OWNER);
       token._approve(Z_SPENDER, TOKENID_1, Z_OWNER);
       token._setApprovalForAll(Z_OWNER, Z_SPENDER, true);
+      token.setCaller(OWNER);
 
       expect(() => {
         token.transferFrom(Z_OWNER, Z_OWNER, TOKENID_1);
@@ -513,10 +519,10 @@ describe('NonFungibleToken', () => {
     });
 
     it('should transfer multiple tokens in sequence', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_2);
       token._mint(Z_OWNER, TOKENID_3);
 
+      token.setCaller(OWNER);
       token.approve(Z_SPENDER, TOKENID_1);
       token.approve(Z_SPENDER, TOKENID_2);
       token.approve(Z_SPENDER, TOKENID_3);
@@ -532,9 +538,10 @@ describe('NonFungibleToken', () => {
     });
 
     it('should transfer with very long token IDs', () => {
-      token.setCaller(OWNER);
       const longTokenId = BigInt('18446744073709551615');
       token._mint(Z_OWNER, longTokenId);
+
+      token.setCaller(OWNER);
       token.approve(Z_SPENDER, longTokenId);
 
       token.setCaller(SPENDER);
@@ -601,8 +608,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should approve if auth is approved for all', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       token._approve(Z_SPENDER, TOKENID_1, Z_SPENDER);
       expect(token.getApproved(TOKENID_1)).toEqual(Z_SPENDER);
@@ -638,6 +646,7 @@ describe('NonFungibleToken', () => {
 
     it('should not throw if approved', () => {
       token._mint(Z_OWNER, TOKENID_1);
+
       token.setCaller(OWNER);
       token.approve(Z_SPENDER, TOKENID_1);
       token._checkAuthorized(Z_OWNER, Z_SPENDER, TOKENID_1);
@@ -645,6 +654,7 @@ describe('NonFungibleToken', () => {
 
     it('should not throw if approvedForAll', () => {
       token._mint(Z_OWNER, TOKENID_1);
+
       token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       token._checkAuthorized(Z_OWNER, Z_SPENDER, TOKENID_1);
@@ -711,8 +721,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should revoke operator approval', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.setApprovalForAll(Z_SPENDER, true);
       expect(token.isApprovedForAll(Z_OWNER, Z_SPENDER)).toBe(true);
 
@@ -884,8 +895,9 @@ describe('NonFungibleToken', () => {
     });
 
     it('should revoke approval after _transfer', () => {
-      token.setCaller(OWNER);
       token._mint(Z_OWNER, TOKENID_1);
+
+      token.setCaller(OWNER);
       token.approve(Z_SPENDER, TOKENID_1);
       token._transfer(Z_OWNER, Z_OTHER, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_KEY);
