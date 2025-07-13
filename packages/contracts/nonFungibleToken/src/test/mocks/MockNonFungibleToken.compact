@@ -1,7 +1,6 @@
 pragma language_version >= 0.15.0;
 
 import CompactStandardLibrary;
-
 import "../../NonFungibleToken" prefix NonFungibleToken_;
 
 /**
