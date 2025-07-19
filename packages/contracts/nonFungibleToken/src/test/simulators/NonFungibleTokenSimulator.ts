@@ -167,7 +167,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @description Retrieves the current public ledger state of the contract.
    * @returns The ledger state as defined by the contract.
    */
-  public getCurrentPublicState(): Ledger {
+  public getPublicState(): Ledger {
     return ledger(this.circuitContext.transactionContext.state);
   }
 

@@ -25,19 +25,19 @@ export interface IContractSimulator<P, L> {
    *
    * @returns The current ledger state of type L.
    */
-  getCurrentPublicState(): L;
+  getPublicState(): L;
 
   /**
    * Returns the current private contract state.
    *
    * @returns The current private state of type P.
    */
-  getCurrentPrivateState(): P;
+  getPrivateState(): P;
 
   /**
    * Returns the original contract state.
    *
    * @returns The current contract state.
    */
-  getCurrentContractState(): ContractState;
+  getContractState(): ContractState;
 }
