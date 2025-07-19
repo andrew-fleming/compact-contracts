@@ -34,14 +34,14 @@ export abstract class AbstractContractSimulator<P, L>
    *
    * @returns The current public ledger state.
    */
-  abstract getCurrentPublicState(): L;
+  abstract getPublicState(): L;
 
   /**
    * Retrieves the current private state from the circuit context.
    *
    * @returns The current private state of the contract.
    */
-  public getCurrentPrivateState(): P {
+  public getPrivateState(): P {
     return this.circuitContext.currentPrivateState;
   }
 
@@ -50,7 +50,7 @@ export abstract class AbstractContractSimulator<P, L>
    *
    * @returns The original contract state.
    */
-  public getCurrentContractState(): ContractState {
+  public getContractState(): ContractState {
     return this.circuitContext.originalState;
   }
 
