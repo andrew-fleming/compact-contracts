@@ -100,10 +100,9 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     NonFungibleTokenPrivateState
   > {
     if (!this._pureCircuitProxy) {
-      this._pureCircuitProxy = this.createPureCircuitProxy(
-        this.contract.circuits,
-        () => this.circuitContext,
-      );
+      this._pureCircuitProxy = this.createPureCircuitProxy<
+        MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits']
+      >(this.contract.circuits, () => this.circuitContext);
     }
     return this._pureCircuitProxy;
   }
@@ -122,7 +121,9 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     NonFungibleTokenPrivateState
   > {
     if (!this._impureCircuitProxy) {
-      this._impureCircuitProxy = this.createImpureCircuitProxy(
+      this._impureCircuitProxy = this.createImpureCircuitProxy<
+        MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits']
+      >(
         this.contract.impureCircuits,
         () => this.getCallerContext(),
         (ctx: any) => {
