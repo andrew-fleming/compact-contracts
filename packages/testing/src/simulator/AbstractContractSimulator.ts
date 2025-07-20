@@ -17,7 +17,7 @@ export type ExtractPureCircuits<TContract> = TContract extends {
   impureCircuits: infer TImpureCircuits;
 }
   ? Omit<TCircuits, keyof TImpureCircuits>
-  : never; 
+  : never;
 
 /**
  * Extracts impure circuits from a contract type.
