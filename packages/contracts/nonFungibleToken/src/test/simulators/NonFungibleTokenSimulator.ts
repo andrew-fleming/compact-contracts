@@ -14,6 +14,8 @@ import type {
 import {
   AbstractContractSimulator,
   type ContextlessCircuits,
+  type ExtractImpureCircuits,
+  type ExtractPureCircuits,
 } from '@openzeppelin-compact/testing';
 import {
   type Ledger,
@@ -35,12 +37,12 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
   private callerOverride: CoinPublicKey | null = null;
 
   private _pureCircuitProxy?: ContextlessCircuits<
-    MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits'],
+    ExtractPureCircuits<MockNonFungibleToken<NonFungibleTokenPrivateState>>,
     NonFungibleTokenPrivateState
   >;
 
   private _impureCircuitProxy?: ContextlessCircuits<
-    MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits'],
+    ExtractImpureCircuits<MockNonFungibleToken<NonFungibleTokenPrivateState>>,
     NonFungibleTokenPrivateState
   >;
 
@@ -96,7 +98,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @returns A proxy object exposing pure circuit functions without requiring explicit context.
    */
   protected get pureCircuit(): ContextlessCircuits<
-    MockNonFungibleToken<NonFungibleTokenPrivateState>['circuits'],
+    ExtractPureCircuits<MockNonFungibleToken<NonFungibleTokenPrivateState>>,
     NonFungibleTokenPrivateState
   > {
     if (!this._pureCircuitProxy) {
@@ -117,7 +119,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @returns A proxy object exposing impure circuit functions without requiring explicit context management.
    */
   protected get impureCircuit(): ContextlessCircuits<
-    MockNonFungibleToken<NonFungibleTokenPrivateState>['impureCircuits'],
+    ExtractImpureCircuits<MockNonFungibleToken<NonFungibleTokenPrivateState>>,
     NonFungibleTokenPrivateState
   > {
     if (!this._impureCircuitProxy) {
