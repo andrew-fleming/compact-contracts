@@ -1,5 +1,9 @@
 // biome-ignore lint/performance/noBarrelFile: Centralized exports are intentional; package is small and used internally
-export { AbstractContractSimulator } from './simulator/AbstractContractSimulator.js';
+export {
+  AbstractContractSimulator,
+  type ExtractImpureCircuits,
+  type ExtractPureCircuits,
+} from './simulator/AbstractContractSimulator.js';
 export type { ContextlessCircuits } from './simulator/CircuitUtils.js';
 
 export {
