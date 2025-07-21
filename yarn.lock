@@ -402,9 +402,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@openzeppelin-compact/archive@workspace:packages/contracts/archive":
+"@openzeppelin-compact/archive@workspace:contracts/archive":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/archive@workspace:packages/contracts/archive"
+  resolution: "@openzeppelin-compact/archive@workspace:contracts/archive"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
     "@types/node": "npm:22.14.0"
@@ -445,9 +445,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/fungible-token@workspace:packages/contracts/fungibleToken":
+"@openzeppelin-compact/fungible-token@workspace:contracts/fungibleToken":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/fungible-token@workspace:packages/contracts/fungibleToken"
+  resolution: "@openzeppelin-compact/fungible-token@workspace:contracts/fungibleToken"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
     "@types/node": "npm:22.14.0"
@@ -457,9 +457,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/multi-token@workspace:packages/contracts/multiToken":
+"@openzeppelin-compact/multi-token@workspace:contracts/multiToken":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/multi-token@workspace:packages/contracts/multiToken"
+  resolution: "@openzeppelin-compact/multi-token@workspace:contracts/multiToken"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
     "@types/node": "npm:22.14.0"
@@ -469,9 +469,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/non-fungible-token@workspace:packages/contracts/nonFungibleToken":
+"@openzeppelin-compact/non-fungible-token@workspace:contracts/nonFungibleToken":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/non-fungible-token@workspace:packages/contracts/nonFungibleToken"
+  resolution: "@openzeppelin-compact/non-fungible-token@workspace:contracts/nonFungibleToken"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
     "@openzeppelin-compact/compact-std": "workspace:^"
@@ -496,9 +496,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/utils@workspace:packages/contracts/utils":
+"@openzeppelin-compact/utils@workspace:contracts/utils":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/utils@workspace:packages/contracts/utils"
+  resolution: "@openzeppelin-compact/utils@workspace:contracts/utils"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
     "@types/node": "npm:22.14.0"

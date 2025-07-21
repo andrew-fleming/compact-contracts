@@ -5,6 +5,7 @@
   "packageManager": "yarn@4.1.0",
   "workspaces": [
     "docs/",
+    "contracts/*",
     "packages/*",
     "packages/contracts/*"
   ],
