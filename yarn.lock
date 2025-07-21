@@ -483,12 +483,11 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/testing@workspace:^, @openzeppelin-compact/testing@workspace:packages/testing":
+"@openzeppelin-compact/ownable@workspace:contracts/ownable":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/testing@workspace:packages/testing"
+  resolution: "@openzeppelin-compact/ownable@workspace:contracts/ownable"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
-    "@openzeppelin-compact/compact-std": "workspace:^"
     "@types/node": "npm:22.14.0"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.2.2"
@@ -496,11 +495,12 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@openzeppelin-compact/ownable@workspace:contracts/ownable":
+"@openzeppelin-compact/testing@workspace:^, @openzeppelin-compact/testing@workspace:packages/testing":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/ownable@workspace:contracts/ownable"
+  resolution: "@openzeppelin-compact/testing@workspace:packages/testing"
   dependencies:
     "@openzeppelin-compact/compact": "workspace:^"
+    "@openzeppelin-compact/compact-std": "workspace:^"
     "@types/node": "npm:22.14.0"
     ts-node: "npm:^10.9.2"
     typescript: "npm:^5.2.2"
