@@ -237,7 +237,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    *
    * @param to The account receiving the approval
    * @param tokenId The token `to` may be permitted to transfer
-   * @return None.
    */
   public approve(
     to: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -267,7 +266,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    *
    * @param operator An operator to manage the caller's tokens
    * @param approved A boolean determining if `operator` may manage all tokens of the caller
-   * @return None.
    */
   public setApprovalForAll(
     operator: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -303,7 +301,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} from - The source account from which the token is being transfered
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} to - The target account to transfer token to
    * @param {TokenId} tokenId - The token being transfered
-   * @return {[]} - None.
    */
   public transferFrom(
     from: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -349,7 +346,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param to The target account to approve
    * @param tokenId The token to approve
    * @param auth An account authorized to operate on all tokens held by the owner the token
-   * @return None.
    */
   public _approve(
     to: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -371,7 +367,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param owner Owner of the token
    * @param spender Account operating on `tokenId`
    * @param tokenId The token to spend
-   * @return None.
    */
   public _checkAuthorized(
     owner: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -423,7 +418,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param owner Owner of a token
    * @param operator The account to approve
    * @param approved A boolean determining if `operator` may operate on all of `owner` tokens
-   * @return None.
    */
   public _setApprovalForAll(
     owner: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -443,7 +437,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    *
    * @param to The account receiving `tokenId`
    * @param tokenId The token to transfer
-   * @return None.
    */
   public _mint(
     to: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -462,7 +455,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * - `tokenId` must exist.
    *
    * @param tokenId The token to burn
-   * @return None.
    */
   public _burn(tokenId: bigint) {
     return this.circuits.impure._burn(tokenId);
@@ -480,7 +472,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param from The source account of the token transfer
    * @param to The target account of the token transfer
    * @param tokenId The token to transfer
-   * @return None.
    */
   public _transfer(
     from: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -498,7 +489,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    *
    * @param tokenId The identifier of the token.
    * @param tokenURI The URI of `tokenId`.
-   * @return None
    */
   public _setTokenURI(tokenId: bigint, tokenURI: string) {
     return this.circuits.impure._setTokenURI(tokenId, tokenURI);
@@ -521,7 +511,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} from - The source account from which the token is being transfered
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} to - The target account to transfer token to
    * @param {TokenId} tokenId - The token being transfered
-   * @return {[]} - None.
    */
   public _unsafeTransferFrom(
     from: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -548,7 +537,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} from - The source account of the token transfer
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} to - The target account of the token transfer
    * @param {TokenId} tokenId - The token to transfer
-   * @return {[]} - None.
    */
   public _unsafeTransfer(
     from: Either<ZswapCoinPublicKey, ContractAddress>,
@@ -572,7 +560,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
    *
    * @param {Either<ZswapCoinPublicKey, ContractAddress>} to - The account receiving `tokenId`
    * @param {TokenId} tokenId - The token to transfer
-   * @return {[]} - None.
    */
   public _unsafeMint(
     to: Either<ZswapCoinPublicKey, ContractAddress>,
