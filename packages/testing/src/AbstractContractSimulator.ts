@@ -2,35 +2,7 @@ import type {
   CircuitContext,
   ContractState,
 } from '@midnight-ntwrk/compact-runtime';
-import type { ContextlessCircuits } from './CircuitUtils.js';
-import type { IContractSimulator } from './IContractSimulator.js';
-
-/**
- * Extracts pure circuits from a contract type.
- *
- * Pure circuits are those in `circuits` but not in `impureCircuits`.
- *
- * @template TContract - Contract type with `circuits` and `impureCircuits`.
- */
-export type ExtractPureCircuits<TContract> = TContract extends {
-  circuits: infer TCircuits;
-  impureCircuits: infer TImpureCircuits;
-}
-  ? Omit<TCircuits, keyof TImpureCircuits>
-  : never;
-
-/**
- * Extracts impure circuits from a contract type.
- *
- * Impure circuits are those in `impureCircuits`.
- *
- * @template TContract - Contract type with `circuits` and `impureCircuits`.
- */
-export type ExtractImpureCircuits<TContract> = TContract extends {
-  impureCircuits: infer TImpureCircuits;
-}
-  ? TImpureCircuits
-  : never;
+import type { ContextlessCircuits, IContractSimulator } from './types.js';
 
 /**
  * Abstract base class for simulating contract behavior.
