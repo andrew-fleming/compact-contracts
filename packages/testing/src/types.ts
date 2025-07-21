@@ -70,8 +70,20 @@ export type ExtractImpureCircuits<TContract> = TContract extends {
   : never;
 
 /**
- * Utility type that removes the context argument from circuits,
- * returning a version callable without the CircuitContext.
+ * Transforms a collection of circuit functions by removing the explicit `CircuitContext` parameter,
+ * producing a version of each function that can be called without passing the context explicitly.
+ *
+ * Each original circuit function is expected to have the signature:
+ * `(ctx: CircuitContext<TState>, ...args) => { result: R; context: CircuitContext<TState> }`
+ * or a compatible shape.
+ *
+ * The transformed type maps each key `K` of the input `Circuits` type to a new function
+ * that takes the same parameters as the original, *except* the first `CircuitContext<TState>` argument,
+ * and returns the `result` part `R` directly.
+ *
+ * @template Circuits - An object type whose values are circuit functions accepting a `CircuitContext<TState>`
+ * and returning an object with `result` and optionally `context`.
+ * @template TState - The type representing the private or contract state passed inside `CircuitContext`.
  */
 export type ContextlessCircuits<Circuits, TState> = {
   [K in keyof Circuits]: Circuits[K] extends (
