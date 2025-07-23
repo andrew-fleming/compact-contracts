@@ -1,9 +1,9 @@
 import {
-  ZERO_ADDRESS,
-  ZERO_KEY,
   createEitherTestContractAddress,
   createEitherTestUser,
   toHexPadded,
+  ZERO_ADDRESS,
+  ZERO_KEY,
 } from '@openzeppelin-compact/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { NonFungibleTokenSimulator } from './simulators/NonFungibleTokenSimulator.js';

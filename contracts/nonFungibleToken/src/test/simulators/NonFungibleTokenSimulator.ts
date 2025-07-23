@@ -1,9 +1,9 @@
 import {
   type CircuitContext,
   type CoinPublicKey,
-  QueryContext,
   constructorContext,
   emptyZswapLocalState,
+  QueryContext,
 } from '@midnight-ntwrk/compact-runtime';
 import { sampleContractAddress } from '@midnight-ntwrk/zswap';
 import type {
@@ -19,8 +19,8 @@ import {
 } from '@openzeppelin-compact/testing';
 import {
   type Ledger,
-  Contract as MockNonFungibleToken,
   ledger,
+  Contract as MockNonFungibleToken,
 } from '../../artifacts/MockNonFungibleToken/contract/index.cjs';
 import {
   type NonFungibleTokenPrivateState,
