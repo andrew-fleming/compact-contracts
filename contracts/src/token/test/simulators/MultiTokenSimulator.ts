@@ -14,7 +14,7 @@ import {
   ledger,
   Contract as MockMultiToken,
   type ZswapCoinPublicKey,
-} from '../../artifacts/MockMultiToken/contract/index.cjs'; // Combined imports
+} from '../../../artifacts/MockMultiToken/contract/index.cjs'; // Combined imports
 import {
   type MultiTokenPrivateState,
   MultiTokenWitnesses,
