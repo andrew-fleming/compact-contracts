@@ -1,6 +1,5 @@
 {
   "name": "@openzeppelin-compact/contracts",
-  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -15,7 +14,7 @@
   },
   "scripts": {
     "compact": "compact-compiler",
-    "build": "compact-builder && tsc",
+    "build": "compact-builder && ts-node scripts/prepare-dist.ts",
     "test": "vitest run",
     "types": "tsc -p tsconfig.json --noEmit",
     "clean": "git clean -fXd"

@@ -1,0 +1,20 @@
+# Ignore everything
+/*
+
+# But include dist folder
+!/dist
+!/dist/**
+
+# Ignore node_modules, scripts, tests, and configs
+/node_modules
+/scripts
+/tests
+/.vscode
+/.git
+/.turbo
+/.env
+*.log
+*.tsbuildinfo
+
+# Ignore source files (should be covered by /* but just in case)
+src/
