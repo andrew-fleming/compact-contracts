@@ -69,8 +69,29 @@ export class CompactBuilder {
         shell: '/bin/bash',
       },
       {
-        cmd: 'mkdir -p dist && find src -type f -name "*.compact" -exec cp {} dist/ \\; 2>/dev/null && rm dist/Mock*.compact 2>/dev/null || true',
-        msg: 'Copying and cleaning .compact files',
+        cmd: `
+          # Remove old dist
+          rm -rf dist
+
+          # Copy all .compact files preserving directory structure, excluding mocks
+          find src -type f -name "*.compact" ! -name "Mock*.compact" -exec sh -c '
+            for file; do
+              dest="dist/$(dirname "$file" | sed "s|^src/||")"
+              mkdir -p "$dest"
+              cp "$file" "$dest/"
+            done
+          ' sh {} +
+
+          # Copy witnesses directories alongside .compact files
+          find src -type d -name "witnesses" -exec sh -c '
+            for dir; do
+              dest="dist/$(dirname "$dir" | sed "s|^src/||")/witnesses"
+              mkdir -p "$dest"
+              cp -Rf "$dir/"* "$dest/"
+            done
+          ' sh {} +
+        `,
+        msg: 'Copying .compact files with folder structure',
         shell: '/bin/bash',
       },
     ];
