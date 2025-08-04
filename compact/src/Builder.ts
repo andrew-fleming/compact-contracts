@@ -69,11 +69,12 @@ export class CompactBuilder {
         shell: '/bin/bash',
       },
       {
+        cmd: 'rm -rf dist',
+        msg: 'Removing old dist directory',
+        shell: '/bin/bash',
+      },
+      {
         cmd: `
-          # Remove old dist
-          rm -rf dist
-
-          # Copy all .compact files preserving directory structure, excluding mocks
           find src -type f -name "*.compact" ! -name "Mock*.compact" -exec sh -c '
             for file; do
               dest="dist/$(dirname "$file" | sed "s|^src/||")"
@@ -81,8 +82,12 @@ export class CompactBuilder {
               cp "$file" "$dest/"
             done
           ' sh {} +
-
-          # Copy witnesses directories alongside .compact files
+        `,
+        msg: 'Copying .compact files with directory structure',
+        shell: '/bin/bash',
+      },
+      {
+        cmd: `
           find src -type d -name "witnesses" -exec sh -c '
             for dir; do
               dest="dist/$(dirname "$dir" | sed "s|^src/||")/witnesses"
@@ -91,7 +96,7 @@ export class CompactBuilder {
             done
           ' sh {} +
         `,
-        msg: 'Copying .compact files with folder structure',
+        msg: 'Copying witnesses directories',
         shell: '/bin/bash',
       },
     ];
