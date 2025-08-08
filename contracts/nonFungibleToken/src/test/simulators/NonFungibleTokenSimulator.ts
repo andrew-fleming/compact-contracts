@@ -1,9 +1,7 @@
 import {
   type CircuitContext,
   type CoinPublicKey,
-  constructorContext,
   emptyZswapLocalState,
-  QueryContext,
 } from '@midnight-ntwrk/compact-runtime';
 import { sampleContractAddress } from '@midnight-ntwrk/zswap';
 import type {
@@ -13,6 +11,7 @@ import type {
 } from '@openzeppelin-compact/compact-std';
 import {
   AbstractContractSimulator,
+  BaseContractSimulator,
   type ContextlessCircuits,
   type ExtractImpureCircuits,
   type ExtractPureCircuits,
@@ -33,7 +32,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
 > {
   readonly contract: MockNonFungibleToken<NonFungibleTokenPrivateState>;
   readonly contractAddress: string;
-  circuitContext: CircuitContext<NonFungibleTokenPrivateState>;
+  private stateManager: BaseContractSimulator<NonFungibleTokenPrivateState>;
   private callerOverride: CoinPublicKey | null = null;
 
   private _pureCircuitProxy?: ContextlessCircuits<
@@ -51,26 +50,32 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
     this.contract = new MockNonFungibleToken<NonFungibleTokenPrivateState>(
       NonFungibleTokenWitnesses,
     );
-    const {
-      currentPrivateState,
-      currentContractState,
-      currentZswapLocalState,
-    } = this.contract.initialState(
-      constructorContext({}, '0'.repeat(64)),
-      name,
-      symbol,
-      init,
+    // Setup initial state
+    const privateState: NonFungibleTokenPrivateState = {};
+    const coinPK = '0'.repeat(64);
+    const address = sampleContractAddress();
+    const constructorArgs = [name, symbol, init];
+
+    this.stateManager = new BaseContractSimulator(
+      this.contract,
+      privateState,
+      coinPK,
+      address,
+      ...constructorArgs,
     );
-    this.circuitContext = {
-      currentPrivateState,
-      currentZswapLocalState,
-      originalState: currentContractState,
-      transactionContext: new QueryContext(
-        currentContractState.data,
-        sampleContractAddress(),
-      ),
-    };
     this.contractAddress = this.circuitContext.transactionContext.address;
+  }
+
+  get circuitContext() {
+    return this.stateManager.getContext();
+  }
+
+  set circuitContext(ctx) {
+    this.stateManager.setContext(ctx);
+  }
+
+  getPublicState(): Ledger {
+    return ledger(this.circuitContext.transactionContext.state);
   }
 
   /**
@@ -164,14 +169,6 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
       pure: this.pureCircuit,
       impure: this.impureCircuit,
     };
-  }
-
-  /**
-   * @description Retrieves the current public ledger state of the contract.
-   * @returns The ledger state as defined by the contract.
-   */
-  public getPublicState(): Ledger {
-    return ledger(this.circuitContext.transactionContext.state);
   }
 
   /**
