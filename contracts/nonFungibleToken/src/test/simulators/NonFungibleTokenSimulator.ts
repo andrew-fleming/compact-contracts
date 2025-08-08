@@ -462,7 +462,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
 
   /**
    * @description Transfers `tokenId` from `from` to `to`.
-   *  As opposed to {transferFrom}, this imposes no restrictions on own_public_key().
+   *  As opposed to {transferFrom}, this imposes no restrictions on ownPublicKey().
    *
    * Requirements:
    *
@@ -522,7 +522,7 @@ export class NonFungibleTokenSimulator extends AbstractContractSimulator<
 
   /**
    * @description Transfers `tokenId` from `from` to `to`.
-   * As opposed to {_unsafeTransferFrom}, this imposes no restrictions on own_public_key().
+   * As opposed to {_unsafeTransferFrom}, this imposes no restrictions on ownPublicKey().
    * It does NOT check if the recipient is a ContractAddress.
    *
    * @notice External smart contracts cannot call the token contract at this time, so any transfers to external contracts
