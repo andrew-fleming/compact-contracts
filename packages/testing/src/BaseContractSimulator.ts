@@ -7,12 +7,48 @@ import {
 } from '@midnight-ntwrk/compact-runtime';
 
 /**
- * Responsible for initializing and managing contract state and context.
- * Uses composition so it can be embedded inside other simulator classes.
+ * A composable utility class for managing Compact contract state in simulations.
+ *
+ * This class handles initialization and lifecycle management of the `CircuitContext`,
+ * which includes private state, public (ledger) state, zswap local state, and transaction context.
+ *
+ * It is designed to be embedded compositionally inside contract simulator classes
+ * (e.g., `FooSimulator`), enabling better separation of concerns and easier test setup.
+ *
+ * @template P - The type of the contract's private state.
+ *
+ * ### Responsibilities
+ * - Initializes the contract state using the compiled contract's `.initialState` method.
+ * - Stores and exposes the `CircuitContext` via getters/setters.
+ * - Supports injection of private state and contract constructor arguments.
+ * - Allows the owning simulator to update private state manually during testing.
+ *
+ * ### Example Usage:
+ * ```ts
+ * const contract = new MyContract(witnesses);
+ * const manager = new BaseContractSimulator(
+ *   contract,
+ *   { foo: 1n },                  // initial private state
+ *   '0'.repeat(64),              // coin public key
+ *   undefined,                   // optional contract address
+ *   arg1, arg2                   // additional constructor args
+ * );
+ *
+ * const context = manager.getContext();
+ * ```
  */
 export class BaseContractSimulator<P> {
   private context: CircuitContext<P>;
 
+  /**
+   * Creates an instance of `BaseContractSimulator`.
+   *
+   * @param contract - A compiled Compact contract instance (from artifacts), exposing `initialState()`.
+   * @param privateState - The initial private state to inject into the contract.
+   * @param coinPK - The caller's coin public key (used to create the constructor context and as default address).
+   * @param contractAddress - Optional override for the contract's address. Defaults to `coinPK` if not provided.
+   * @param contractArgs - Additional arguments to pass to the contract constructor (e.g., circuit params).
+   */
   constructor(
     contract: {
       initialState: (
@@ -48,14 +84,30 @@ export class BaseContractSimulator<P> {
     };
   }
 
+  /**
+   * Retrieves the current `CircuitContext`, including private state,
+   * zswap state, contract state, and transaction context.
+   */
   getContext(): CircuitContext<P> {
     return this.context;
   }
 
+  /**
+   * Replaces the internal `CircuitContext` with a new one.
+   *
+   * Useful when circuits mutate state and return an updated context.
+   */
   setContext(newContext: CircuitContext<P>) {
     this.context = newContext;
   }
 
+  /**
+   * Updates just the private state inside the existing context.
+   *
+   * This is a lightweight way to simulate local state changes without reconstructing the full context.
+   *
+   * @param newPrivateState - The new private state object to apply.
+   */
   updatePrivateState(newPrivateState: P) {
     this.context.currentPrivateState = newPrivateState;
   }
