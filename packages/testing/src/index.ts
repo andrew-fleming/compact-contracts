@@ -7,6 +7,7 @@ export {
   ZERO_ADDRESS,
   ZERO_KEY,
 } from './address';
+export { BaseContractSimulator } from './BaseContractSimulator.js';
 export type {
   ContextlessCircuits,
   ExtractImpureCircuits,
