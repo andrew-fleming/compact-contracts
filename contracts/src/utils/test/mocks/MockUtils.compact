@@ -25,6 +25,22 @@ export pure circuit isContractAddress(keyOrAddress: Either<ZswapCoinPublicKey, C
   return Utils_isContractAddress(keyOrAddress);
 }
 
+// Find a better way to test different combinations
+// other than creating a circuit for each pair
+export pure circuit wrapAsEitherPkOrAddressLeft(
+  pk: ZswapCoinPublicKey,
+): Either<ZswapCoinPublicKey, ContractAddress> {
+  return Utils_wrapAsEitherLeft<ZswapCoinPublicKey, ContractAddress>(pk);
+}
+
+// Find a better way to test different combinations
+// other than creating a circuit for each pair
+export pure circuit wrapAsEitherPkOrAddressRight(
+  address: ContractAddress,
+): Either<ZswapCoinPublicKey, ContractAddress> {
+  return Utils_wrapAsEitherRight<ZswapCoinPublicKey, ContractAddress>(address);
+}
+
 export pure circuit emptyString(): Opaque<"string"> {
   return Utils_emptyString();
 }
