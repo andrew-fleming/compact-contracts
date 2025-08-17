@@ -45,9 +45,17 @@ async function runCompiler(): Promise<void> {
           targetDir = args[i + 1];
           i++; // Skip the next argument (directory name)
         } else {
-          spinner.fail(chalk.red('[COMPILE] Error: --dir flag requires a directory name'));
-          console.log(chalk.yellow('Usage: compact-compiler --dir <directory> [other-flags]'));
-          console.log(chalk.yellow('Example: compact-compiler --dir security --skip-zk'));
+          spinner.fail(
+            chalk.red('[COMPILE] Error: --dir flag requires a directory name'),
+          );
+          console.log(
+            chalk.yellow(
+              'Usage: compact-compiler --dir <directory> [other-flags]',
+            ),
+          );
+          console.log(
+            chalk.yellow('Example: compact-compiler --dir security --skip-zk'),
+          );
           process.exit(1);
         }
       } else {

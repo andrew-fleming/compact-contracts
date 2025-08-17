@@ -99,7 +99,11 @@ export class CompactCompiler {
     // Validate target directory exists
     if (this.targetDir && !existsSync(searchDir)) {
       const spinner = ora();
-      spinner.fail(chalk.red(`[COMPILE] Error: Target directory ${searchDir} does not exist.`));
+      spinner.fail(
+        chalk.red(
+          `[COMPILE] Error: Target directory ${searchDir} does not exist.`,
+        ),
+      );
       throw new Error(`Target directory ${searchDir} does not exist`);
     }
 
@@ -108,7 +112,9 @@ export class CompactCompiler {
     const spinner = ora();
     if (compactFiles.length === 0) {
       const searchLocation = this.targetDir ? `${this.targetDir}/` : '';
-      spinner.warn(chalk.yellow(`[COMPILE] No .compact files found in ${searchLocation}.`));
+      spinner.warn(
+        chalk.yellow(`[COMPILE] No .compact files found in ${searchLocation}.`),
+      );
       return;
     }
 
