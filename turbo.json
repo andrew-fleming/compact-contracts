@@ -50,9 +50,16 @@
       "outputs": ["artifacts/**"]
     },
     "test": {
-      "dependsOn": ["^build", "compact"],
+      "dependsOn": ["^build"],
+      "env": ["COMPACT_HOME"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.compact",
+        "vitest.config.ts",
+        "package.json"
+      ],
       "outputs": [],
-      "cache": false
+      "cache": true
     },
     "build": {
       "dependsOn": ["^build"],

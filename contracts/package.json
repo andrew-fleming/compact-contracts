@@ -21,7 +21,7 @@
     "compact:token": "compact-compiler --dir token",
     "compact:utils": "compact-compiler --dir utils",
     "build": "compact-builder && tsc",
-    "test": "vitest run",
+    "test": "compact-compiler --skip-zk && vitest run",
     "types": "tsc -p tsconfig.json --noEmit",
     "clean": "git clean -fXd"
   },
