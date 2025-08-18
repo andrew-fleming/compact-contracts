@@ -140,34 +140,6 @@ export class UtilsSimulator
   }
 
   /**
-   * @description Returns `pk` wrapped in an `Either<ZswapCoinPublicKey, ContractAddress>` type.
-   * @param pk The target value to wrap.
-   * @returns `Either<ZswapCoinPublicKey, ContractAddress>` with `pk` in the left position.
-   */
-  public wrapAsEitherPkOrAddressLeft(
-    pk: ZswapCoinPublicKey,
-  ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.circuits.wrapAsEitherPkOrAddressLeft(
-      this.circuitContext,
-      pk,
-    ).result;
-  }
-
-  /**
-   * @description Returns `address` wrapped in an `Either<ZswapCoinPublicKey, ContractAddress>` type.
-   * @param pk The target value to wrap.
-   * @returns `Either<ZswapCoinPublicKey, ContractAddress>` with `address` in the right position.
-   */
-  public wrapAsEitherPkOrAddressRight(
-    address: ContractAddress,
-  ): Either<ZswapCoinPublicKey, ContractAddress> {
-    return this.contract.circuits.wrapAsEitherPkOrAddressRight(
-      this.circuitContext,
-      address,
-    ).result;
-  }
-
-  /**
    * @description  A helper function that returns the empty string: ""
    * @returns The empty string: ""
    */

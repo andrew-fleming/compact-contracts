@@ -1,9 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type {
-  ContractAddress,
-  Either,
-  ZswapCoinPublicKey,
-} from './../../../artifacts/MockUtils/contract/index.cjs'; // Combined imports
 import { UtilsSimulator } from './simulators/UtilsSimulator.js';
 import * as contractUtils from './utils/address.js';
 
@@ -89,30 +84,6 @@ describe('Utils', () => {
 
     it('should return false ZswapCoinPublicKey', () => {
       expect(contract.isContractAddress(Z_SOME_KEY)).toBe(false);
-    });
-  });
-
-  describe('wrapAsEitherLeft', () => {
-    it('should wrap pk as left', () => {
-      const pk = contractUtils.encodeToPK('PK');
-      const exp: Either<ZswapCoinPublicKey, ContractAddress> = {
-        is_left: true,
-        left: pk,
-        right: { bytes: new Uint8Array(32).fill(0) },
-      };
-      expect(contract.wrapAsEitherPkOrAddressLeft(pk)).toEqual(exp);
-    });
-  });
-
-  describe('wrapAsEitherRight', () => {
-    it('should wrap address as right', () => {
-      const address = contractUtils.encodeToPK('ADDRESS');
-      const exp: Either<ZswapCoinPublicKey, ContractAddress> = {
-        is_left: false,
-        left: { bytes: new Uint8Array(32).fill(0) },
-        right: address,
-      };
-      expect(contract.wrapAsEitherPkOrAddressRight(address)).toEqual(exp);
     });
   });
 

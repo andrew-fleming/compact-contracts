@@ -67,52 +67,6 @@ module Utils {
   }
 
   /**
-   * @description Wraps a value as the `L` variant of a disjoint union (`Either<L, R>`),
-   * following Compact conventions.
-   *
-   * Sets `is_left` to true, assigns the provided value to `left`, and sets `right` to `default<R>` per convention.
-   *
-   * This helper is useful when you already have a value of type `L`, but the circuit interface expects an `Either<L, R>`.
-   * It avoids manually constructing the full struct and ensures consistent formatting.
-   *
-   * @template L - Type of the Left variant.
-   * @template R - Type of the Right variant.
-   *
-   * @param {L} left - The value to wrap as the Left variant.
-   * @returns {Either<L, R>} A disjoint union (`Either`) with the value in the `L` variant.
-   */
-  export pure circuit wrapAsEitherLeft<L, R>(left: L): Either<L, R> {
-    return Either<L, R> {
-      is_left: true,
-      left: left,
-      right: default<R>
-    };
-  }
-
-  /**
-   * @description Wraps a value as the `R` variant of a disjoint union (`Either<L, R>`),
-   * following Compact conventions.
-   *
-   * Sets `is_left` to false, assigns the provided value to `right`, and sets `left` to `default<L>` per convention.
-   *
-   * This helper is useful when you already have a value of type `R`, but the circuit interface expects an `Either<L, R>`.
-   * It avoids manually constructing the full struct and ensures consistent formatting.
-   *
-   * @template L - Type of the Left variant.
-   * @template R - Type of the Right variant.
-   *
-   * @param {R} right - The value to wrap as the `R` variant.
-   * @returns {Either<L, R>} A disjoint union (`Either`) with the value in the `R` variant.
-   */
-  export pure circuit wrapAsEitherRight<L, R>(right: R): Either<L, R> {
-    return Either<L, R> {
-      is_left: false,
-      left: default<L>,
-      right: right
-    };
-  }
-
-  /**
    * @description A helper function that returns the empty string: "".
    *
    * @return {Opaque<"string">} - The empty string: "".
