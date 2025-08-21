@@ -60,17 +60,20 @@ export class CompactBuilder {
   private readonly steps: Array<{ cmd: string; msg: string; shell?: string }> =
     [
       {
-        cmd: 'tsc --project tsconfig.build.json',
-        msg: 'Compiling TypeScript',
-      },
-      {
         cmd: 'mkdir -p dist/artifacts && cp -Rf src/artifacts/* dist/artifacts/ 2>/dev/null || true',
         msg: 'Copying artifacts',
         shell: '/bin/bash',
       },
       {
-        cmd: 'mkdir -p dist && find src -type f -name "*.compact" -exec cp {} dist/ \\; 2>/dev/null && rm dist/Mock*.compact 2>/dev/null || true',
-        msg: 'Copying and cleaning .compact files',
+        cmd: `
+          # Copy .compact files preserving directory structure
+          find src -type f -name "*.compact" | while read file; do
+            rel_path="\${file#src/}"
+            mkdir -p "dist/\$(dirname "\$rel_path")"
+            cp "\$file" "dist/\$rel_path"
+          done
+        `,
+        msg: 'Copying .compact files (preserving structure)',
         shell: '/bin/bash',
       },
     ];
