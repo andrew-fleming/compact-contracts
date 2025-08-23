@@ -1,0 +1,101 @@
+name: Publish Package on Release
+
+on:
+  release:
+    types: [published]
+
+env:
+  COMPILER_VERSION: "0.24.0"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Environment
+        uses: ./.github/actions/setup
+
+      - name: Compile contracts (with retry)
+        run: |
+          # Your retry logic - Compact is already in PATH
+          turbo compact --concurrency=1
+
+      - name: Validate version consistency
+        run: |
+          RELEASE_VERSION=${GITHUB_REF#refs/tags/v}
+          PACKAGE_VERSION=$(node -p "require('./contracts/package.json').version")
+          if [ "$RELEASE_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "❌ Version mismatch: Release $RELEASE_VERSION vs Package $PACKAGE_VERSION"
+            exit 1
+          fi
+          echo "✅ Version consistency validated: $RELEASE_VERSION"
+
+      - name: Setup npm registry
+        uses: actions/setup-node@v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Build
+        run: turbo build
+
+      - name: Pack tarball
+        id: pack
+        run: |
+          cd contracts/dist
+          TARBALL=$(npm pack | tail -1)
+          echo "tarball_name=$TARBALL" >> $GITHUB_OUTPUT
+          echo "tarball=$(pwd)/$TARBALL" >> $GITHUB_OUTPUT
+
+          # Determine dist-tag based on semver prerelease
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if [[ "$PACKAGE_VERSION" =~ -.*$ ]]; then
+            # Has prerelease suffix (anything after -)
+            if [[ "$PACKAGE_VERSION" =~ -(alpha|beta|rc) ]]; then
+              echo "tag=beta" >> $GITHUB_OUTPUT
+            else
+              echo "tag=next" >> $GITHUB_OUTPUT
+            fi
+          else
+            # Stable release
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify tarball integrity
+        run: |
+          echo "=== Verifying tarball contents ==="
+          PACKAGE_NAME=$(tar xfO "${{ steps.pack.outputs.tarball }}" package/package.json | jq -r .name)
+          PACKAGE_VERSION=$(tar xfO "${{ steps.pack.outputs.tarball }}" package/package.json | jq -r .version)
+          PRIVATE_FIELD=$(tar xfO "${{ steps.pack.outputs.tarball }}" package/package.json | jq -r '.private // "not found"')
+
+          echo "📦 Package: $PACKAGE_NAME@$PACKAGE_VERSION"
+          echo "🏷️  Tag: ${{ steps.pack.outputs.tag }}"
+          echo "🔒 Private field: $PRIVATE_FIELD"
+
+          # Ensure no private field
+          if [ "$PRIVATE_FIELD" = "true" ]; then
+            echo "❌ Tarball contains private: true - cannot publish"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        run: |
+          # Create .npmrc with auth token
+          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > .npmrc
+
+          # Publish the tarball with appropriate tag
+          npm publish "${{ steps.pack.outputs.tarball }}" --tag "${{ steps.pack.outputs.tag }}" --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Log success
+        run: |
+          PACKAGE_NAME=$(tar xfO "${{ steps.pack.outputs.tarball }}" package/package.json | jq -r .name)
+          PACKAGE_VERSION=$(tar xfO "${{ steps.pack.outputs.tarball }}" package/package.json | jq -r .version)
+          echo "✅ Successfully published $PACKAGE_NAME@$PACKAGE_VERSION to npm with tag ${{ steps.pack.outputs.tag }}"
+          echo "📦 Install with: npm install $PACKAGE_NAME@${{ steps.pack.outputs.tag }}"
