@@ -23,7 +23,6 @@ jobs:
 
       - name: Compile contracts (with retry)
         run: |
-          # Your retry logic - Compact is already in PATH
           turbo compact --concurrency=1
 
       - name: Validate version consistency
