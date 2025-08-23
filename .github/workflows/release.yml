@@ -4,9 +4,6 @@ on:
   release:
     types: [published]
 
-env:
-  COMPILER_VERSION: "0.24.0"
-
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -21,9 +18,8 @@ jobs:
       - name: Setup Environment
         uses: ./.github/actions/setup
 
-      - name: Compile contracts (with retry)
-        run: |
-          turbo compact --concurrency=1
+      - name: Build contracts
+        run: turbo build
 
       - name: Validate version consistency
         run: |
@@ -39,9 +35,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           registry-url: 'https://registry.npmjs.org'
-
-      - name: Build
-        run: turbo build
 
       - name: Pack tarball
         id: pack
