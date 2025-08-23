@@ -84,6 +84,7 @@ jobs:
           npm publish "${{ steps.pack.outputs.tarball }}" --tag "${{ steps.pack.outputs.tag }}" --access public
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
 
       - name: Log success
         run: |
