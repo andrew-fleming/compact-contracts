@@ -1,6 +1,5 @@
 {
   "name": "@openzeppelin-compact/contracts",
-  "private": true,
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
