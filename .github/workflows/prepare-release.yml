@@ -42,14 +42,20 @@ jobs:
         yarn install
         cd ..
 
-        # Escape special regex characters in version strings
-        ESCAPED_CURRENT=$(echo "$CURRENT_VERSION" | sed 's/[.[\*^$()+?{|]/\\&/g')
-        ESCAPED_NEW=$(echo "$NEW_VERSION" | sed 's/[.[\*^$()+?{|]/\\&/g')
-        find . -type f \
+        # Escape special characters for sed
+        ESCAPED_CURRENT=$(printf '%s' "$CURRENT_VERSION" | sed -e 's/[\/&]/\\&/g')
+        ESCAPED_NEW=$(printf '%s' "$NEW_VERSION" | sed -e 's/[\/&]/\\&/g')
+
+        # Replace version in contracts/src/
+        find ./contracts/src/ -type f \
+          -not -path '*/\.*' \
+          -exec sed -i "s#$ESCAPED_CURRENT#$ESCAPED_NEW#g" {} +
+
+        # Replace version in docs/, excluding package-lock.json
+        find ./docs/ -type f \
           -not -path '*/\.*' \
           -not -path './docs/package-lock.json' \
-          -not -path './RELEASING.md' \
-          -exec sed -i "s/$ESCAPED_CURRENT/$ESCAPED_NEW/g" {} + 2>/dev/null || true
+          -exec sed -i "s#$ESCAPED_CURRENT#$ESCAPED_NEW#g" {} +
 
     - name: Auto-commit changes
       uses: stefanzweifel/git-auto-commit-action@778341af668090896ca464160c2def5d1d1a3eb0 #v6.0.1
