@@ -14,7 +14,7 @@ const execAsync = promisify(exec);
  * A class to handle the build process for a project.
  * Runs CompactCompiler as a prerequisite, then executes build steps (TypeScript compilation,
  * artifact copying, etc.) with progress feedback and colored output for success and error states.
- * 
+ *
  * Creates a clean distribution structure without src/ paths for professional import experience.
  *
  * @notice `cmd` scripts discard `stderr` output and fail silently because this is
@@ -41,23 +41,24 @@ const execAsync = promisify(exec);
  */
 export class CompactBuilder {
   private readonly compilerFlags: string;
-  private readonly steps: Array<{ cmd: string; msg: string; shell?: string }> = [
-    // Step 1: Clean dist directory
-    {
-      cmd: 'rm -rf dist && mkdir -p dist',
-      msg: 'Cleaning dist directory',
-      shell: '/bin/bash',
-    },
+  private readonly steps: Array<{ cmd: string; msg: string; shell?: string }> =
+    [
+      // Step 1: Clean dist directory
+      {
+        cmd: 'rm -rf dist && mkdir -p dist',
+        msg: 'Cleaning dist directory',
+        shell: '/bin/bash',
+      },
 
-    // Step 2: TypeScript compilation (witnesses/ -> dist/witnesses/)
-    {
-      cmd: 'tsc --project tsconfig.build.json',
-      msg: 'Compiling TypeScript',
-    },
+      // Step 2: TypeScript compilation (witnesses/ -> dist/witnesses/)
+      {
+        cmd: 'tsc --project tsconfig.build.json',
+        msg: 'Compiling TypeScript',
+      },
 
-    // Step 3: Copy .compact files preserving structure (excludes Mock* files and archive/)
-    {
-      cmd: `
+      // Step 3: Copy .compact files preserving structure (excludes Mock* files and archive/)
+      {
+        cmd: `
         find src -type f -name "*.compact" ! -name "Mock*" ! -path "*/archive/*" | while read file; do
           # Remove src/ prefix from path
           rel_path="\${file#src/}"
@@ -65,21 +66,21 @@ export class CompactBuilder {
           cp "\$file" "dist/\$rel_path"
         done
       `,
-      msg: 'Copying .compact files (excluding mocks and archive)',
-      shell: '/bin/bash',
-    },
+        msg: 'Copying .compact files (excluding mocks and archive)',
+        shell: '/bin/bash',
+      },
 
-    // Step 4: Copy essential files for distribution
-    {
-      cmd: `
+      // Step 4: Copy essential files for distribution
+      {
+        cmd: `
         # Copy package.json and README
         cp package.json dist/ 2>/dev/null || true
         cp ../README.md dist/  # Go up one level to monorepo root
       `,
-      msg: 'Copying package metadata',
-      shell: '/bin/bash',
-    },
-  ];
+        msg: 'Copying package metadata',
+        shell: '/bin/bash',
+      },
+    ];
 
   /**
    * Constructs a new ProjectBuilder instance.
@@ -106,7 +107,6 @@ export class CompactBuilder {
       await this.executeStep(step, index, this.steps.length);
     }
 
-    // Log completion
     console.log(chalk.green('\n✅ Build complete!'));
   }
 
