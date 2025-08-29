@@ -1,10 +1,8 @@
 {
   "include": [
-    "src/access/witnesses/**/*.ts",
-    "src/security/witnesses/**/*.ts",
-    "src/token/witnesses/**/*.ts",
-    "src/utils/witnesses/**/*.ts",
+    "src/**/witnesses/**/*.ts"
   ],
+  "exclude": ["src/archive/"],
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",

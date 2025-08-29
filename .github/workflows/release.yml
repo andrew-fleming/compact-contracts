@@ -13,13 +13,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Environment
         uses: ./.github/actions/setup
 
       - name: Build contracts
-        run: turbo build
+        run: turbo build --filter=!'docs'
 
       - name: Validate version consistency
         run: |
