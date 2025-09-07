@@ -62,17 +62,18 @@ export class CompactCliNotFoundError extends Error {
  */
 export class CompilationError extends Error {
   public readonly file?: string;
-
+  public readonly cause?: unknown;
   /**
    * Creates a new CompilationError instance.
    *
    * @param message - Error message describing the compilation failure
    * @param file - Optional relative path to the file that failed to compile
    */
-  constructor(message: string, file?: string) {
+  constructor(message: string, file: string, cause?: unknown) {
     super(message);
-    this.file = file;
     this.name = 'CompilationError';
+    this.file = file;
+    this.cause = cause;
   }
 }
 
