@@ -301,7 +301,7 @@ export class CompactFormatter extends BaseCompactOperation {
    */
   private async checkFile(file: string): Promise<void> {
     const result = await this.formatterService.checkFormatting(file);
-    
+
     if (result.isFormatted) {
       const spinner = ora();
       spinner.succeed(chalk.green(`[FORMAT] ${file} is properly formatted`));
