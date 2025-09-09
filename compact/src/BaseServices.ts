@@ -214,7 +214,7 @@ export class SharedUIService {
    * Displays a warning when no .compact files are found.
    */
   static showNoFiles(operation: string, targetDir?: string): void {
-    const searchLocation = targetDir ? `${targetDir}/` : '';
+    const searchLocation = targetDir ? `${targetDir}/` : 'src/';
     const spinner = ora();
     spinner.warn(
       chalk.yellow(`[${operation}] No .compact files found in ${searchLocation}.`)
