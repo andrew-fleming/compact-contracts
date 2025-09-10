@@ -4,13 +4,13 @@ import { basename, join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import {
-  BaseEnvironmentValidator,
-  BaseCompactService,
+  ARTIFACTS_DIR,
   BaseCompactOperation,
+  BaseCompactService,
+  BaseEnvironmentValidator,
+  type ExecFunction,
   SharedUIService,
   SRC_DIR,
-  ARTIFACTS_DIR,
-  type ExecFunction,
 } from './BaseServices.js';
 import {
   CompilationError,
@@ -98,7 +98,7 @@ export const CompilerUIService = {
 
     const spinner = ora();
     spinner.info(
-      chalk.blue(`[COMPILE] Compact toolchain: ${toolchainVersion}`)
+      chalk.blue(`[COMPILE] Compact toolchain: ${toolchainVersion}`),
     );
 
     if (version) {
@@ -110,7 +110,12 @@ export const CompilerUIService = {
    * Displays compilation start message.
    */
   showCompilationStart(fileCount: number, targetDir?: string): void {
-    SharedUIService.showOperationStart('COMPILE', 'compile', fileCount, targetDir);
+    SharedUIService.showOperationStart(
+      'COMPILE',
+      'compile',
+      fileCount,
+      targetDir,
+    );
   },
 
   /**
@@ -154,7 +159,7 @@ export class CompactCompiler extends BaseCompactOperation {
     args: string[],
     env: NodeJS.ProcessEnv = process.env,
   ): CompactCompiler {
-    const { targetDir, remainingArgs } = this.parseBaseArgs(args);
+    const { targetDir, remainingArgs } = CompactCompiler.parseBaseArgs(args);
 
     const flags: string[] = [];
     let version: string | undefined;

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CompactCompiler } from '../src/Compiler.js';
 import { BaseErrorHandler } from '../src/BaseServices.js';
+import { CompactCompiler } from '../src/Compiler.js';
 import {
   CompactCliNotFoundError,
   CompilationError,
@@ -74,7 +74,9 @@ describe('runCompiler CLI', () => {
     mockCompile = vi.fn();
     mockFromArgs = vi.mocked(CompactCompiler.fromArgs);
     mockHandleCommonErrors = vi.mocked(BaseErrorHandler.handleCommonErrors);
-    mockHandleUnexpectedError = vi.mocked(BaseErrorHandler.handleUnexpectedError);
+    mockHandleUnexpectedError = vi.mocked(
+      BaseErrorHandler.handleUnexpectedError,
+    );
 
     // Mock CompactCompiler instance
     mockFromArgs.mockReturnValue({
@@ -97,7 +99,7 @@ describe('runCompiler CLI', () => {
   describe('successful compilation', () => {
     it('compiles successfully with no arguments', async () => {
       const testData = {
-        expectedArgs: []
+        expectedArgs: [],
       };
 
       mockCompile.mockResolvedValue(undefined);
@@ -113,7 +115,13 @@ describe('runCompiler CLI', () => {
     it('compiles successfully with arguments', async () => {
       const testData = {
         args: ['--dir', 'security', '--skip-zk'],
-        processArgv: ['node', 'runCompiler.js', '--dir', 'security', '--skip-zk']
+        processArgv: [
+          'node',
+          'runCompiler.js',
+          '--dir',
+          'security',
+          '--skip-zk',
+        ],
       };
 
       process.argv = testData.processArgv;
@@ -131,7 +139,7 @@ describe('runCompiler CLI', () => {
     it('delegates to BaseErrorHandler.handleCommonErrors first', async () => {
       const testData = {
         error: new CompactCliNotFoundError('CLI not found'),
-        operation: 'COMPILE'
+        operation: 'COMPILE',
       };
 
       mockHandleCommonErrors.mockReturnValue(true); // Indicates error was handled
@@ -142,7 +150,7 @@ describe('runCompiler CLI', () => {
       expect(mockHandleCommonErrors).toHaveBeenCalledWith(
         testData.error,
         expect.any(Object), // spinner
-        testData.operation
+        testData.operation,
       );
       expect(mockExit).toHaveBeenCalledWith(1);
     });
@@ -150,7 +158,8 @@ describe('runCompiler CLI', () => {
     it('handles compiler-specific errors when BaseErrorHandler returns false', async () => {
       const testData = {
         error: new CompilationError('Compilation failed', 'MyToken.compact'),
-        expectedMessage: '[COMPILE] Compilation failed for file: MyToken.compact'
+        expectedMessage:
+          '[COMPILE] Compilation failed for file: MyToken.compact',
       };
 
       mockHandleCommonErrors.mockReturnValue(false); // Not handled by base
@@ -166,7 +175,7 @@ describe('runCompiler CLI', () => {
     it('handles CompilationError with unknown file', async () => {
       const testData = {
         error: new CompilationError('Compilation failed', ''),
-        expectedMessage: '[COMPILE] Compilation failed for file: unknown'
+        expectedMessage: '[COMPILE] Compilation failed for file: unknown',
       };
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -179,7 +188,7 @@ describe('runCompiler CLI', () => {
 
     it('shows usage help for argument parsing errors', async () => {
       const testData = {
-        error: new Error('--dir flag requires a directory name')
+        error: new Error('--dir flag requires a directory name'),
       };
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -187,7 +196,9 @@ describe('runCompiler CLI', () => {
 
       await import('../src/runCompiler.js');
 
-      expect(mockConsoleLog).toHaveBeenCalledWith('\nUsage: compact-compiler [options]');
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        '\nUsage: compact-compiler [options]',
+      );
       expect(mockConsoleLog).toHaveBeenCalledWith('\nOptions:');
       expect(mockExit).toHaveBeenCalledWith(1);
     });
@@ -195,7 +206,7 @@ describe('runCompiler CLI', () => {
     it('delegates unexpected errors to BaseErrorHandler', async () => {
       const testData = {
         error: new Error('Unexpected error'),
-        operation: 'COMPILE'
+        operation: 'COMPILE',
       };
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -206,7 +217,7 @@ describe('runCompiler CLI', () => {
       expect(mockHandleUnexpectedError).toHaveBeenCalledWith(
         testData.error,
         expect.any(Object), // spinner
-        testData.operation
+        testData.operation,
       );
     });
   });
@@ -216,14 +227,14 @@ describe('runCompiler CLI', () => {
       const testData = {
         execError: {
           stderr: 'Detailed error output',
-          stdout: 'some output'
-        }
+          stdout: 'some output',
+        },
       };
 
       const compilationError = new CompilationError(
         'Compilation failed',
         'MyToken.compact',
-        testData.execError
+        testData.execError,
       );
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -233,7 +244,9 @@ describe('runCompiler CLI', () => {
       await import('../src/runCompiler.js');
 
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Additional error details: Detailed error output')
+        expect.stringContaining(
+          'Additional error details: Detailed error output',
+        ),
       );
     });
 
@@ -241,14 +254,14 @@ describe('runCompiler CLI', () => {
       const testData = {
         execError: {
           stderr: 'Error: stdout and stderr already displayed',
-          stdout: 'some output'
-        }
+          stdout: 'some output',
+        },
       };
 
       const compilationError = new CompilationError(
         'Compilation failed',
         'MyToken.compact',
-        testData.execError
+        testData.execError,
       );
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -258,7 +271,7 @@ describe('runCompiler CLI', () => {
       await import('../src/runCompiler.js');
 
       expect(mockConsoleLog).not.toHaveBeenCalledWith(
-        expect.stringContaining('Additional error details')
+        expect.stringContaining('Additional error details'),
       );
     });
   });
@@ -277,8 +290,8 @@ describe('runCompiler CLI', () => {
           '  compact-compiler                            # Compile all files',
           '  SKIP_ZK=true compact-compiler --dir token   # Use environment variable',
           '\nTurbo integration:',
-          '  turbo compact                               # Full build'
-        ]
+          '  turbo compact                               # Full build',
+        ],
       };
 
       mockHandleCommonErrors.mockReturnValue(false);
@@ -286,7 +299,7 @@ describe('runCompiler CLI', () => {
 
       await import('../src/runCompiler.js');
 
-      testData.expectedSections.forEach(section => {
+      testData.expectedSections.forEach((section) => {
         expect(mockConsoleLog).toHaveBeenCalledWith(section);
       });
     });
@@ -300,7 +313,7 @@ describe('runCompiler CLI', () => {
     it('handles turbo compact', async () => {
       const testData = {
         processArgv: ['node', 'runCompiler.js'],
-        expectedArgs: []
+        expectedArgs: [],
       };
 
       process.argv = testData.processArgv;
@@ -313,7 +326,7 @@ describe('runCompiler CLI', () => {
     it('handles turbo compact:security', async () => {
       const testData = {
         processArgv: ['node', 'runCompiler.js', '--dir', 'security'],
-        expectedArgs: ['--dir', 'security']
+        expectedArgs: ['--dir', 'security'],
       };
 
       process.argv = testData.processArgv;
@@ -340,7 +353,7 @@ describe('runCompiler CLI', () => {
           '--skip-zk',
           '--verbose',
           '+0.24.0',
-        ]
+        ],
       };
 
       process.argv = testData.processArgv;
@@ -355,7 +368,14 @@ describe('runCompiler CLI', () => {
     it('passes arguments correctly to CompactCompiler.fromArgs', async () => {
       const testData = {
         args: ['--dir', 'token', '--skip-zk', '+0.24.0'],
-        processArgv: ['node', 'runCompiler.js', '--dir', 'token', '--skip-zk', '+0.24.0']
+        processArgv: [
+          'node',
+          'runCompiler.js',
+          '--dir',
+          'token',
+          '--skip-zk',
+          '+0.24.0',
+        ],
       };
 
       process.argv = testData.processArgv;
@@ -370,7 +390,7 @@ describe('runCompiler CLI', () => {
 
     it('handles fromArgs throwing errors', async () => {
       const testData = {
-        error: new Error('Invalid arguments')
+        error: new Error('Invalid arguments'),
       };
 
       mockFromArgs.mockImplementation(() => {
@@ -382,7 +402,7 @@ describe('runCompiler CLI', () => {
       expect(mockHandleCommonErrors).toHaveBeenCalledWith(
         testData.error,
         expect.any(Object),
-        'COMPILE'
+        'COMPILE',
       );
       expect(mockExit).toHaveBeenCalledWith(1);
     });

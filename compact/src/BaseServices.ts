@@ -65,7 +65,7 @@ export abstract class BaseEnvironmentValidator {
     const isAvailable = await this.checkCompactAvailable();
     if (!isAvailable) {
       throw new CompactCliNotFoundError(
-        "'compact' CLI not found in PATH. Please install the Compact developer tools."
+        "'compact' CLI not found in PATH. Please install the Compact developer tools.",
       );
     }
 
@@ -104,6 +104,7 @@ export class FileDiscovery {
           }
           return [];
         } catch (err) {
+          // biome-ignore lint/suspicious/noConsole: Displaying path
           console.warn(`Error accessing ${fullPath}:`, err);
           return [];
         }
@@ -112,6 +113,7 @@ export class FileDiscovery {
       const results = await Promise.all(filePromises);
       return results.flat();
     } catch (err) {
+      // biome-ignore lint/suspicious/noConsole: Displaying dir
       console.error(`Failed to read dir: ${dir}`, err);
       return [];
     }
@@ -161,22 +163,22 @@ export abstract class BaseCompactService {
  * Shared UI service for consistent styling across compiler and formatter.
  * Provides common output formatting and user feedback patterns.
  */
-export class SharedUIService {
+export const SharedUIService = {
   /**
    * Prints formatted output with consistent indentation and coloring.
    */
-  static printOutput(output: string, colorFn: (text: string) => string): void {
+  printOutput(output: string, colorFn: (text: string) => string): void {
     const lines = output
       .split('\n')
       .filter((line) => line.trim() !== '')
       .map((line) => `    ${line}`);
     console.log(colorFn(lines.join('\n')));
-  }
+  },
 
   /**
    * Displays base environment information.
    */
-  static displayBaseEnvInfo(
+  displayBaseEnvInfo(
     operation: string,
     devToolsVersion: string,
     targetDir?: string,
@@ -188,14 +190,14 @@ export class SharedUIService {
     }
 
     spinner.info(
-      chalk.blue(`[${operation}] Compact developer tools: ${devToolsVersion}`)
+      chalk.blue(`[${operation}] Compact developer tools: ${devToolsVersion}`),
     );
-  }
+  },
 
   /**
    * Displays operation start message with file count.
    */
-  static showOperationStart(
+  showOperationStart(
     operation: string,
     action: string,
     fileCount: number,
@@ -205,36 +207,46 @@ export class SharedUIService {
     const spinner = ora();
     spinner.info(
       chalk.blue(
-        `[${operation}] Found ${fileCount} .compact file(s) to ${action}${searchLocation}`
-      )
+        `[${operation}] Found ${fileCount} .compact file(s) to ${action}${searchLocation}`,
+      ),
     );
-  }
+  },
 
   /**
    * Displays a warning when no .compact files are found.
    */
-  static showNoFiles(operation: string, targetDir?: string): void {
+  showNoFiles(operation: string, targetDir?: string): void {
     const searchLocation = targetDir ? `${targetDir}/` : 'src/';
     const spinner = ora();
     spinner.warn(
-      chalk.yellow(`[${operation}] No .compact files found in ${searchLocation}.`)
+      chalk.yellow(
+        `[${operation}] No .compact files found in ${searchLocation}.`,
+      ),
     );
-  }
+  },
 
   /**
    * Shows available directories when DirectoryNotFoundError occurs.
    */
-  static showAvailableDirectories(operation: string): void {
+  showAvailableDirectories(operation: string): void {
     console.log(chalk.yellow('\nAvailable directories:'));
     console.log(
       chalk.yellow(`  --dir access    # ${operation} access control contracts`),
     );
-    console.log(chalk.yellow(`  --dir archive   # ${operation} archive contracts`));
-    console.log(chalk.yellow(`  --dir security  # ${operation} security contracts`));
-    console.log(chalk.yellow(`  --dir token     # ${operation} token contracts`));
-    console.log(chalk.yellow(`  --dir utils     # ${operation} utility contracts`));
-  }
-}
+    console.log(
+      chalk.yellow(`  --dir archive   # ${operation} archive contracts`),
+    );
+    console.log(
+      chalk.yellow(`  --dir security  # ${operation} security contracts`),
+    );
+    console.log(
+      chalk.yellow(`  --dir token     # ${operation} token contracts`),
+    );
+    console.log(
+      chalk.yellow(`  --dir utils     # ${operation} utility contracts`),
+    );
+  },
+};
 
 /**
  * Base class for Compact operations (compilation, formatting).
@@ -271,7 +283,10 @@ export abstract class BaseCompactOperation {
   /**
    * Discovers files and handles empty results.
    */
-  protected async discoverFiles(): Promise<{ files: string[]; searchDir: string }> {
+  protected async discoverFiles(): Promise<{
+    files: string[];
+    searchDir: string;
+  }> {
     const searchDir = this.getSearchDirectory();
     this.validateTargetDirectory(searchDir);
 
@@ -304,7 +319,8 @@ export abstract class BaseCompactOperation {
 
     for (let i = 0; i < args.length; i++) {
       if (args[i] === '--dir') {
-        const dirNameExists = i + 1 < args.length && !args[i + 1].startsWith('--');
+        const dirNameExists =
+          i + 1 < args.length && !args[i + 1].startsWith('--');
         if (dirNameExists) {
           targetDir = args[i + 1];
           i++;
@@ -324,12 +340,8 @@ export abstract class BaseCompactOperation {
  * Base error handler for both compiler and formatter CLIs.
  * Handles common error types with operation-specific context.
  */
-export class BaseErrorHandler {
-  static handleCommonErrors(
-    error: unknown,
-    spinner: Ora,
-    operation: string,
-  ): boolean {
+export const BaseErrorHandler = {
+  handleCommonErrors(error: unknown, spinner: Ora, operation: string): boolean {
     // CompactCliNotFoundError
     if (error instanceof Error && error.name === 'CompactCliNotFoundError') {
       spinner.fail(chalk.red(`[${operation}] Error: ${error.message}`));
@@ -351,13 +363,17 @@ export class BaseErrorHandler {
     // Environment validation errors
     if (isPromisifiedChildProcessError(error)) {
       spinner.fail(
-        chalk.red(`[${operation}] Environment validation failed: ${error.message}`),
+        chalk.red(
+          `[${operation}] Environment validation failed: ${error.message}`,
+        ),
       );
       console.log(chalk.gray('\nTroubleshooting:'));
       console.log(
         chalk.gray('  • Check that Compact CLI is installed and in PATH'),
       );
-      console.log(chalk.gray('  • Verify the specified Compact version exists'));
+      console.log(
+        chalk.gray('  • Verify the specified Compact version exists'),
+      );
       console.log(chalk.gray('  • Ensure you have proper permissions'));
       return true;
     }
@@ -372,13 +388,9 @@ export class BaseErrorHandler {
     }
 
     return false; // Not handled, let specific handler deal with it
-  }
+  },
 
-  static handleUnexpectedError(
-    error: unknown,
-    spinner: Ora,
-    operation: string,
-  ): void {
+  handleUnexpectedError(error: unknown, spinner: Ora, operation: string): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     spinner.fail(chalk.red(`[${operation}] Unexpected error: ${errorMessage}`));
 
@@ -386,5 +398,5 @@ export class BaseErrorHandler {
     console.log(chalk.gray('  • Compact CLI is installed and in PATH'));
     console.log(chalk.gray('  • Source files exist and are readable'));
     console.log(chalk.gray('  • File system permissions are correct'));
-  }
-}
+  },
+};

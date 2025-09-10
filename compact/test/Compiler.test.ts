@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { join } from 'node:path';
 import ora from 'ora';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { ARTIFACTS_DIR, SRC_DIR } from '../src/BaseServices.js';
 import {
+  CompactCompiler,
   CompilerEnvironmentValidator,
   CompilerService,
   CompilerUIService,
-  CompactCompiler,
 } from '../src/Compiler.js';
-import { SRC_DIR, ARTIFACTS_DIR } from '../src/BaseServices.js';
 import { CompilationError } from '../src/types/errors.js';
 
 // Mock dependencies
@@ -43,12 +43,12 @@ describe('CompilerEnvironmentValidator', () => {
     it('returns default toolchain version', async () => {
       const testData = {
         expectedOutput: 'Compactc version: 0.24.0',
-        expectedCommand: 'compact compile  --version'
+        expectedCommand: 'compact compile  --version',
       };
 
       mockExec.mockResolvedValue({
         stdout: `  ${testData.expectedOutput}  \n`,
-        stderr: ''
+        stderr: '',
       });
 
       const version = await validator.getToolchainVersion();
@@ -61,12 +61,12 @@ describe('CompilerEnvironmentValidator', () => {
       const testData = {
         version: '0.25.0',
         expectedOutput: 'Compactc version: 0.25.0',
-        expectedCommand: 'compact compile +0.25.0 --version'
+        expectedCommand: 'compact compile +0.25.0 --version',
       };
 
       mockExec.mockResolvedValue({
         stdout: testData.expectedOutput,
-        stderr: ''
+        stderr: '',
       });
 
       const version = await validator.getToolchainVersion(testData.version);
@@ -80,19 +80,22 @@ describe('CompilerEnvironmentValidator', () => {
     it('returns both dev tools and toolchain versions', async () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0'
+        toolchainVersion: 'Compactc version: 0.24.0',
       };
 
       mockExec
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
-        .mockResolvedValueOnce({ stdout: testData.toolchainVersion, stderr: '' });
+        .mockResolvedValueOnce({
+          stdout: testData.toolchainVersion,
+          stderr: '',
+        });
 
       const result = await validator.validate();
 
       expect(result).toEqual({
         devToolsVersion: testData.devToolsVersion,
-        toolchainVersion: testData.toolchainVersion
+        toolchainVersion: testData.toolchainVersion,
       });
     });
 
@@ -100,17 +103,22 @@ describe('CompilerEnvironmentValidator', () => {
       const testData = {
         version: '0.25.0',
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.25.0'
+        toolchainVersion: 'Compactc version: 0.25.0',
       };
 
       mockExec
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
-        .mockResolvedValueOnce({ stdout: testData.toolchainVersion, stderr: '' });
+        .mockResolvedValueOnce({
+          stdout: testData.toolchainVersion,
+          stderr: '',
+        });
 
       await validator.validate(testData.version);
 
-      expect(mockExec).toHaveBeenCalledWith('compact compile +0.25.0 --version');
+      expect(mockExec).toHaveBeenCalledWith(
+        'compact compile +0.25.0 --version',
+      );
     });
   });
 });
@@ -132,12 +140,17 @@ describe('CompilerService', () => {
         version: '0.24.0',
         expectedInputPath: join(SRC_DIR, 'contracts/MyToken.compact'),
         expectedOutputDir: join(ARTIFACTS_DIR, 'MyToken'),
-        expectedCommand: 'compact compile +0.24.0 --skip-zk --verbose "src/contracts/MyToken.compact" "artifacts/MyToken"'
+        expectedCommand:
+          'compact compile +0.24.0 --skip-zk --verbose "src/contracts/MyToken.compact" "artifacts/MyToken"',
       };
 
       mockExec.mockResolvedValue({ stdout: 'Success', stderr: '' });
 
-      await service.compileFile(testData.file, testData.flags, testData.version);
+      await service.compileFile(
+        testData.file,
+        testData.flags,
+        testData.version,
+      );
 
       expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
     });
@@ -146,7 +159,8 @@ describe('CompilerService', () => {
       const testData = {
         file: 'MyToken.compact',
         flags: '--skip-zk',
-        expectedCommand: 'compact compile --skip-zk "src/MyToken.compact" "artifacts/MyToken"'
+        expectedCommand:
+          'compact compile --skip-zk "src/MyToken.compact" "artifacts/MyToken"',
       };
 
       mockExec.mockResolvedValue({ stdout: 'Success', stderr: '' });
@@ -160,7 +174,8 @@ describe('CompilerService', () => {
       const testData = {
         file: 'MyToken.compact',
         flags: '',
-        expectedCommand: 'compact compile "src/MyToken.compact" "artifacts/MyToken"'
+        expectedCommand:
+          'compact compile "src/MyToken.compact" "artifacts/MyToken"',
       };
 
       mockExec.mockResolvedValue({ stdout: 'Success', stderr: '' });
@@ -174,20 +189,20 @@ describe('CompilerService', () => {
       const testData = {
         file: 'MyToken.compact',
         flags: '--skip-zk',
-        errorMessage: 'Syntax error on line 10'
+        errorMessage: 'Syntax error on line 10',
       };
 
       mockExec.mockRejectedValue(new Error(testData.errorMessage));
 
       await expect(
-        service.compileFile(testData.file, testData.flags)
+        service.compileFile(testData.file, testData.flags),
       ).rejects.toThrow(CompilationError);
     });
 
     it('CompilationError includes file name', async () => {
       const testData = {
         file: 'contracts/MyToken.compact',
-        flags: '--skip-zk'
+        flags: '--skip-zk',
       };
 
       mockExec.mockRejectedValue(new Error('Compilation failed'));
@@ -205,7 +220,7 @@ describe('CompilerService', () => {
     it('extracts file name from error message', () => {
       const testData = {
         message: 'Failed to compile contracts/MyToken.compact: Syntax error',
-        expectedFile: 'contracts/MyToken.compact'
+        expectedFile: 'contracts/MyToken.compact',
       };
 
       const error = service['createError'](testData.message);
@@ -217,7 +232,7 @@ describe('CompilerService', () => {
     it('uses "unknown" when file name cannot be extracted', () => {
       const testData = {
         message: 'Some generic error message',
-        expectedFile: 'unknown'
+        expectedFile: 'unknown',
       };
 
       const error = service['createError'](testData.message);
@@ -233,7 +248,7 @@ describe('CompilerUIService', () => {
 
   beforeEach(() => {
     mockSpinner = {
-      info: vi.fn()
+      info: vi.fn(),
     };
     vi.mocked(ora).mockReturnValue(mockSpinner);
   });
@@ -244,37 +259,53 @@ describe('CompilerUIService', () => {
         devToolsVersion: 'compact 0.2.0',
         toolchainVersion: 'Compactc version: 0.24.0',
         targetDir: 'security',
-        version: '0.24.0'
+        version: '0.24.0',
       };
 
       CompilerUIService.displayEnvInfo(
         testData.devToolsVersion,
         testData.toolchainVersion,
         testData.targetDir,
-        testData.version
+        testData.version,
       );
 
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] TARGET_DIR: security');
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] Compact developer tools: compact 0.2.0');
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] Compact toolchain: Compactc version: 0.24.0');
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] Using toolchain version: 0.24.0');
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] TARGET_DIR: security',
+      );
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] Compact developer tools: compact 0.2.0',
+      );
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] Compact toolchain: Compactc version: 0.24.0',
+      );
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] Using toolchain version: 0.24.0',
+      );
     });
 
     it('displays minimal environment information', () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0'
+        toolchainVersion: 'Compactc version: 0.24.0',
       };
 
       CompilerUIService.displayEnvInfo(
         testData.devToolsVersion,
-        testData.toolchainVersion
+        testData.toolchainVersion,
       );
 
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] Compact developer tools: compact 0.2.0');
-      expect(mockSpinner.info).toHaveBeenCalledWith('[COMPILE] Compact toolchain: Compactc version: 0.24.0');
-      expect(mockSpinner.info).not.toHaveBeenCalledWith(expect.stringContaining('TARGET_DIR'));
-      expect(mockSpinner.info).not.toHaveBeenCalledWith(expect.stringContaining('Using toolchain version'));
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] Compact developer tools: compact 0.2.0',
+      );
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[COMPILE] Compact toolchain: Compactc version: 0.24.0',
+      );
+      expect(mockSpinner.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('TARGET_DIR'),
+      );
+      expect(mockSpinner.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Using toolchain version'),
+      );
     });
   });
 });
@@ -301,14 +332,14 @@ describe('CompactCompiler', () => {
       const testData = {
         flags: '--skip-zk --verbose',
         targetDir: 'security',
-        version: '0.24.0'
+        version: '0.24.0',
       };
 
       compiler = new CompactCompiler(
         testData.flags,
         testData.targetDir,
         testData.version,
-        mockExec
+        mockExec,
       );
 
       expect(compiler.testFlags).toBe(testData.flags);
@@ -319,7 +350,7 @@ describe('CompactCompiler', () => {
     it('trims flags parameter', () => {
       const testData = {
         inputFlags: '  --skip-zk --verbose  ',
-        expectedFlags: '--skip-zk --verbose'
+        expectedFlags: '--skip-zk --verbose',
       };
 
       compiler = new CompactCompiler(testData.inputFlags);
@@ -340,7 +371,7 @@ describe('CompactCompiler', () => {
     it('parses SKIP_ZK environment variable', () => {
       const testData = {
         env: { SKIP_ZK: 'true' },
-        expectedFlags: '--skip-zk'
+        expectedFlags: '--skip-zk',
       };
 
       compiler = CompactCompiler.fromArgs([], testData.env);
@@ -351,7 +382,7 @@ describe('CompactCompiler', () => {
     it('ignores SKIP_ZK when not "true"', () => {
       const testData = {
         env: { SKIP_ZK: 'false' },
-        expectedFlags: ''
+        expectedFlags: '',
       };
 
       compiler = CompactCompiler.fromArgs([], testData.env);
@@ -365,7 +396,7 @@ describe('CompactCompiler', () => {
         env: {},
         expectedTargetDir: 'security',
         expectedFlags: '--skip-zk --verbose',
-        expectedVersion: '0.24.0'
+        expectedVersion: '0.24.0',
       };
 
       compiler = CompactCompiler.fromArgs(testData.args, testData.env);
@@ -379,7 +410,7 @@ describe('CompactCompiler', () => {
       const testData = {
         args: ['--dir', 'access', '--verbose'],
         env: { SKIP_ZK: 'true' },
-        expectedFlags: '--skip-zk --verbose'
+        expectedFlags: '--skip-zk --verbose',
       };
 
       compiler = CompactCompiler.fromArgs(testData.args, testData.env);
@@ -391,7 +422,7 @@ describe('CompactCompiler', () => {
       const testData = {
         args: ['--skip-zk', '--verbose'],
         env: { SKIP_ZK: 'true' },
-        expectedFlags: '--skip-zk --verbose'
+        expectedFlags: '--skip-zk --verbose',
       };
 
       compiler = CompactCompiler.fromArgs(testData.args, testData.env);
@@ -401,13 +432,13 @@ describe('CompactCompiler', () => {
 
     it('throws error for --dir without argument', () => {
       expect(() => CompactCompiler.fromArgs(['--dir'])).toThrow(
-        '--dir flag requires a directory name'
+        '--dir flag requires a directory name',
       );
     });
 
     it('throws error for --dir followed by another flag', () => {
       expect(() => CompactCompiler.fromArgs(['--dir', '--skip-zk'])).toThrow(
-        '--dir flag requires a directory name'
+        '--dir flag requires a directory name',
       );
     });
   });
@@ -418,17 +449,27 @@ describe('CompactCompiler', () => {
         devToolsVersion: 'compact 0.2.0',
         toolchainVersion: 'Compactc version: 0.24.0',
         targetDir: 'security',
-        version: '0.24.0'
+        version: '0.24.0',
       };
 
       mockExec
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
-        .mockResolvedValueOnce({ stdout: testData.toolchainVersion, stderr: '' });
+        .mockResolvedValueOnce({
+          stdout: testData.toolchainVersion,
+          stderr: '',
+        });
 
-      const displaySpy = vi.spyOn(CompilerUIService, 'displayEnvInfo').mockImplementation(() => {});
+      const displaySpy = vi
+        .spyOn(CompilerUIService, 'displayEnvInfo')
+        .mockImplementation(() => {});
 
-      compiler = new CompactCompiler('--skip-zk', testData.targetDir, testData.version, mockExec);
+      compiler = new CompactCompiler(
+        '--skip-zk',
+        testData.targetDir,
+        testData.version,
+        mockExec,
+      );
 
       await compiler.validateEnvironment();
 
@@ -436,7 +477,7 @@ describe('CompactCompiler', () => {
         testData.devToolsVersion,
         testData.toolchainVersion,
         testData.targetDir,
-        testData.version
+        testData.version,
       );
 
       displaySpy.mockRestore();

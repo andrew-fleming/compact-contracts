@@ -2,8 +2,8 @@
 
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import { CompactCompiler } from './Compiler.js';
 import { BaseErrorHandler } from './BaseServices.js';
+import { CompactCompiler } from './Compiler.js';
 import {
   type CompilationError,
   isPromisifiedChildProcessError,

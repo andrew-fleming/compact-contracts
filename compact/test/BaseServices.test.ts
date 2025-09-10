@@ -1,16 +1,14 @@
-import { describe, test, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { join } from 'node:path';
-import chalk from 'chalk';
 import ora from 'ora';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 import {
-  BaseEnvironmentValidator,
-  FileDiscovery,
-  BaseCompactService,
-  SharedUIService,
   BaseCompactOperation,
+  BaseCompactService,
+  BaseEnvironmentValidator,
   BaseErrorHandler,
+  FileDiscovery,
+  SharedUIService,
   SRC_DIR,
-  type ExecFunction,
 } from '../src/BaseServices.js';
 import {
   CompactCliNotFoundError,
@@ -60,11 +58,13 @@ class TestEnvironmentValidator extends BaseEnvironmentValidator {
 }
 
 class TestCompactService extends BaseCompactService {
-  async testCommand(command: string): Promise<{ stdout: string; stderr: string }> {
+  async testCommand(
+    command: string,
+  ): Promise<{ stdout: string; stderr: string }> {
     return this.executeCompactCommand(command, 'Test operation failed');
   }
 
-  protected createError(message: string, cause?: unknown): Error {
+  protected createError(message: string, _cause?: unknown): Error {
     return new Error(message);
   }
 }
@@ -75,7 +75,7 @@ class TestCompactOperation extends BaseCompactOperation {
   }
 
   async execute(): Promise<void> {
-    const { files } = await this.discoverFiles();
+    //const { files } = await this.discoverFiles();
     return Promise.resolve();
   }
 
@@ -134,7 +134,9 @@ describe('BaseEnvironmentValidator', () => {
     it('throws CompactCliNotFoundError when CLI is not available', async () => {
       mockExec.mockRejectedValue(new Error('Command not found'));
 
-      await expect(validator.validateBase()).rejects.toThrow(CompactCliNotFoundError);
+      await expect(validator.validateBase()).rejects.toThrow(
+        CompactCliNotFoundError,
+      );
     });
   });
 });
@@ -143,7 +145,7 @@ describe('FileDiscovery', () => {
   let fileDiscovery: FileDiscovery;
   let mockReaddir: Mock;
 
-  beforeEach( async() => {
+  beforeEach(async () => {
     fileDiscovery = new FileDiscovery();
     mockReaddir = vi.mocked(await import('node:fs/promises')).readdir;
   });
@@ -151,11 +153,19 @@ describe('FileDiscovery', () => {
   it('discovers .compact files recursively', async () => {
     mockReaddir
       .mockResolvedValueOnce([
-        { name: 'MyToken.compact', isFile: () => true, isDirectory: () => false },
+        {
+          name: 'MyToken.compact',
+          isFile: () => true,
+          isDirectory: () => false,
+        },
         { name: 'access', isFile: () => false, isDirectory: () => true },
       ] as any)
       .mockResolvedValueOnce([
-        { name: 'AccessControl.compact', isFile: () => true, isDirectory: () => false },
+        {
+          name: 'AccessControl.compact',
+          isFile: () => true,
+          isDirectory: () => false,
+        },
       ] as any);
 
     const files = await fileDiscovery.getCompactFiles('src');
@@ -212,20 +222,20 @@ describe('BaseCompactService', () => {
   });
 
   it('handles command execution errors', async () => {
-    const errMsg = 'Command failed'
+    const errMsg = 'Command failed';
     mockExec.mockRejectedValue(new Error(errMsg));
 
     await expect(service.testCommand('compact test')).rejects.toThrow(
-      `Test operation failed: ${errMsg}`
+      `Test operation failed: ${errMsg}`,
     );
   });
 
   it('handles non-Error rejections', async () => {
-    const otherMsg = 'String error'
+    const otherMsg = 'String error';
     mockExec.mockRejectedValue(otherMsg);
 
     await expect(service.testCommand('compact test')).rejects.toThrow(
-      `Test operation failed: ${otherMsg}`
+      `Test operation failed: ${otherMsg}`,
     );
   });
 });
@@ -243,7 +253,9 @@ describe('SharedUIService', () => {
       // split, filter, map
       SharedUIService.printOutput('line1\nline2\n\nline3', colorFn);
 
-      expect(consoleSpy).toHaveBeenCalledWith('colored:     line1\n    line2\n    line3');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'colored:     line1\n    line2\n    line3',
+      );
       consoleSpy.mockRestore();
     });
 
@@ -262,7 +274,7 @@ describe('SharedUIService', () => {
     const testData = {
       operation: 'TEST',
       version: 'compact 0.2.0',
-      targetDir: 'security'
+      targetDir: 'security',
     };
     const { operation, version, targetDir } = testData;
 
@@ -273,8 +285,14 @@ describe('SharedUIService', () => {
 
       expect(ora).toHaveBeenCalled();
       expect(mockSpinner.info).toHaveBeenCalledTimes(2);
-      expect(mockSpinner.info).toHaveBeenNthCalledWith(1, `[${operation}] TARGET_DIR: ${targetDir}`);
-      expect(mockSpinner.info).toHaveBeenNthCalledWith(2, `[${operation}] Compact developer tools: ${version}`);
+      expect(mockSpinner.info).toHaveBeenNthCalledWith(
+        1,
+        `[${operation}] TARGET_DIR: ${targetDir}`,
+      );
+      expect(mockSpinner.info).toHaveBeenNthCalledWith(
+        2,
+        `[${operation}] Compact developer tools: ${version}`,
+      );
     });
 
     it('displays environment info without target directory', () => {
@@ -283,7 +301,9 @@ describe('SharedUIService', () => {
       SharedUIService.displayBaseEnvInfo(operation, version);
 
       expect(ora).toHaveBeenCalled();
-      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(`[${operation}] Compact developer tools: ${version}`);
+      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(
+        `[${operation}] Compact developer tools: ${version}`,
+      );
     });
   });
 
@@ -292,16 +312,23 @@ describe('SharedUIService', () => {
       operation: 'TEST',
       action: 'compact 0.2.0',
       fileCount: 5,
-      targetDir: 'security'
+      targetDir: 'security',
     };
     const { operation, action, fileCount, targetDir } = testData;
 
     it('displays operation start message with targetDir', () => {
       vi.mocked(ora).mockReturnValue(mockSpinner as any);
 
-      SharedUIService.showOperationStart(operation, action, fileCount, targetDir);
+      SharedUIService.showOperationStart(
+        operation,
+        action,
+        fileCount,
+        targetDir,
+      );
       expect(ora).toHaveBeenCalled();
-      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(`[${operation}] Found ${fileCount} .compact file(s) to ${action} in ${targetDir}/`);
+      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(
+        `[${operation}] Found ${fileCount} .compact file(s) to ${action} in ${targetDir}/`,
+      );
     });
 
     it('displays operation start message without targetDir', () => {
@@ -311,14 +338,16 @@ describe('SharedUIService', () => {
       SharedUIService.showOperationStart(operation, action, fileCount);
 
       expect(ora).toHaveBeenCalled();
-      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(`[${operation}] Found ${fileCount} .compact file(s) to ${action}`);
+      expect(mockSpinner.info).toHaveBeenCalledExactlyOnceWith(
+        `[${operation}] Found ${fileCount} .compact file(s) to ${action}`,
+      );
     });
   });
 
   describe('showNoFiles', () => {
     const testData = {
       operation: 'TEST',
-      targetDir: 'security'
+      targetDir: 'security',
     };
     const { operation, targetDir } = testData;
 
@@ -328,7 +357,9 @@ describe('SharedUIService', () => {
       SharedUIService.showNoFiles(operation, targetDir);
 
       expect(ora).toHaveBeenCalled();
-      expect(mockSpinner.warn).toHaveBeenCalledExactlyOnceWith(`[${operation}] No .compact files found in ${targetDir}/.`);
+      expect(mockSpinner.warn).toHaveBeenCalledExactlyOnceWith(
+        `[${operation}] No .compact files found in ${targetDir}/.`,
+      );
     });
 
     it('shows no files warning without targetDir', () => {
@@ -337,7 +368,9 @@ describe('SharedUIService', () => {
       SharedUIService.showNoFiles(operation);
 
       expect(ora).toHaveBeenCalled();
-      expect(mockSpinner.warn).toHaveBeenCalledExactlyOnceWith(`[${operation}] No .compact files found in src/.`);
+      expect(mockSpinner.warn).toHaveBeenCalledExactlyOnceWith(
+        `[${operation}] No .compact files found in src/.`,
+      );
     });
   });
 
@@ -348,12 +381,27 @@ describe('SharedUIService', () => {
 
       SharedUIService.showAvailableDirectories(operation);
 
-      expect(consoleSpy).toHaveBeenNthCalledWith(1, '\nAvailable directories:')
-      expect(consoleSpy).toHaveBeenNthCalledWith(2, `  --dir access    # ${operation} access control contracts`)
-      expect(consoleSpy).toHaveBeenNthCalledWith(3, `  --dir archive   # ${operation} archive contracts`)
-      expect(consoleSpy).toHaveBeenNthCalledWith(4, `  --dir security  # ${operation} security contracts`)
-      expect(consoleSpy).toHaveBeenNthCalledWith(5, `  --dir token     # ${operation} token contracts`)
-      expect(consoleSpy).toHaveBeenNthCalledWith(6, `  --dir utils     # ${operation} utility contracts`)
+      expect(consoleSpy).toHaveBeenNthCalledWith(1, '\nAvailable directories:');
+      expect(consoleSpy).toHaveBeenNthCalledWith(
+        2,
+        `  --dir access    # ${operation} access control contracts`,
+      );
+      expect(consoleSpy).toHaveBeenNthCalledWith(
+        3,
+        `  --dir archive   # ${operation} archive contracts`,
+      );
+      expect(consoleSpy).toHaveBeenNthCalledWith(
+        4,
+        `  --dir security  # ${operation} security contracts`,
+      );
+      expect(consoleSpy).toHaveBeenNthCalledWith(
+        5,
+        `  --dir token     # ${operation} token contracts`,
+      );
+      expect(consoleSpy).toHaveBeenNthCalledWith(
+        6,
+        `  --dir utils     # ${operation} utility contracts`,
+      );
       consoleSpy.mockRestore();
     });
   });
@@ -372,22 +420,31 @@ describe('BaseCompactOperation', () => {
     it('passes when target directory exists', () => {
       mockExistsSync.mockReturnValue(true);
 
-      expect(() => operation['validateTargetDirectory']('src/security')).not.toThrow();
+      expect(() =>
+        operation['validateTargetDirectory']('src/security'),
+      ).not.toThrow();
     });
 
     it('throws when target directory does not exist', () => {
       mockExistsSync.mockReturnValue(false);
       const missingDir = 'src/missingDir';
-      const expErr = new DirectoryNotFoundError(`Target directory ${missingDir} does not exist`, missingDir);
+      const expErr = new DirectoryNotFoundError(
+        `Target directory ${missingDir} does not exist`,
+        missingDir,
+      );
 
-      expect(() => operation['validateTargetDirectory'](missingDir)).toThrow(expErr);
+      expect(() => operation['validateTargetDirectory'](missingDir)).toThrow(
+        expErr,
+      );
     });
 
     it('does not validate when no target directory is set', () => {
       const noTargetOperation = new TestCompactOperation();
       mockExistsSync.mockReturnValue(false);
 
-      expect(() => noTargetOperation['validateTargetDirectory']('src')).not.toThrow();
+      expect(() =>
+        noTargetOperation['validateTargetDirectory']('src'),
+      ).not.toThrow();
     });
   });
 
@@ -420,7 +477,7 @@ describe('BaseCompactOperation', () => {
       const args = ['--dir'];
 
       expect(() => BaseCompactOperation['parseBaseArgs'](args)).toThrow(
-        '--dir flag requires a directory name'
+        '--dir flag requires a directory name',
       );
     });
 
@@ -428,7 +485,7 @@ describe('BaseCompactOperation', () => {
       const args = ['--dir', '--other-flag'];
 
       expect(() => BaseCompactOperation['parseBaseArgs'](args)).toThrow(
-        '--dir flag requires a directory name'
+        '--dir flag requires a directory name',
       );
     });
 
@@ -460,25 +517,33 @@ describe('BaseErrorHandler', () => {
 
     it('handles CompactCliNotFoundError', () => {
       const error = new CompactCliNotFoundError('CLI not found');
-      const result = BaseErrorHandler.handleCommonErrors(error, mockSpinner, operation);
+      const result = BaseErrorHandler.handleCommonErrors(
+        error,
+        mockSpinner,
+        operation,
+      );
 
       expect(result).toBe(true);
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Error: CLI not found`)
+        expect.stringContaining(`[${operation}] Error: CLI not found`),
       );
       expect(mockSpinner.info).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Install with:`)
+        expect.stringContaining(`[${operation}] Install with:`),
       );
     });
 
     it('handles DirectoryNotFoundError', () => {
       const error = new DirectoryNotFoundError('Directory not found', '/path');
 
-      const result = BaseErrorHandler.handleCommonErrors(error, mockSpinner, operation);
+      const result = BaseErrorHandler.handleCommonErrors(
+        error,
+        mockSpinner,
+        operation,
+      );
 
       expect(result).toBe(true);
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Error: Directory not found`)
+        expect.stringContaining(`[${operation}] Error: Directory not found`),
       );
     });
 
@@ -489,29 +554,43 @@ describe('BaseErrorHandler', () => {
         code: 1,
       });
 
-      const result = BaseErrorHandler.handleCommonErrors(error, mockSpinner, operation);
+      const result = BaseErrorHandler.handleCommonErrors(
+        error,
+        mockSpinner,
+        operation,
+      );
 
       expect(result).toBe(true);
       expect(mockSpinner.fail).toHaveBeenCalledExactlyOnceWith(
-        expect.stringContaining(`[${operation}] Environment validation failed`)
+        expect.stringContaining(`[${operation}] Environment validation failed`),
       );
     });
 
     it('handles --dir argument parsing errors', () => {
       const error = new Error('--dir flag requires a directory name');
 
-      const result = BaseErrorHandler.handleCommonErrors(error, mockSpinner, operation);
+      const result = BaseErrorHandler.handleCommonErrors(
+        error,
+        mockSpinner,
+        operation,
+      );
 
       expect(result).toBe(false); // Should let specific handler show usage
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Error: --dir flag requires a directory name`)
+        expect.stringContaining(
+          `[${operation}] Error: --dir flag requires a directory name`,
+        ),
       );
     });
 
     it('returns false for unhandled errors', () => {
       const error = new Error('Some other error');
 
-      const result = BaseErrorHandler.handleCommonErrors(error, mockSpinner, operation);
+      const result = BaseErrorHandler.handleCommonErrors(
+        error,
+        mockSpinner,
+        operation,
+      );
 
       expect(result).toBe(false);
     });
@@ -526,7 +605,9 @@ describe('BaseErrorHandler', () => {
       BaseErrorHandler.handleUnexpectedError(error, mockSpinner, operation);
 
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Unexpected error: Unexpected error`)
+        expect.stringContaining(
+          `[${operation}] Unexpected error: Unexpected error`,
+        ),
       );
     });
 
@@ -536,7 +617,9 @@ describe('BaseErrorHandler', () => {
       BaseErrorHandler.handleUnexpectedError(error, mockSpinner, operation);
 
       expect(mockSpinner.fail).toHaveBeenCalledWith(
-        expect.stringContaining(`[${operation}] Unexpected error: String error`)
+        expect.stringContaining(
+          `[${operation}] Unexpected error: String error`,
+        ),
       );
     });
 
@@ -547,7 +630,7 @@ describe('BaseErrorHandler', () => {
       BaseErrorHandler.handleUnexpectedError(error, mockSpinner, operation);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('If this error persists')
+        expect.stringContaining('If this error persists'),
       );
       consoleSpy.mockRestore();
     });

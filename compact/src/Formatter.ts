@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import chalk from 'chalk';
 import ora from 'ora';
 import {
-  BaseEnvironmentValidator,
-  BaseCompactService,
   BaseCompactOperation,
+  BaseCompactService,
+  BaseEnvironmentValidator,
+  type ExecFunction,
   SharedUIService,
   SRC_DIR,
-  type ExecFunction,
 } from './BaseServices.js';
 import {
   FormatterError,
@@ -29,10 +29,12 @@ export class FormatterEnvironmentValidator extends BaseEnvironmentValidator {
     try {
       await this.execFn('compact help format');
     } catch (error) {
-      if (isPromisifiedChildProcessError(error) &&
-          error.stderr?.includes('formatter not available')) {
+      if (
+        isPromisifiedChildProcessError(error) &&
+        error.stderr?.includes('formatter not available')
+      ) {
         throw new FormatterNotAvailableError(
-          'Formatter not available. Please update your Compact compiler with: compact update'
+          'Formatter not available. Please update your Compact compiler with: compact update',
         );
       }
       throw error;
@@ -57,7 +59,9 @@ export class FormatterService extends BaseCompactService {
   /**
    * Formats files in-place in the specified directory or current directory.
    */
-  async formatInPlace(targetPath?: string): Promise<{ stdout: string; stderr: string }> {
+  async formatInPlace(
+    targetPath?: string,
+  ): Promise<{ stdout: string; stderr: string }> {
     const pathArg = targetPath ? ` "${targetPath}"` : '';
     const command = `compact format${pathArg}`;
     return this.executeCompactCommand(command, 'Failed to format');
@@ -75,7 +79,10 @@ export class FormatterService extends BaseCompactService {
     const command = `compact format --check${pathArg}`;
 
     try {
-      const result = await this.executeCompactCommand(command, 'Failed to check formatting');
+      const result = await this.executeCompactCommand(
+        command,
+        'Failed to check formatting',
+      );
       return { ...result, isFormatted: true };
     } catch (error: unknown) {
       if (isPromisifiedChildProcessError(error)) {
@@ -84,7 +91,7 @@ export class FormatterService extends BaseCompactService {
           return {
             stdout: error.stdout,
             stderr: error.stderr || '',
-            isFormatted: false
+            isFormatted: false,
           };
         }
       }
@@ -95,14 +102,19 @@ export class FormatterService extends BaseCompactService {
   /**
    * Formats a list of specific files.
    */
-  async formatFiles(files: string[]): Promise<{ stdout: string; stderr: string }> {
+  async formatFiles(
+    files: string[],
+  ): Promise<{ stdout: string; stderr: string }> {
     if (files.length === 0) {
       return { stdout: '', stderr: '' };
     }
 
-    const fileArgs = files.map(file => `"${join(SRC_DIR, file)}"`).join(' ');
+    const fileArgs = files.map((file) => `"${join(SRC_DIR, file)}"`).join(' ');
     const command = `compact format ${fileArgs}`;
-    return this.executeCompactCommand(command, `Failed to format files: ${files.join(', ')}`);
+    return this.executeCompactCommand(
+      command,
+      `Failed to format files: ${files.join(', ')}`,
+    );
   }
 
   protected createError(message: string, cause?: unknown): Error {
@@ -130,7 +142,11 @@ export const FormatterUIService = {
   /**
    * Displays formatting start message.
    */
-  showFormattingStart(fileCount: number, mode: 'format' | 'check', targetDir?: string): void {
+  showFormattingStart(
+    fileCount: number,
+    mode: 'format' | 'check',
+    targetDir?: string,
+  ): void {
     const action = mode === 'check' ? 'check formatting for' : 'format';
     SharedUIService.showOperationStart('FORMAT', action, fileCount, targetDir);
   },
@@ -179,9 +195,10 @@ export class CompactFormatter extends BaseCompactOperation {
     execFn?: ExecFunction,
   ) {
     // For single directory target, use it as targetDir
-    const targetDir = targets.length === 1 && !targets[0].endsWith('.compact')
-      ? targets[0]
-      : undefined;
+    const targetDir =
+      targets.length === 1 && !targets[0].endsWith('.compact')
+        ? targets[0]
+        : undefined;
 
     super(targetDir);
     this.checkMode = checkMode;
@@ -194,7 +211,7 @@ export class CompactFormatter extends BaseCompactOperation {
    * Factory method to create a CompactFormatter from command-line arguments.
    */
   static fromArgs(args: string[]): CompactFormatter {
-    const { targetDir, remainingArgs } = this.parseBaseArgs(args);
+    const { targetDir, remainingArgs } = CompactFormatter.parseBaseArgs(args);
 
     let checkMode = false;
     const targets: string[] = [];
@@ -237,7 +254,10 @@ export class CompactFormatter extends BaseCompactOperation {
     await this.validateEnvironment();
 
     // Handle specific file targets
-    if (this.targets.length > 0 && this.targets.every(target => target.endsWith('.compact'))) {
+    if (
+      this.targets.length > 0 &&
+      this.targets.every((target) => target.endsWith('.compact'))
+    ) {
       return this.formatSpecificFiles();
     }
 
@@ -292,7 +312,9 @@ export class CompactFormatter extends BaseCompactOperation {
       }
 
       const spinner = ora();
-      spinner.succeed(chalk.green(`[FORMAT] Successfully formatted ${files.length} file(s)`));
+      spinner.succeed(
+        chalk.green(`[FORMAT] Successfully formatted ${files.length} file(s)`),
+      );
     }
   }
 

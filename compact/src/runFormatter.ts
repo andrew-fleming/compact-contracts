@@ -2,8 +2,8 @@
 
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import { CompactFormatter } from './Formatter.js';
 import { BaseErrorHandler } from './BaseServices.js';
+import { CompactFormatter } from './Formatter.js';
 import {
   type FormatterError,
   isPromisifiedChildProcessError,
@@ -37,9 +37,7 @@ function handleError(error: unknown, spinner: Ora): void {
   // FormatterNotAvailableError - specific to formatting
   if (error instanceof Error && error.name === 'FormatterNotAvailableError') {
     spinner.fail(chalk.red(`[FORMAT] Error: ${error.message}`));
-    spinner.info(
-      chalk.blue('[FORMAT] Update compiler with: compact update'),
-    );
+    spinner.info(chalk.blue('[FORMAT] Update compiler with: compact update'));
     spinner.info(
       chalk.blue('[FORMAT] Update dev tools with: compact self update'),
     );
@@ -130,13 +128,19 @@ function showUsageHelp(): void {
   );
   console.log(chalk.yellow('\nIntegration examples:'));
   console.log(
-    chalk.yellow('  turbo format                                     # Full formatting'),
+    chalk.yellow(
+      '  turbo format                                     # Full formatting',
+    ),
   );
   console.log(
-    chalk.yellow('  turbo format:security                            # Directory formatting'),
+    chalk.yellow(
+      '  turbo format:security                            # Directory formatting',
+    ),
   );
   console.log(
-    chalk.yellow('  turbo format:check                               # Check formatting'),
+    chalk.yellow(
+      '  turbo format:check                               # Check formatting',
+    ),
   );
 }
 
