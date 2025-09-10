@@ -107,12 +107,12 @@ turbo test
 ### Format and lint files
 
 ```bash
-turbo fmt-and-lint:fix
+turbo check:fix
 ```
 
 ### All together now!
 ```bash
-turbo compact test fmt-and-lint:fix
+turbo compact test check:fix
 ```
 
 ## Security
