@@ -10,7 +10,24 @@ import {
 } from './types/errors.js';
 
 /**
- * Executes the Compact compiler CLI with improved error handling and user feedback.
+ * Main entry point for the Compact compiler CLI application.
+ *
+ * Orchestrates the complete compilation workflow from command-line argument
+ * parsing through execution and error handling. Provides user-friendly feedback
+ * and comprehensive error reporting for compilation operations.
+ *
+ * The function handles the full lifecycle:
+ *
+ * 1. Parses command-line arguments into compiler configuration.
+ * 2. Executes the compilation process with progress indicators.
+ * 3. Handles errors with detailed, actionable feedback.
+ * 4. Exits with appropriate status codes for CI/CD integration.
+ *
+ * @example
+ * ```bash
+ * # Called from command line as:
+ * compact-compiler --dir ./contracts/src/security --skip-zk +0.24.0
+ * ```
  */
 async function runCompiler(): Promise<void> {
   const spinner = ora(chalk.blue('[COMPILE] Compact compiler started')).info();
@@ -26,7 +43,30 @@ async function runCompiler(): Promise<void> {
 }
 
 /**
- * Centralized error handling with compiler-specific error types.
+ * Comprehensive error handler for compilation-specific failures.
+ *
+ * Provides layered error handling that first attempts common error resolution
+ * before falling back to compilation-specific error types. Ensures users receive
+ * actionable feedback for all failure scenarios with appropriate visual styling
+ * and contextual information.
+ *
+ * Error handling priority:
+ *
+ * 1. Common errors (CLI not found, directory issues, environment problems).
+ * 2. Compilation-specific errors (file compilation failures).
+ * 3. Argument parsing errors (malformed command-line usage).
+ * 4. Unexpected errors (with troubleshooting guidance).
+ *
+ * @param error - The error that occurred during compilation
+ * @param spinner - Ora spinner instance for consistent UI feedback
+ *
+ * @example
+ * ```typescript
+ * // This function handles errors like:
+ * // - CompilationError: Failed to compile Token.compact
+ * // - CompactCliNotFoundError: 'compact' CLI not found in PATH
+ * // - DirectoryNotFoundError: Target directory contracts/ does not exist
+ * ```
  */
 function handleError(error: unknown, spinner: Ora): void {
   // Try common error handling first
@@ -70,7 +110,26 @@ function handleError(error: unknown, spinner: Ora): void {
 }
 
 /**
- * Shows usage help with examples for compilation scenarios.
+ * Displays comprehensive usage help for the Compact compiler CLI.
+ *
+ * Provides detailed documentation of all available command-line options,
+ * practical usage examples, and integration patterns. Helps users understand
+ * both basic and advanced compilation scenarios, including environment variable
+ * usage and toolchain version management.
+ *
+ * The help includes:
+ *
+ * - Complete option descriptions with parameter details.
+ * - Practical examples for common compilation tasks.
+ * - Integration patterns with build tools like Turbo.
+ * - Environment variable configuration options.
+ *
+ * @example
+ * ```typescript
+ * // Called automatically when argument parsing fails:
+ * // compact-compiler --dir  # Missing directory name
+ * // Shows full usage help to guide correct usage
+ * ```
  */
 function showUsageHelp(): void {
   console.log(chalk.yellow('\nUsage: compact-compiler [options]'));
