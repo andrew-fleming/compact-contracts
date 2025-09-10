@@ -1,13 +1,13 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { join } from 'node:path';
 import ora from 'ora';
+import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
+import { SRC_DIR } from '../src/BaseServices.js';
 import {
+  CompactFormatter,
   FormatterEnvironmentValidator,
   FormatterService,
   FormatterUIService,
-  CompactFormatter,
 } from '../src/Formatter.js';
-import { SRC_DIR } from '../src/BaseServices.js';
 import {
   FormatterError,
   FormatterNotAvailableError,
@@ -48,7 +48,7 @@ describe('FormatterEnvironmentValidator', () => {
     it('succeeds when formatter is available', async () => {
       const testData = {
         expectedCommand: 'compact help format',
-        response: { stdout: 'Format help text', stderr: '' }
+        response: { stdout: 'Format help text', stderr: '' },
       };
 
       mockExec.mockResolvedValue(testData.response);
@@ -62,11 +62,13 @@ describe('FormatterEnvironmentValidator', () => {
         error: Object.assign(new Error('Command failed'), {
           stderr: 'formatter not available',
           stdout: '',
-        })
+        }),
       };
 
       mockExec.mockRejectedValue(testData.error);
-      await expect(validator.checkFormatterAvailable()).rejects.toThrow(FormatterNotAvailableError);
+      await expect(validator.checkFormatterAvailable()).rejects.toThrow(
+        FormatterNotAvailableError,
+      );
     });
 
     it('re-throws other errors', async () => {
@@ -76,7 +78,9 @@ describe('FormatterEnvironmentValidator', () => {
 
       mockExec.mockRejectedValue(testData.error);
 
-      await expect(validator.checkFormatterAvailable()).rejects.toThrow(testData.error);
+      await expect(validator.checkFormatterAvailable()).rejects.toThrow(
+        testData.error,
+      );
     });
   });
 
@@ -84,7 +88,7 @@ describe('FormatterEnvironmentValidator', () => {
     it('returns dev tools version when validation succeeds', async () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        expectedResult: { devToolsVersion: 'compact 0.2.0' }
+        expectedResult: { devToolsVersion: 'compact 0.2.0' },
       };
 
       mockExec
@@ -114,7 +118,7 @@ describe('FormatterService', () => {
       const testData = {
         targetPath: 'security',
         expectedCommand: 'compact format "security"',
-        response: { stdout: 'Formatted successfully', stderr: '' }
+        response: { stdout: 'Formatted successfully', stderr: '' },
       };
 
       mockExec.mockResolvedValue(testData.response);
@@ -128,7 +132,7 @@ describe('FormatterService', () => {
     it('constructs command without target path', async () => {
       const testData = {
         expectedCommand: 'compact format',
-        response: { stdout: 'Formatted successfully', stderr: '' }
+        response: { stdout: 'Formatted successfully', stderr: '' },
       };
 
       mockExec.mockResolvedValue(testData.response);
@@ -141,12 +145,14 @@ describe('FormatterService', () => {
     it('throws FormatterError on failure', async () => {
       const testData = {
         targetPath: 'security',
-        error: new Error('Format failed')
+        error: new Error('Format failed'),
       };
 
       mockExec.mockRejectedValue(testData.error);
 
-      await expect(service.formatAndWrite(testData.targetPath)).rejects.toThrow(FormatterError);
+      await expect(service.formatAndWrite(testData.targetPath)).rejects.toThrow(
+        FormatterError,
+      );
     });
   });
 
@@ -159,8 +165,8 @@ describe('FormatterService', () => {
         expectedResult: {
           stdout: 'All files formatted',
           stderr: '',
-          isFormatted: true
-        }
+          isFormatted: true,
+        },
       };
 
       mockExec.mockResolvedValue(testData.response);
@@ -181,8 +187,8 @@ describe('FormatterService', () => {
         expectedResult: {
           stdout: 'Differences found',
           stderr: 'Formatting failed',
-          isFormatted: false
-        }
+          isFormatted: false,
+        },
       };
 
       mockExec.mockRejectedValue(testData.error);
@@ -193,7 +199,7 @@ describe('FormatterService', () => {
 
     it('throws FormatterError for unexpected failures', async () => {
       const testData = {
-        error: new Error('Unexpected error')
+        error: new Error('Unexpected error'),
       };
 
       mockExec.mockRejectedValue(testData.error);
@@ -202,13 +208,20 @@ describe('FormatterService', () => {
     });
 
     it('handles FormatterError with PromisifiedChildProcessError cause', async () => {
-      const childProcessError = Object.assign(new Error('Format check failed'), {
-        code: 1,
-        stdout: 'Differences found',
-        stderr: 'Formatting failed',
-      });
+      const childProcessError = Object.assign(
+        new Error('Format check failed'),
+        {
+          code: 1,
+          stdout: 'Differences found',
+          stderr: 'Formatting failed',
+        },
+      );
 
-      const formatterError = new FormatterError('Failed to check formatting', undefined, childProcessError);
+      const formatterError = new FormatterError(
+        'Failed to check formatting',
+        undefined,
+        childProcessError,
+      );
 
       // Mock executeCompactCommand to throw the FormatterError
       const executeSpy = vi.spyOn(service as any, 'executeCompactCommand');
@@ -219,7 +232,7 @@ describe('FormatterService', () => {
       expect(result).toEqual({
         stdout: 'Differences found',
         stderr: 'Formatting failed',
-        isFormatted: false
+        isFormatted: false,
       });
 
       executeSpy.mockRestore();
@@ -231,7 +244,7 @@ describe('FormatterService', () => {
       const testData = {
         files: ['MyToken.compact', 'Security.compact'],
         expectedCommand: `compact format "${join(SRC_DIR, 'MyToken.compact')}" "${join(SRC_DIR, 'Security.compact')}"`,
-        response: { stdout: 'Files formatted', stderr: '' }
+        response: { stdout: 'Files formatted', stderr: '' },
       };
 
       mockExec.mockResolvedValue(testData.response);
@@ -245,7 +258,7 @@ describe('FormatterService', () => {
     it('returns empty result for empty file list', async () => {
       const testData = {
         files: [],
-        expectedResult: { stdout: '', stderr: '' }
+        expectedResult: { stdout: '', stderr: '' },
       };
 
       const result = await service.formatFiles(testData.files);
@@ -259,7 +272,7 @@ describe('FormatterService', () => {
     it('extracts target from error message', () => {
       const testData = {
         message: 'Failed to format security',
-        expectedTarget: 'security'
+        expectedTarget: 'security',
       };
 
       // Access protected method using bracket notation
@@ -272,7 +285,7 @@ describe('FormatterService', () => {
     it('extracts target from file error message', () => {
       const testData = {
         message: 'Failed to format files: MyToken.compact, Security.compact',
-        expectedTarget: 'MyToken.compact, Security.compact'
+        expectedTarget: 'MyToken.compact, Security.compact',
       };
 
       const error = service['createError'](testData.message);
@@ -284,7 +297,7 @@ describe('FormatterService', () => {
     it('handles message without target', () => {
       const testData = {
         message: 'Some generic error',
-        expectedTarget: undefined
+        expectedTarget: undefined,
       };
 
       const error = service['createError'](testData.message);
@@ -312,50 +325,70 @@ describe('FormatterUIService', () => {
     it('displays environment information with target directory', () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        targetDir: 'security'
+        targetDir: 'security',
       };
 
-      FormatterUIService.displayEnvInfo(testData.devToolsVersion, testData.targetDir);
+      FormatterUIService.displayEnvInfo(
+        testData.devToolsVersion,
+        testData.targetDir,
+      );
 
-      expect(mockSpinner.info).toHaveBeenCalledWith('[FORMAT] TARGET_DIR: security');
-      expect(mockSpinner.info).toHaveBeenCalledWith('[FORMAT] Compact developer tools: compact 0.2.0');
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[FORMAT] TARGET_DIR: security',
+      );
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[FORMAT] Compact developer tools: compact 0.2.0',
+      );
     });
 
     it('displays environment information without target directory', () => {
       const testData = {
-        devToolsVersion: 'compact 0.2.0'
+        devToolsVersion: 'compact 0.2.0',
       };
 
       FormatterUIService.displayEnvInfo(testData.devToolsVersion);
 
-      expect(mockSpinner.info).toHaveBeenCalledWith('[FORMAT] Compact developer tools: compact 0.2.0');
-      expect(mockSpinner.info).not.toHaveBeenCalledWith(expect.stringContaining('TARGET_DIR'));
+      expect(mockSpinner.info).toHaveBeenCalledWith(
+        '[FORMAT] Compact developer tools: compact 0.2.0',
+      );
+      expect(mockSpinner.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('TARGET_DIR'),
+      );
     });
   });
 
   describe('showCheckResults', () => {
     it('shows success when files are formatted', () => {
       const testData = {
-        isFormatted: true
+        isFormatted: true,
       };
 
       FormatterUIService.showCheckResults(testData.isFormatted);
 
-      expect(mockSpinner.succeed).toHaveBeenCalledWith('[FORMAT] All files are properly formatted');
+      expect(mockSpinner.succeed).toHaveBeenCalledWith(
+        '[FORMAT] All files are properly formatted',
+      );
     });
 
     it('shows failure with differences when files need formatting', () => {
       const testData = {
         isFormatted: false,
-        differences: 'Some formatting differences'
+        differences: 'Some formatting differences',
       };
 
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-      FormatterUIService.showCheckResults(testData.isFormatted, testData.differences);
+      FormatterUIService.showCheckResults(
+        testData.isFormatted,
+        testData.differences,
+      );
 
-      expect(mockSpinner.fail).toHaveBeenCalledWith('[FORMAT] Some files are not properly formatted');
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Formatting differences'));
+      expect(mockSpinner.fail).toHaveBeenCalledWith(
+        '[FORMAT] Some files are not properly formatted',
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Formatting differences'),
+      );
 
       consoleSpy.mockRestore();
     });
@@ -383,10 +416,14 @@ describe('CompactFormatter', () => {
     it('creates instance with all parameters', () => {
       const testData = {
         writeMode: true,
-        targets: ['security', 'MyToken.compact']
+        targets: ['security', 'MyToken.compact'],
       };
 
-      formatter = new CompactFormatter(testData.writeMode, testData.targets, mockExec);
+      formatter = new CompactFormatter(
+        testData.writeMode,
+        testData.targets,
+        mockExec,
+      );
 
       expect(formatter.testWriteMode).toBe(testData.writeMode);
       expect(formatter.testTargets).toEqual(testData.targets);
@@ -404,7 +441,7 @@ describe('CompactFormatter', () => {
     it('parses --write flag', () => {
       const testData = {
         args: ['--write'],
-        expectedWriteMode: true
+        expectedWriteMode: true,
       };
 
       formatter = CompactFormatter.fromArgs(testData.args);
@@ -416,7 +453,7 @@ describe('CompactFormatter', () => {
       const testData = {
         args: ['--dir', 'security', '--write', 'MyToken.compact'],
         expectedTargets: ['security', 'MyToken.compact'],
-        expectedWriteMode: true
+        expectedWriteMode: true,
       };
 
       formatter = CompactFormatter.fromArgs(testData.args);
@@ -430,7 +467,7 @@ describe('CompactFormatter', () => {
     it('calls validator and displays environment info', async () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        targetDir: 'security'
+        targetDir: 'security',
       };
 
       mockExec
@@ -438,13 +475,18 @@ describe('CompactFormatter', () => {
         .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: 'Format help', stderr: '' });
 
-      const displaySpy = vi.spyOn(FormatterUIService, 'displayEnvInfo').mockImplementation(() => {});
+      const displaySpy = vi
+        .spyOn(FormatterUIService, 'displayEnvInfo')
+        .mockImplementation(() => {});
 
       formatter = new CompactFormatter(false, [testData.targetDir], mockExec);
 
       await formatter.validateEnvironment();
 
-      expect(displaySpy).toHaveBeenCalledWith(testData.devToolsVersion, testData.targetDir);
+      expect(displaySpy).toHaveBeenCalledWith(
+        testData.devToolsVersion,
+        testData.targetDir,
+      );
 
       displaySpy.mockRestore();
     });

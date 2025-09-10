@@ -76,10 +76,16 @@ export class FormatterService extends BaseCompactService {
     const command = `compact format --check${pathArg}`;
 
     try {
-      const result = await this.executeCompactCommand(command, 'Failed to check formatting');
+      const result = await this.executeCompactCommand(
+        command,
+        'Failed to check formatting',
+      );
       return { ...result, isFormatted: true };
     } catch (error: unknown) {
-      if (error instanceof FormatterError && isPromisifiedChildProcessError(error.cause)) {
+      if (
+        error instanceof FormatterError &&
+        isPromisifiedChildProcessError(error.cause)
+      ) {
         const childProcessError = error.cause;
         if (childProcessError.code === 1 && childProcessError.stdout) {
           return {
