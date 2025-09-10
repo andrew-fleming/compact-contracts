@@ -304,7 +304,6 @@ export abstract class BaseCompactOperation {
    * Abstract methods that must be implemented by subclasses.
    */
   abstract validateEnvironment(): Promise<void>;
-  abstract execute(): Promise<void>;
   abstract showNoFiles(): void;
 
   /**

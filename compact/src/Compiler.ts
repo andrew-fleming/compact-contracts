@@ -207,7 +207,7 @@ export class CompactCompiler extends BaseCompactOperation {
   /**
    * Main compilation execution method.
    */
-  async execute(): Promise<void> {
+  async compile(): Promise<void> {
     await this.validateEnvironment();
 
     const { files } = await this.discoverFiles();
@@ -218,13 +218,6 @@ export class CompactCompiler extends BaseCompactOperation {
     for (const [index, file] of files.entries()) {
       await this.compileFile(file, index, files.length);
     }
-  }
-
-  /**
-   * Legacy method name for backwards compatibility.
-   */
-  async compile(): Promise<void> {
-    return this.execute();
   }
 
   /**
