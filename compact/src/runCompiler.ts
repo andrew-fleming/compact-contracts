@@ -91,7 +91,7 @@ function showUsageHelp(): void {
   console.log(chalk.yellow('\nExamples:'));
   console.log(
     chalk.yellow(
-      '  compact-compiler                           # Compile all files',
+      '  compact-compiler                            # Compile all files',
     ),
   );
   console.log(
