@@ -13,32 +13,63 @@ import {
   isPromisifiedChildProcessError,
 } from './types/errors.ts';
 
-/** Source directory containing .compact files */
+/**
+ * Default source directory containing .compact files.
+ * All Compact operations expect source files to be in this directory.
+ */
 export const SRC_DIR: string = 'src';
-/** Output directory for compiled artifacts */
+
+/**
+ * Default output directory for compiled artifacts.
+ * Compilation results are written to subdirectories within this path.
+ */
 export const ARTIFACTS_DIR: string = 'artifacts';
 
 /**
- * Function type for executing shell commands.
- * Allows dependency injection for testing and customization.
+ * Function signature for executing shell commands.
+ *
+ * Enables dependency injection for testing and allows customization
+ * of command execution behavior across different environments.
+ *
+ * @param command - The shell command to execute
+ * @returns Promise resolving to command output with stdout and stderr
  */
 export type ExecFunction = (
   command: string,
 ) => Promise<{ stdout: string; stderr: string }>;
 
 /**
- * Base environment validator that handles common CLI validation.
- * Extended by specific validators for compilation and formatting.
+ * Abstract base class for validating Compact CLI environment.
+ *
+ * Provides common validation logic shared across different Compact operations
+ * (compilation, formatting, etc.). Subclasses extend this with operation-specific
+ * validation requirements.
+ *
+ * @example
+ * ```typescript
+ * class CompilerValidator extends BaseEnvironmentValidator {
+ *   async validate(version?: string) {
+ *     const { devToolsVersion } = await this.validateBase();
+ *     const toolchainVersion = await this.getToolchainVersion(version);
+ *     return { devToolsVersion, toolchainVersion };
+ *   }
+ * }
+ * ```
  */
 export abstract class BaseEnvironmentValidator {
   protected execFn: ExecFunction;
 
+  /**
+   * @param execFn - Command execution function (defaults to promisified child_process.exec)
+   */
   constructor(execFn: ExecFunction = promisify(execCallback)) {
     this.execFn = execFn;
   }
 
   /**
-   * Checks if the Compact CLI is available in the system PATH.
+   * Tests whether the Compact CLI is available in the system PATH.
+   *
+   * @returns Promise resolving to true if CLI is accessible, false otherwise
    */
   async checkCompactAvailable(): Promise<boolean> {
     try {
@@ -50,7 +81,10 @@ export abstract class BaseEnvironmentValidator {
   }
 
   /**
-   * Retrieves the version of the Compact developer tools.
+   * Retrieves the version string of the installed Compact developer tools.
+   *
+   * @returns Promise resolving to the trimmed version output
+   * @throws Error if the version command fails
    */
   async getDevToolsVersion(): Promise<string> {
     const { stdout } = await this.execFn('compact --version');
@@ -58,8 +92,13 @@ export abstract class BaseEnvironmentValidator {
   }
 
   /**
-   * Base validation that checks CLI availability.
-   * Override in subclasses for specific validation requirements.
+   * Performs base environment validation that all operations require.
+   *
+   * Verifies CLI availability and retrieves version information.
+   * Subclasses should call this before performing operation-specific validation.
+   *
+   * @returns Promise resolving to base validation results
+   * @throws CompactCliNotFoundError if CLI is not available in PATH
    */
   async validateBase(): Promise<{ devToolsVersion: string }> {
     const isAvailable = await this.checkCompactAvailable();
@@ -74,20 +113,51 @@ export abstract class BaseEnvironmentValidator {
   }
 
   /**
-   * Abstract method for specific validation logic.
-   * Must be implemented by subclasses.
+   * Operation-specific validation logic.
+   *
+   * Subclasses must implement this to perform validation requirements
+   * specific to their operation (e.g., checking formatter availability,
+   * validating compiler versions).
+   *
+   * @param args - Variable arguments for operation-specific validation
+   * @returns Promise resolving to operation-specific validation results
    */
   abstract validate(...args: any[]): Promise<any>;
 }
 
 /**
- * Shared file discovery service for both compilation and formatting.
- * Recursively scans directories and filters for .compact file extensions.
+ * Service for discovering .compact files within a directory tree.
+ *
+ * Recursively scans directories and returns relative paths to all .compact files
+ * found. Used by both compilation and formatting operations to identify
+ * target files for processing.
+ *
+ * @example
+ * ```typescript
+ * const discovery = new FileDiscovery();
+ * const files = await discovery.getCompactFiles('src/contracts');
+ * // Returns: ['Token.compact', 'security/AccessControl.compact']
+ * ```
  */
 export class FileDiscovery {
   /**
-   * Recursively discovers all .compact files in a directory.
-   * Returns relative paths from the SRC_DIR for consistent processing.
+   * Recursively discovers all .compact files within a directory.
+   *
+   * Returns paths relative to SRC_DIR for consistent processing across
+   * different operations. Gracefully handles access errors by logging
+   * warnings and continuing with remaining files.
+   *
+   * @param dir - Directory path to search (can be relative or absolute)
+   * @returns Promise resolving to array of relative file paths from SRC_DIR
+   *
+   * @example
+   * ```typescript
+   * // Search in specific subdirectory
+   * const files = await discovery.getCompactFiles('src/contracts');
+   *
+   * // Search entire source tree
+   * const allFiles = await discovery.getCompactFiles('src');
+   * ```
    */
   async getCompactFiles(dir: string): Promise<string[]> {
     try {
@@ -121,18 +191,56 @@ export class FileDiscovery {
 }
 
 /**
- * Base service for executing Compact CLI commands.
- * Provides common command execution patterns with error handling.
+ * Abstract base class for services that execute Compact CLI commands.
+ *
+ * Provides common patterns for command execution and error handling.
+ * Subclasses implement operation-specific command construction while
+ * inheriting consistent error handling and logging behavior.
+ *
+ * @example
+ * ```typescript
+ * class FormatterService extends BaseCompactService {
+ *   async formatFiles(files: string[]) {
+ *     const command = `compact format ${files.join(' ')}`;
+ *     return this.executeCompactCommand(command, 'Failed to format files');
+ *   }
+ *
+ *   protected createError(message: string, cause?: unknown): Error {
+ *     return new FormatterError(message, cause);
+ *   }
+ * }
+ * ```
  */
 export abstract class BaseCompactService {
   protected execFn: ExecFunction;
 
+  /**
+   * @param execFn - Command execution function (defaults to promisified child_process.exec)
+   */
   constructor(execFn: ExecFunction = promisify(execCallback)) {
     this.execFn = execFn;
   }
 
   /**
-   * Executes a compact command and handles common error patterns.
+   * Executes a Compact CLI command with consistent error handling.
+   *
+   * Catches execution errors and wraps them in operation-specific error types
+   * using the createError method. Provides consistent error context across
+   * different operations.
+   *
+   * @param command - The complete command string to execute
+   * @param errorContext - Human-readable context for error messages
+   * @returns Promise resolving to command output
+   * @throws Operation-specific error (created by subclass createError method)
+   *
+   * @example
+   * ```typescript
+   * // In a subclass:
+   * const result = await this.executeCompactCommand(
+   *   'compact format --check src/',
+   *   'Failed to check formatting'
+   * );
+   * ```
    */
   protected async executeCompactCommand(
     command: string,
@@ -153,19 +261,44 @@ export abstract class BaseCompactService {
   }
 
   /**
-   * Abstract method for creating operation-specific errors.
-   * Must be implemented by subclasses.
+   * Creates operation-specific error instances.
+   *
+   * Subclasses must implement this to return appropriate error types
+   * (e.g., FormatterError, CompilationError) that provide operation-specific
+   * context and error handling behavior.
+   *
+   * @dev Mostly for edge cases that aren't picked up by the dev tool error handling.
+   *
+   * @param message - Error message describing what failed
+   * @param cause - Original error that triggered this failure (optional)
+   * @returns Error instance appropriate for the operation
    */
   protected abstract createError(message: string, cause?: unknown): Error;
 }
 
 /**
- * Shared UI service for consistent styling across compiler and formatter.
- * Provides common output formatting and user feedback patterns.
+ * Shared UI utilities for consistent styling across Compact operations.
+ *
+ * Provides common output formatting, progress indicators, and user feedback
+ * patterns. Ensures all Compact tools have consistent visual appearance
+ * and behavior.
  */
 export const SharedUIService = {
   /**
-   * Prints formatted output with consistent indentation and coloring.
+   * Formats command output with consistent indentation and coloring.
+   *
+   * Filters empty lines and adds 4-space indentation to create visually
+   * distinct output sections. Used for displaying stdout/stderr from
+   * Compact CLI commands.
+   *
+   * @param output - Raw output text to format
+   * @param colorFn - Chalk color function for styling the output
+   *
+   * @example
+   * ```typescript
+   * SharedUIService.printOutput(result.stdout, chalk.cyan);
+   * SharedUIService.printOutput(result.stderr, chalk.red);
+   * ```
    */
   printOutput(output: string, colorFn: (text: string) => string): void {
     const lines = output
@@ -176,7 +309,15 @@ export const SharedUIService = {
   },
 
   /**
-   * Displays base environment information.
+   * Displays base environment information common to all operations.
+   *
+   * Shows developer tools version and optional target directory.
+   * Called by operation-specific UI services to provide consistent
+   * environment context.
+   *
+   * @param operation - Operation name for message prefixes (e.g., 'COMPILE', 'FORMAT')
+   * @param devToolsVersion - Version string of installed Compact tools
+   * @param targetDir - Optional target directory being processed
    */
   displayBaseEnvInfo(
     operation: string,
@@ -195,7 +336,15 @@ export const SharedUIService = {
   },
 
   /**
-   * Displays operation start message with file count.
+   * Displays operation start message with file count and location.
+   *
+   * Provides user feedback when beginning to process multiple files.
+   * Shows count of files found and optional location context.
+   *
+   * @param operation - Operation name for message prefixes
+   * @param action - Action being performed (e.g., 'compile', 'format', 'check formatting for')
+   * @param fileCount - Number of files being processed
+   * @param targetDir - Optional directory being processed
    */
   showOperationStart(
     operation: string,
@@ -213,7 +362,13 @@ export const SharedUIService = {
   },
 
   /**
-   * Displays a warning when no .compact files are found.
+   * Displays warning when no .compact files are found in target location.
+   *
+   * Provides clear feedback about search location and reminds users
+   * where files are expected to be located.
+   *
+   * @param operation - Operation name for message prefixes
+   * @param targetDir - Optional directory that was searched
    */
   showNoFiles(operation: string, targetDir?: string): void {
     const searchLocation = targetDir ? `${targetDir}/` : 'src/';
@@ -226,7 +381,12 @@ export const SharedUIService = {
   },
 
   /**
-   * Shows available directories when DirectoryNotFoundError occurs.
+   * Shows available directory options when DirectoryNotFoundError occurs.
+   *
+   * Provides helpful context about valid directory names that can be
+   * used with the --dir flag. Displayed after directory not found errors.
+   *
+   * @param operation - Operation name for contextualized help text
    */
   showAvailableDirectories(operation: string): void {
     console.log(chalk.yellow('\nAvailable directories:'));
@@ -249,20 +409,48 @@ export const SharedUIService = {
 };
 
 /**
- * Base class for Compact operations (compilation, formatting).
- * Provides common patterns for argument parsing, validation, and execution.
+ * Abstract base class for Compact operations (compilation, formatting, etc.).
+ *
+ * Provides common infrastructure for file discovery, directory validation,
+ * and argument parsing. Subclasses implement operation-specific logic while
+ * inheriting shared patterns for working with .compact files.
+ *
+ * @example
+ * ```typescript
+ * class CompactFormatter extends BaseCompactOperation {
+ *   constructor(writeMode = false, targets: string[] = [], execFn?: ExecFunction) {
+ *     super(targets[0]); // Extract targetDir from targets
+ *     // ... operation-specific setup
+ *   }
+ *
+ *   async format() {
+ *     await this.validateEnvironment();
+ *     const { files } = await this.discoverFiles();
+ *     // ... process files
+ *   }
+ * }
+ * ```
  */
 export abstract class BaseCompactOperation {
   protected readonly fileDiscovery: FileDiscovery;
   protected readonly targetDir?: string;
 
+  /**
+   * @param targetDir - Optional subdirectory within src/ to limit operation scope
+   */
   constructor(targetDir?: string) {
     this.targetDir = targetDir;
     this.fileDiscovery = new FileDiscovery();
   }
 
   /**
-   * Validates the target directory exists if specified.
+   * Validates that the target directory exists (if specified).
+   *
+   * Only performs validation when targetDir is set. Throws DirectoryNotFoundError
+   * if the specified directory doesn't exist, providing clear user feedback.
+   *
+   * @param searchDir - Full path to the directory that should exist
+   * @throws DirectoryNotFoundError if targetDir is set but directory doesn't exist
    */
   protected validateTargetDirectory(searchDir: string): void {
     if (this.targetDir && !existsSync(searchDir)) {
@@ -274,14 +462,29 @@ export abstract class BaseCompactOperation {
   }
 
   /**
-   * Gets the search directory based on target directory.
+   * Determines the directory to search based on target configuration.
+   *
+   * @returns Full path to search directory (either SRC_DIR or SRC_DIR/targetDir)
    */
   protected getSearchDirectory(): string {
     return this.targetDir ? join(SRC_DIR, this.targetDir) : SRC_DIR;
   }
 
   /**
-   * Discovers files and handles empty results.
+   * Discovers .compact files and handles common validation/feedback.
+   *
+   * Performs the complete file discovery workflow: validates directories,
+   * discovers files, and handles empty results with appropriate user feedback.
+   *
+   * @returns Promise resolving to discovered files and search directory
+   *
+   * @example
+   * ```typescript
+   * const { files, searchDir } = await this.discoverFiles();
+   * if (files.length === 0) return; // Already handled by showNoFiles()
+   *
+   * // Process discovered files...
+   * ```
    */
   protected async discoverFiles(): Promise<{
     files: string[];
@@ -301,13 +504,45 @@ export abstract class BaseCompactOperation {
   }
 
   /**
-   * Abstract methods that must be implemented by subclasses.
+   * Validates the environment for this operation.
+   *
+   * Subclasses implement operation-specific validation (CLI availability,
+   * tool versions, feature availability, etc.).
    */
   abstract validateEnvironment(): Promise<void>;
+
+  /**
+   * Displays operation-specific "no files found" message.
+   *
+   * Subclasses implement this to provide operation-appropriate messaging
+   * when no .compact files are discovered.
+   */
   abstract showNoFiles(): void;
 
   /**
-   * Common argument parsing patterns.
+   * Parses common command-line arguments shared across operations.
+   *
+   * Extracts --dir flag and returns remaining arguments for operation-specific
+   * parsing. Provides consistent argument handling patterns across all tools.
+   *
+   * @param args - Raw command-line arguments array
+   * @returns Parsed base arguments and remaining args for further processing
+   * @throws Error if --dir flag is malformed
+   *
+   * @example
+   * ```typescript
+   * static fromArgs(args: string[]) {
+   *   const { targetDir, remainingArgs } = this.parseBaseArgs(args);
+   *
+   *   // Process operation-specific flags from remainingArgs
+   *   let writeMode = false;
+   *   for (const arg of remainingArgs) {
+   *     if (arg === '--write') writeMode = true;
+   *   }
+   *
+   *   return new MyOperation(targetDir, writeMode);
+   * }
+   * ```
    */
   protected static parseBaseArgs(args: string[]): {
     targetDir?: string;
@@ -336,10 +571,36 @@ export abstract class BaseCompactOperation {
 }
 
 /**
- * Base error handler for both compiler and formatter CLIs.
- * Handles common error types with operation-specific context.
+ * Centralized error handling for CLI applications.
+ *
+ * Provides consistent error presentation and user guidance across all
+ * Compact tools. Handles common error types with appropriate messaging
+ * and recovery suggestions.
  */
 export const BaseErrorHandler = {
+  /**
+   * Handles common error types that can occur across all operations.
+   *
+   * Processes errors that are shared between compilation, formatting, and
+   * other operations. Returns true if the error was handled, false if
+   * operation-specific handling is needed.
+   *
+   * @param error - Error that occurred during operation
+   * @param spinner - Ora spinner instance for consistent UI messaging
+   * @param operation - Operation name for contextualized error messages
+   * @returns true if error was handled, false if caller should handle it
+   *
+   * @example
+   * ```typescript
+   * function handleError(error: unknown, spinner: Ora) {
+   *   if (BaseErrorHandler.handleCommonErrors(error, spinner, 'COMPILE')) {
+   *     return; // Error was handled
+   *   }
+   *
+   *   // Handle operation-specific errors...
+   * }
+   * ```
+   */
   handleCommonErrors(error: unknown, spinner: Ora, operation: string): boolean {
     // CompactCliNotFoundError
     if (error instanceof Error && error.name === 'CompactCliNotFoundError') {
@@ -389,6 +650,17 @@ export const BaseErrorHandler = {
     return false; // Not handled, let specific handler deal with it
   },
 
+  /**
+   * Handles unexpected errors with generic troubleshooting guidance.
+   *
+   * Provides fallback error handling for errors not covered by common
+   * error types. Shows general troubleshooting steps that apply to
+   * most Compact operations.
+   *
+   * @param error - Unexpected error that occurred
+   * @param spinner - Ora spinner instance for consistent UI messaging
+   * @param operation - Operation name for contextualized error messages
+   */
   handleUnexpectedError(error: unknown, spinner: Ora, operation: string): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     spinner.fail(chalk.red(`[${operation}] Unexpected error: ${errorMessage}`));
