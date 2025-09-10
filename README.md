@@ -104,10 +104,16 @@ SKIP_ZK=true turbo compact
 turbo test
 ```
 
-### Format and lint files
+### Format and lint ts files
 
 ```bash
 turbo check:fix
+```
+
+### Format Compact files
+
+```bash
+turbo format:fix
 ```
 
 ### All together now!
