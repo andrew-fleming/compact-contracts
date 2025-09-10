@@ -56,10 +56,7 @@ export class FormatterEnvironmentValidator extends BaseEnvironmentValidator {
  * Extends base service with format-specific command construction.
  */
 export class FormatterService extends BaseCompactService {
-  /**
-   * Formats files in-place in the specified directory or current directory.
-   */
-  async formatInPlace(
+  async formatAndWrite(
     targetPath?: string,
   ): Promise<{ stdout: string; stderr: string }> {
     const pathArg = targetPath ? ` "${targetPath}"` : '';
@@ -144,7 +141,7 @@ export const FormatterUIService = {
    */
   showFormattingStart(
     fileCount: number,
-    mode: 'format' | 'check',
+    mode: 'check' | 'write',
     targetDir?: string,
   ): void {
     const action = mode === 'check' ? 'check formatting for' : 'format';
@@ -183,14 +180,14 @@ export const FormatterUIService = {
 export class CompactFormatter extends BaseCompactOperation {
   private readonly environmentValidator: FormatterEnvironmentValidator;
   private readonly formatterService: FormatterService;
-  private readonly checkMode: boolean;
+  private readonly writeMode: boolean;
   private readonly targets: string[];
 
   /**
    * Creates a new CompactFormatter instance.
    */
   constructor(
-    checkMode = false,
+    writeMode = false,
     targets: string[] = [],
     execFn?: ExecFunction,
   ) {
@@ -201,7 +198,7 @@ export class CompactFormatter extends BaseCompactOperation {
         : undefined;
 
     super(targetDir);
-    this.checkMode = checkMode;
+    this.writeMode = writeMode;
     this.targets = targets;
     this.environmentValidator = new FormatterEnvironmentValidator(execFn);
     this.formatterService = new FormatterService(execFn);
@@ -213,7 +210,7 @@ export class CompactFormatter extends BaseCompactOperation {
   static fromArgs(args: string[]): CompactFormatter {
     const { targetDir, remainingArgs } = CompactFormatter.parseBaseArgs(args);
 
-    let checkMode = false;
+    let writeMode = false;
     const targets: string[] = [];
 
     // Add targetDir to targets if specified
@@ -222,14 +219,14 @@ export class CompactFormatter extends BaseCompactOperation {
     }
 
     for (const arg of remainingArgs) {
-      if (arg === '--check') {
-        checkMode = true;
+      if (arg === '--write') {
+        writeMode = true;
       } else if (!arg.startsWith('--')) {
         targets.push(arg);
       }
     }
 
-    return new CompactFormatter(checkMode, targets);
+    return new CompactFormatter(writeMode, targets);
   }
 
   /**
@@ -276,7 +273,7 @@ export class CompactFormatter extends BaseCompactOperation {
    * Formats specific files provided as arguments.
    */
   private async formatSpecificFiles(): Promise<void> {
-    if (this.checkMode) {
+    if (!this.writeMode) {
       for (const file of this.targets) {
         await this.checkFile(file);
       }
@@ -294,14 +291,14 @@ export class CompactFormatter extends BaseCompactOperation {
     const { files, searchDir } = await this.discoverFiles();
     if (files.length === 0) return;
 
-    const mode = this.checkMode ? 'check' : 'format';
+    const mode = this.writeMode ? 'write' : 'check';
     FormatterUIService.showFormattingStart(files.length, mode, this.targetDir);
 
-    if (this.checkMode) {
+    if (!this.writeMode) {
       const result = await this.formatterService.checkFormatting(searchDir);
       FormatterUIService.showCheckResults(result.isFormatted, result.stdout);
     } else {
-      const result = await this.formatterService.formatInPlace(searchDir);
+      const result = await this.formatterService.formatAndWrite(searchDir);
 
       // Successful formatting typically produces no output
       if (result.stdout.trim()) {
@@ -339,8 +336,8 @@ export class CompactFormatter extends BaseCompactOperation {
   /**
    * For testing - expose internal state
    */
-  get testCheckMode(): boolean {
-    return this.checkMode;
+  get testWriteMode(): boolean {
+    return this.writeMode;
   }
 
   get testTargets(): string[] {

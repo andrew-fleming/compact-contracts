@@ -23,7 +23,7 @@
     "build": "compact-builder && tsc",
     "test": "compact-compiler --skip-zk && vitest run",
     "format": "compact-formatter",
-    "format:check": "compact-formatter --check",
+    "format:fix": "compact-formatter --write",
     "types": "tsc -p tsconfig.json --noEmit",
     "clean": "git clean -fXd"
   },
