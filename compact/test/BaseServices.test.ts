@@ -50,7 +50,7 @@ const mockSpinner = {
   succeed: vi.fn(),
 };
 
-// Concrete implementations for testing abstract classes
+// Impls for abstract classes
 class TestEnvironmentValidator extends BaseEnvironmentValidator {
   async validate(): Promise<{ devToolsVersion: string }> {
     return this.validateBase();
@@ -70,14 +70,7 @@ class TestCompactService extends BaseCompactService {
 }
 
 class TestCompactOperation extends BaseCompactOperation {
-  async validateEnvironment(): Promise<void> {
-    // Test implementation
-  }
-
-  async execute(): Promise<void> {
-    //const { files } = await this.discoverFiles();
-    return Promise.resolve();
-  }
+  async validateEnvironment(): Promise<void> {}
 
   showNoFiles(): void {
     SharedUIService.showNoFiles('TEST', this.targetDir);
@@ -250,7 +243,7 @@ describe('SharedUIService', () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const colorFn = (text: string) => `colored: ${text}`;
 
-      // split, filter, map
+      // Split, filter, map
       SharedUIService.printOutput('line1\nline2\n\nline3', colorFn);
 
       expect(consoleSpy).toHaveBeenCalledWith(

@@ -483,16 +483,4 @@ describe('CompactCompiler', () => {
       displaySpy.mockRestore();
     });
   });
-
-  describe('legacy compatibility', () => {
-    it('compile() method calls execute()', async () => {
-      compiler = new CompactCompiler('', undefined, undefined, mockExec);
-      const executeSpy = vi.spyOn(compiler, 'execute').mockResolvedValue();
-
-      await compiler.compile();
-
-      expect(executeSpy).toHaveBeenCalled();
-      executeSpy.mockRestore();
-    });
-  });
 });
