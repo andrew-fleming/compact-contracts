@@ -88,9 +88,9 @@
       "outputs": [],
       "cache": false
     },
-    "//#fmt-and-lint": {},
-    "//#fmt-and-lint:ci": {},
-    "//#fmt-and-lint:fix": {
+    "//#check": {},
+    "//#check:ci": {},
+    "//#check:fix": {
       "cache": false
     },
     "clean": {
