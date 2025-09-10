@@ -76,18 +76,15 @@ export class FormatterService extends BaseCompactService {
     const command = `compact format --check${pathArg}`;
 
     try {
-      const result = await this.executeCompactCommand(
-        command,
-        'Failed to check formatting',
-      );
+      const result = await this.executeCompactCommand(command, 'Failed to check formatting');
       return { ...result, isFormatted: true };
     } catch (error: unknown) {
-      if (isPromisifiedChildProcessError(error)) {
-        // Exit code 1 with formatting differences is expected behavior
-        if (error.code === 1 && error.stdout) {
+      if (error instanceof FormatterError && isPromisifiedChildProcessError(error.cause)) {
+        const childProcessError = error.cause;
+        if (childProcessError.code === 1 && childProcessError.stdout) {
           return {
-            stdout: error.stdout,
-            stderr: error.stderr || '',
+            stdout: childProcessError.stdout,
+            stderr: childProcessError.stderr || '',
             isFormatted: false,
           };
         }
@@ -247,7 +244,7 @@ export class CompactFormatter extends BaseCompactOperation {
   /**
    * Main formatting execution method.
    */
-  async execute(): Promise<void> {
+  async format(): Promise<void> {
     await this.validateEnvironment();
 
     // Handle specific file targets
@@ -260,13 +257,6 @@ export class CompactFormatter extends BaseCompactOperation {
 
     // Handle directory target or current directory
     return this.formatDirectory();
-  }
-
-  /**
-   * Legacy method name for backwards compatibility.
-   */
-  async format(): Promise<void> {
-    return this.execute();
   }
 
   /**
@@ -310,7 +300,7 @@ export class CompactFormatter extends BaseCompactOperation {
 
       const spinner = ora();
       spinner.succeed(
-        chalk.green(`[FORMAT] Successfully formatted ${files.length} file(s)`),
+        chalk.green(`[FORMAT] Processed ${files.length} file(s)`),
       );
     }
   }
