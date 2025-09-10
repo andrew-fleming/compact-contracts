@@ -79,6 +79,9 @@ jobs:
           }
           compile
 
+      - name: Run Compact formatter
+        run: turbo format:check
+
       - name: Run type checks
         run: turbo types
 
