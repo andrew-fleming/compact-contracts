@@ -4,7 +4,6 @@ import { BaseErrorHandler } from '../src/BaseServices.js';
 import {
   CompactCliNotFoundError,
   CompilationError,
-  DirectoryNotFoundError,
   isPromisifiedChildProcessError,
 } from '../src/types/errors.js';
 
