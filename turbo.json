@@ -74,11 +74,11 @@
       "outputs": ["dist/**"]
     },
     "format": {
-      "dependsOn": ["^build"]
-    },
-    "format:check": {
       "dependsOn": ["^build"],
       "cache": false
+    },
+    "format:fix": {
+      "dependsOn": ["^build"]
     },
     "types": {
       "dependsOn": [
