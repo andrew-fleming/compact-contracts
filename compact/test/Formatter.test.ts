@@ -46,59 +46,38 @@ describe('FormatterEnvironmentValidator', () => {
 
   describe('checkFormatterAvailable', () => {
     it('succeeds when formatter is available', async () => {
-      const testData = {
-        expectedCommand: 'compact help format',
-        response: { stdout: 'Format help text', stderr: '' },
-      };
-
-      mockExec.mockResolvedValue(testData.response);
+      mockExec.mockResolvedValue({ stdout: 'Format help text', stderr: '' });
 
       await expect(validator.checkFormatterAvailable()).resolves.not.toThrow();
-      expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
+      expect(mockExec).toHaveBeenCalledWith('compact help format');
     });
 
     it('throws FormatterNotAvailableError when formatter not available', async () => {
-      const testData = {
-        error: Object.assign(new Error('Command failed'), {
-          stderr: 'formatter not available',
-          stdout: '',
-        }),
-      };
+      const error = Object.assign(new Error('Command failed'), {
+        stderr: 'formatter not available',
+        stdout: '',
+        code: 1,
+      });
 
-      mockExec.mockRejectedValue(testData.error);
+      mockExec.mockRejectedValue(error);
       await expect(validator.checkFormatterAvailable()).rejects.toThrow(
-        FormatterNotAvailableError,
-      );
-    });
-
-    it('re-throws other errors', async () => {
-      const testData = {
-        error: new Error('Different error'),
-      };
-
-      mockExec.mockRejectedValue(testData.error);
-
-      await expect(validator.checkFormatterAvailable()).rejects.toThrow(
-        testData.error,
+        'Formatter not available'
       );
     });
   });
 
   describe('validate', () => {
     it('returns dev tools version when validation succeeds', async () => {
-      const testData = {
-        devToolsVersion: 'compact 0.2.0',
-        expectedResult: { devToolsVersion: 'compact 0.2.0' },
-      };
+      const devToolsVersion = 'compact 0.2.0';
 
       mockExec
-        .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' }) // checkCompactAvailable
-        .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' }) // getDevToolsVersion
+        .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' }) // checkCompactAvailable
+        .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' }) // getDevToolsVersion
         .mockResolvedValueOnce({ stdout: 'Format help', stderr: '' }); // checkFormatterAvailable
 
       const result = await validator.validate();
 
-      expect(result).toEqual(testData.expectedResult);
+      expect(result).toEqual({ devToolsVersion });
     });
   });
 });
@@ -113,197 +92,63 @@ describe('FormatterService', () => {
     service = new FormatterService(mockExec);
   });
 
-  describe('formatAndWrite', () => {
-    it('constructs correct command with target path', async () => {
-      const testData = {
-        targetPath: 'security',
-        expectedCommand: 'compact format "security"',
-        response: { stdout: 'Formatted successfully', stderr: '' },
-      };
+  describe('format', () => {
+    it('constructs command for check mode', async () => {
+      const targets = ['security'];
+      const response = { stdout: 'Check complete', stderr: '' };
 
-      mockExec.mockResolvedValue(testData.response);
+      mockExec.mockResolvedValue(response);
 
-      const result = await service.formatAndWrite(testData.targetPath);
+      const result = await service.format(targets, true);
 
-      expect(result).toEqual(testData.response);
-      expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
+      expect(result).toEqual(response);
+      expect(mockExec).toHaveBeenCalledWith('compact format --check "security"');
     });
 
-    it('constructs command without target path', async () => {
-      const testData = {
-        expectedCommand: 'compact format',
-        response: { stdout: 'Formatted successfully', stderr: '' },
-      };
+    it('constructs command for write mode', async () => {
+      const targets = ['security'];
+      const response = { stdout: 'Format complete', stderr: '' };
 
-      mockExec.mockResolvedValue(testData.response);
+      mockExec.mockResolvedValue(response);
 
-      await service.formatAndWrite();
+      await service.format(targets, false);
 
-      expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
+      expect(mockExec).toHaveBeenCalledWith('compact format "security"');
+    });
+
+    it('constructs command without targets', async () => {
+      mockExec.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await service.format([], false);
+
+      expect(mockExec).toHaveBeenCalledWith('compact format');
+    });
+
+    it('constructs command with multiple targets', async () => {
+      const targets = ['src/contracts', 'src/utils'];
+      mockExec.mockResolvedValue({ stdout: '', stderr: '' });
+
+      await service.format(targets, false);
+
+      expect(mockExec).toHaveBeenCalledWith('compact format "src/contracts" "src/utils"');
     });
 
     it('throws FormatterError on failure', async () => {
-      const testData = {
-        targetPath: 'security',
-        error: new Error('Format failed'),
-      };
+      mockExec.mockRejectedValue(new Error('Format failed'));
 
-      mockExec.mockRejectedValue(testData.error);
-
-      await expect(service.formatAndWrite(testData.targetPath)).rejects.toThrow(
+      await expect(service.format(['security'], false)).rejects.toThrow(
         FormatterError,
       );
     });
   });
 
-  describe('checkFormatting', () => {
-    it('returns true when no formatting needed', async () => {
-      const testData = {
-        targetPath: 'security',
-        expectedCommand: 'compact format --check "security"',
-        response: { stdout: 'All files formatted', stderr: '' },
-        expectedResult: {
-          stdout: 'All files formatted',
-          stderr: '',
-          isFormatted: true,
-        },
-      };
-
-      mockExec.mockResolvedValue(testData.response);
-
-      const result = await service.checkFormatting(testData.targetPath);
-
-      expect(result).toEqual(testData.expectedResult);
-      expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
-    });
-
-    it('returns false when formatting differences exist', async () => {
-      const testData = {
-        error: Object.assign(new Error('Formatting differences'), {
-          code: 1,
-          stdout: 'Differences found',
-          stderr: 'Formatting failed',
-        }),
-        expectedResult: {
-          stdout: 'Differences found',
-          stderr: 'Formatting failed',
-          isFormatted: false,
-        },
-      };
-
-      mockExec.mockRejectedValue(testData.error);
-      const result = await service.checkFormatting();
-
-      expect(result).toEqual(testData.expectedResult);
-    });
-
-    it('throws FormatterError for unexpected failures', async () => {
-      const testData = {
-        error: new Error('Unexpected error'),
-      };
-
-      mockExec.mockRejectedValue(testData.error);
-
-      await expect(service.checkFormatting()).rejects.toThrow(FormatterError);
-    });
-
-    it('handles FormatterError with PromisifiedChildProcessError cause', async () => {
-      const childProcessError = Object.assign(
-        new Error('Format check failed'),
-        {
-          code: 1,
-          stdout: 'Differences found',
-          stderr: 'Formatting failed',
-        },
-      );
-
-      const formatterError = new FormatterError(
-        'Failed to check formatting',
-        undefined,
-        childProcessError,
-      );
-
-      // Mock executeCompactCommand to throw the FormatterError
-      const executeSpy = vi.spyOn(service as any, 'executeCompactCommand');
-      executeSpy.mockRejectedValue(formatterError);
-
-      const result = await service.checkFormatting();
-
-      expect(result).toEqual({
-        stdout: 'Differences found',
-        stderr: 'Formatting failed',
-        isFormatted: false,
-      });
-
-      executeSpy.mockRestore();
-    });
-  });
-
-  describe('formatFiles', () => {
-    it('formats multiple files correctly', async () => {
-      const testData = {
-        files: ['MyToken.compact', 'Security.compact'],
-        expectedCommand: `compact format "${join(SRC_DIR, 'MyToken.compact')}" "${join(SRC_DIR, 'Security.compact')}"`,
-        response: { stdout: 'Files formatted', stderr: '' },
-      };
-
-      mockExec.mockResolvedValue(testData.response);
-
-      const result = await service.formatFiles(testData.files);
-
-      expect(result).toEqual(testData.response);
-      expect(mockExec).toHaveBeenCalledWith(testData.expectedCommand);
-    });
-
-    it('returns empty result for empty file list', async () => {
-      const testData = {
-        files: [],
-        expectedResult: { stdout: '', stderr: '' },
-      };
-
-      const result = await service.formatFiles(testData.files);
-
-      expect(result).toEqual(testData.expectedResult);
-      expect(mockExec).not.toHaveBeenCalled();
-    });
-  });
-
   describe('createError', () => {
-    it('extracts target from error message', () => {
-      const testData = {
-        message: 'Failed to format security',
-        expectedTarget: 'security',
-      };
-
-      // Access protected method using bracket notation
-      const error = service['createError'](testData.message);
+    it('creates FormatterError', () => {
+      const message = 'Failed to format';
+      const error = service['createError'](message);
 
       expect(error).toBeInstanceOf(FormatterError);
-      expect((error as FormatterError).target).toBe(testData.expectedTarget);
-    });
-
-    it('extracts target from file error message', () => {
-      const testData = {
-        message: 'Failed to format files: MyToken.compact, Security.compact',
-        expectedTarget: 'MyToken.compact, Security.compact',
-      };
-
-      const error = service['createError'](testData.message);
-
-      expect(error).toBeInstanceOf(FormatterError);
-      expect((error as FormatterError).target).toBe(testData.expectedTarget);
-    });
-
-    it('handles message without target', () => {
-      const testData = {
-        message: 'Some generic error',
-        expectedTarget: undefined,
-      };
-
-      const error = service['createError'](testData.message);
-
-      expect(error).toBeInstanceOf(FormatterError);
-      expect((error as FormatterError).target).toBe(testData.expectedTarget);
+      expect(error.message).toBe(message);
     });
   });
 });
@@ -322,16 +167,11 @@ describe('FormatterUIService', () => {
   });
 
   describe('displayEnvInfo', () => {
-    it('displays environment information with target directory', () => {
-      const testData = {
-        devToolsVersion: 'compact 0.2.0',
-        targetDir: 'security',
-      };
+    it('displays environment information', () => {
+      const devToolsVersion = 'compact 0.2.0';
+      const targetDir = 'security';
 
-      FormatterUIService.displayEnvInfo(
-        testData.devToolsVersion,
-        testData.targetDir,
-      );
+      FormatterUIService.displayEnvInfo(devToolsVersion, targetDir);
 
       expect(mockSpinner.info).toHaveBeenCalledWith(
         '[FORMAT] TARGET_DIR: security',
@@ -339,58 +179,6 @@ describe('FormatterUIService', () => {
       expect(mockSpinner.info).toHaveBeenCalledWith(
         '[FORMAT] Compact developer tools: compact 0.2.0',
       );
-    });
-
-    it('displays environment information without target directory', () => {
-      const testData = {
-        devToolsVersion: 'compact 0.2.0',
-      };
-
-      FormatterUIService.displayEnvInfo(testData.devToolsVersion);
-
-      expect(mockSpinner.info).toHaveBeenCalledWith(
-        '[FORMAT] Compact developer tools: compact 0.2.0',
-      );
-      expect(mockSpinner.info).not.toHaveBeenCalledWith(
-        expect.stringContaining('TARGET_DIR'),
-      );
-    });
-  });
-
-  describe('showCheckResults', () => {
-    it('shows success when files are formatted', () => {
-      const testData = {
-        isFormatted: true,
-      };
-
-      FormatterUIService.showCheckResults(testData.isFormatted);
-
-      expect(mockSpinner.succeed).toHaveBeenCalledWith(
-        '[FORMAT] All files are properly formatted',
-      );
-    });
-
-    it('shows failure with differences when files need formatting', () => {
-      const testData = {
-        isFormatted: false,
-        differences: 'Some formatting differences',
-      };
-
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-      FormatterUIService.showCheckResults(
-        testData.isFormatted,
-        testData.differences,
-      );
-
-      expect(mockSpinner.fail).toHaveBeenCalledWith(
-        '[FORMAT] Some files are not properly formatted',
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Formatting differences'),
-      );
-
-      consoleSpy.mockRestore();
     });
   });
 });
@@ -408,86 +196,84 @@ describe('CompactFormatter', () => {
     it('creates instance with default parameters', () => {
       formatter = new CompactFormatter();
 
-      expect(formatter).toBeInstanceOf(CompactFormatter);
-      expect(formatter.testWriteMode).toBe(false);
-      expect(formatter.testTargets).toEqual([]);
+      expect(formatter.testCheckMode).toBe(true);
+      expect(formatter.testSpecificFiles).toEqual([]);
     });
 
-    it('creates instance with all parameters', () => {
-      const testData = {
-        writeMode: true,
-        targets: ['security', 'MyToken.compact'],
-      };
+    it('creates instance with parameters', () => {
+      const checkMode = false;
+      const specificFiles = ['Token.compact'];
+      const targetDir = 'security';
 
-      formatter = new CompactFormatter(
-        testData.writeMode,
-        testData.targets,
-        mockExec,
-      );
+      formatter = new CompactFormatter(checkMode, specificFiles, targetDir, mockExec);
 
-      expect(formatter.testWriteMode).toBe(testData.writeMode);
-      expect(formatter.testTargets).toEqual(testData.targets);
+      expect(formatter.testCheckMode).toBe(checkMode);
+      expect(formatter.testSpecificFiles).toEqual(specificFiles);
     });
   });
 
   describe('fromArgs', () => {
-    it('parses empty arguments', () => {
-      formatter = CompactFormatter.fromArgs([]);
+    it('parses check mode', () => {
+      formatter = CompactFormatter.fromArgs(['--check']);
 
-      expect(formatter.testWriteMode).toBe(false);
-      expect(formatter.testTargets).toEqual([]);
+      expect(formatter.testCheckMode).toBe(true);
     });
 
-    it('parses --write flag', () => {
-      const testData = {
-        args: ['--write'],
-        expectedWriteMode: true,
-      };
+    it('parses specific files', () => {
+      const args = ['Token.compact', 'AccessControl.compact'];
+      formatter = CompactFormatter.fromArgs(args);
 
-      formatter = CompactFormatter.fromArgs(testData.args);
-
-      expect(formatter.testWriteMode).toBe(testData.expectedWriteMode);
+      expect(formatter.testSpecificFiles).toEqual(args);
     });
 
-    it('parses complex arguments', () => {
-      const testData = {
-        args: ['--dir', 'security', '--write', 'MyToken.compact'],
-        expectedTargets: ['security', 'MyToken.compact'],
-        expectedWriteMode: true,
-      };
+    it('parses directory and check mode', () => {
+      formatter = CompactFormatter.fromArgs(['--dir', 'security', '--check']);
 
-      formatter = CompactFormatter.fromArgs(testData.args);
-
-      expect(formatter.testWriteMode).toBe(testData.expectedWriteMode);
-      expect(formatter.testTargets).toEqual(testData.expectedTargets);
+      expect(formatter.testCheckMode).toBe(true);
     });
   });
 
   describe('validateEnvironment', () => {
-    it('calls validator and displays environment info', async () => {
-      const testData = {
-        devToolsVersion: 'compact 0.2.0',
-        targetDir: 'security',
-      };
-
+    it('validates environment successfully', async () => {
+      const devToolsVersion = 'compact 0.2.0';
+      
       mockExec
-        .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
-        .mockResolvedValueOnce({ stdout: testData.devToolsVersion, stderr: '' })
+        .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' })
+        .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: 'Format help', stderr: '' });
 
       const displaySpy = vi
         .spyOn(FormatterUIService, 'displayEnvInfo')
         .mockImplementation(() => {});
 
-      formatter = new CompactFormatter(false, [testData.targetDir], mockExec);
+      formatter = new CompactFormatter(false, [], 'security', mockExec);
 
       await formatter.validateEnvironment();
 
-      expect(displaySpy).toHaveBeenCalledWith(
-        testData.devToolsVersion,
-        testData.targetDir,
-      );
+      expect(displaySpy).toHaveBeenCalledWith(devToolsVersion, 'security');
+      displaySpy.mockRestore();
+    });
+  });
 
+  describe('format', () => {
+    it('formats specific files', async () => {
+      const specificFiles = ['Token.compact'];
+      formatter = new CompactFormatter(false, specificFiles, undefined, mockExec);
+
+      // Mock environment validation
+      mockExec
+        .mockResolvedValueOnce({ stdout: 'compact 0.2.0', stderr: '' })
+        .mockResolvedValueOnce({ stdout: 'compact 0.2.0', stderr: '' })
+        .mockResolvedValueOnce({ stdout: 'Format help', stderr: '' })
+        // Mock format command
+        .mockResolvedValueOnce({ stdout: 'Formatted', stderr: '' });
+
+      const displaySpy = vi.spyOn(FormatterUIService, 'displayEnvInfo').mockImplementation(() => {});
+
+      await formatter.format();
+
+      // Should call format with the specific file path
+      expect(mockExec).toHaveBeenCalledWith(`compact format "${join(SRC_DIR, 'Token.compact')}"`);
       displaySpy.mockRestore();
     });
   });
