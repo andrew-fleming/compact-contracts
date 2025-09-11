@@ -61,6 +61,9 @@ jobs:
           fi
           echo "✅ Language version matches: $COMPUTED_LANGUAGE_VERSION"
 
+      - name: Run Compact formatter
+        run: turbo format:check
+
       - name: Compile contracts (with retry on hash mismatch)
         shell: bash
         run: |
@@ -78,9 +81,6 @@ jobs:
             fi
           }
           compile
-
-      - name: Run Compact formatter
-        run: turbo format:check
 
       - name: Run type checks
         run: turbo types
