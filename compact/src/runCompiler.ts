@@ -144,7 +144,7 @@ function showUsageHelp(): void {
   );
   console.log(
     chalk.yellow(
-      '  +<version>        Use specific toolchain version (e.g., +0.24.0)',
+      '  +<version>        Use specific toolchain version (e.g., +0.25.0)',
     ),
   );
   console.log(chalk.yellow('\nExamples:'));
@@ -170,7 +170,7 @@ function showUsageHelp(): void {
   );
   console.log(
     chalk.yellow(
-      '  compact-compiler --skip-zk +0.24.0          # Use specific version',
+      '  compact-compiler --skip-zk +0.25.0          # Use specific version',
     ),
   );
   console.log(chalk.yellow('\nTurbo integration:'));

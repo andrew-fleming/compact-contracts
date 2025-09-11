@@ -105,9 +105,9 @@ export class CompilerEnvironmentValidator extends BaseEnvironmentValidator {
  * ```typescript
  * const compiler = new CompilerService();
  * const result = await compiler.compileFile(
- *   'Token.compact',
- *   '--skip-zk',
- *   '1.2.0'
+ *   'contracts/Token.compact',
+ *   '--skip-zk --verbose',
+ *   '0.25.0'
  * );
  * console.log('Compilation output:', result.stdout);
  * ```

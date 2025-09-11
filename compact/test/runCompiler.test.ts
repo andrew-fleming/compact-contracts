@@ -285,7 +285,7 @@ describe('runCompiler CLI', () => {
           '\nOptions:',
           '  --dir <directory> Compile specific directory (access, archive, security, token, utils)',
           '  --skip-zk         Skip zero-knowledge proof generation',
-          '  +<version>        Use specific toolchain version (e.g., +0.24.0)',
+          '  +<version>        Use specific toolchain version (e.g., +0.25.0)',
           '\nExamples:',
           '  compact-compiler                            # Compile all files',
           '  SKIP_ZK=true compact-compiler --dir token   # Use environment variable',
