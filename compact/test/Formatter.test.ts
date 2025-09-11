@@ -8,10 +8,7 @@ import {
   FormatterService,
   FormatterUIService,
 } from '../src/Formatter.js';
-import {
-  FormatterError,
-  FormatterNotAvailableError,
-} from '../src/types/errors.js';
+import { FormatterError } from '../src/types/errors.js';
 
 // Mock dependencies
 vi.mock('chalk', () => ({
@@ -61,7 +58,7 @@ describe('FormatterEnvironmentValidator', () => {
 
       mockExec.mockRejectedValue(error);
       await expect(validator.checkFormatterAvailable()).rejects.toThrow(
-        'Formatter not available'
+        'Formatter not available',
       );
     });
   });
@@ -102,7 +99,9 @@ describe('FormatterService', () => {
       const result = await service.format(targets, true);
 
       expect(result).toEqual(response);
-      expect(mockExec).toHaveBeenCalledWith('compact format --check "security"');
+      expect(mockExec).toHaveBeenCalledWith(
+        'compact format --check "security"',
+      );
     });
 
     it('constructs command for write mode', async () => {
@@ -130,7 +129,9 @@ describe('FormatterService', () => {
 
       await service.format(targets, false);
 
-      expect(mockExec).toHaveBeenCalledWith('compact format "src/contracts" "src/utils"');
+      expect(mockExec).toHaveBeenCalledWith(
+        'compact format "src/contracts" "src/utils"',
+      );
     });
 
     it('throws FormatterError on failure', async () => {
@@ -205,7 +206,12 @@ describe('CompactFormatter', () => {
       const specificFiles = ['Token.compact'];
       const targetDir = 'security';
 
-      formatter = new CompactFormatter(checkMode, specificFiles, targetDir, mockExec);
+      formatter = new CompactFormatter(
+        checkMode,
+        specificFiles,
+        targetDir,
+        mockExec,
+      );
 
       expect(formatter.testCheckMode).toBe(checkMode);
       expect(formatter.testSpecificFiles).toEqual(specificFiles);
@@ -236,7 +242,7 @@ describe('CompactFormatter', () => {
   describe('validateEnvironment', () => {
     it('validates environment successfully', async () => {
       const devToolsVersion = 'compact 0.2.0';
-      
+
       mockExec
         .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' })
         .mockResolvedValueOnce({ stdout: devToolsVersion, stderr: '' })
@@ -258,7 +264,12 @@ describe('CompactFormatter', () => {
   describe('format', () => {
     it('formats specific files', async () => {
       const specificFiles = ['Token.compact'];
-      formatter = new CompactFormatter(false, specificFiles, undefined, mockExec);
+      formatter = new CompactFormatter(
+        false,
+        specificFiles,
+        undefined,
+        mockExec,
+      );
 
       // Mock environment validation
       mockExec
@@ -268,12 +279,16 @@ describe('CompactFormatter', () => {
         // Mock format command
         .mockResolvedValueOnce({ stdout: 'Formatted', stderr: '' });
 
-      const displaySpy = vi.spyOn(FormatterUIService, 'displayEnvInfo').mockImplementation(() => {});
+      const displaySpy = vi
+        .spyOn(FormatterUIService, 'displayEnvInfo')
+        .mockImplementation(() => {});
 
       await formatter.format();
 
       // Should call format with the specific file path
-      expect(mockExec).toHaveBeenCalledWith(`compact format "${join(SRC_DIR, 'Token.compact')}"`);
+      expect(mockExec).toHaveBeenCalledWith(
+        `compact format "${join(SRC_DIR, 'Token.compact')}"`,
+      );
       displaySpy.mockRestore();
     });
   });

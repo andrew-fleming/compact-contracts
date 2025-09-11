@@ -138,9 +138,8 @@ export class FormatterService extends BaseCompactService {
     checkMode = true,
   ): Promise<{ stdout: string; stderr: string }> {
     const checkFlag = checkMode ? ' --check' : '';
-    const targetArgs = targets.length > 0
-      ? ` ${targets.map(t => `"${t}"`).join(' ')}`
-      : '';
+    const targetArgs =
+      targets.length > 0 ? ` ${targets.map((t) => `"${t}"`).join(' ')}` : '';
 
     const command = `compact format${checkFlag}${targetArgs}`;
     return this.executeCompactCommand(command, 'Formatting failed');
@@ -294,24 +293,24 @@ export class CompactFormatter extends BaseCompactOperation {
    * const formatter = CompactFormatter.fromArgs(['Token.compact', 'Utils.compact']);
    * ```
    */
-static fromArgs(args: string[]): CompactFormatter {
-  const { targetDir, remainingArgs } = CompactFormatter.parseBaseArgs(args);
+  static fromArgs(args: string[]): CompactFormatter {
+    const { targetDir, remainingArgs } = CompactFormatter.parseBaseArgs(args);
 
-  let checkMode = true;  // Default to check mode
-  const specificFiles: string[] = [];
+    let checkMode = true; // Default to check mode
+    const specificFiles: string[] = [];
 
-  for (const arg of remainingArgs) {
-    if (arg === '--check') {
-      checkMode = true;  // Explicit check mode (though it's already default)
-    } else if (arg === '--write') {
-      checkMode = false; // Write mode
-    } else if (!arg.startsWith('--')) {
-      specificFiles.push(arg);
+    for (const arg of remainingArgs) {
+      if (arg === '--check') {
+        checkMode = true;
+      } else if (arg === '--write') {
+        checkMode = false; // Write mode
+      } else if (!arg.startsWith('--')) {
+        specificFiles.push(arg);
+      }
     }
-  }
 
-  return new CompactFormatter(checkMode, specificFiles, targetDir);
-}
+    return new CompactFormatter(checkMode, specificFiles, targetDir);
+  }
 
   /**
    * Validates formatting environment and displays configuration.
@@ -364,7 +363,7 @@ static fromArgs(args: string[]): CompactFormatter {
 
     // Handle specific files
     if (this.specificFiles.length > 0) {
-      const filePaths = this.specificFiles.map(file => join(SRC_DIR, file));
+      const filePaths = this.specificFiles.map((file) => join(SRC_DIR, file));
       await this.formatterService.format(filePaths, this.checkMode);
       return;
     }
@@ -374,7 +373,12 @@ static fromArgs(args: string[]): CompactFormatter {
     if (files.length === 0) return;
 
     const mode = this.checkMode ? 'check formatting for' : 'format';
-    SharedUIService.showOperationStart('FORMAT', mode, files.length, this.targetDir);
+    SharedUIService.showOperationStart(
+      'FORMAT',
+      mode,
+      files.length,
+      this.targetDir,
+    );
 
     const targetPath = this.targetDir ? join(SRC_DIR, this.targetDir) : SRC_DIR;
     await this.formatterService.format([targetPath], this.checkMode);
@@ -383,6 +387,10 @@ static fromArgs(args: string[]): CompactFormatter {
   /**
    * For testing - expose internal state
    */
-  get testCheckMode(): boolean { return this.checkMode; }
-  get testSpecificFiles(): string[] { return this.specificFiles; }
+  get testCheckMode(): boolean {
+    return this.checkMode;
+  }
+  get testSpecificFiles(): string[] {
+    return this.specificFiles;
+  }
 }

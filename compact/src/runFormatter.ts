@@ -114,7 +114,7 @@ function handleError(error: unknown, spinner: Ora): void {
       if (execError.stderr && !execError.stderr.includes('compact format')) {
         console.log(chalk.red(`    ${execError.stderr}`));
       }
-      if (execError.stdout && execError.stdout.trim()) {
+      if (execError.stdout?.trim()) {
         console.log(chalk.yellow(`    ${execError.stdout}`));
       }
     }
@@ -158,8 +158,14 @@ function handleError(error: unknown, spinner: Ora): void {
 function showUsageHelp(): void {
   console.log(chalk.yellow('\nUsage: compact-formatter [options] [files...]'));
   console.log(chalk.yellow('\nOptions:'));
-  console.log(chalk.yellow('  --check           Check if files are properly formatted (default)'));
-  console.log(chalk.yellow('  --write           Write formatting changes to files'));
+  console.log(
+    chalk.yellow(
+      '  --check           Check if files are properly formatted (default)',
+    ),
+  );
+  console.log(
+    chalk.yellow('  --write           Write formatting changes to files'),
+  );
   console.log(
     chalk.yellow(
       '  --dir <directory> Format specific directory (access, archive, security, token, utils)',
