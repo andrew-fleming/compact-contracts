@@ -10,25 +10,34 @@ import {
 } from './types/errors.js';
 
 /**
- * Main entry point for the Compact formatter CLI application.
+ * Main entry point for the Compact formatter CLI binary.
  *
- * Coordinates the complete formatting workflow from command-line argument
- * parsing through execution and error handling. Provides comprehensive user
- * feedback and detailed error reporting for both check and write formatting
- * operations.
+ * This file serves as the executable binary defined in package.json and is
+ * invoked through build scripts via Turbo, Yarn, or direct command execution.
+ * Acts as a lightweight wrapper around the `compact format` command, providing
+ * environment validation and project-specific file discovery before delegating
+ * to the underlying formatter tool.
  *
- * The function manages the full application lifecycle:
+ * The function manages the wrapper lifecycle:
  *
- * 1. Parses command-line arguments into formatter configuration.
- * 2. Executes formatting operations with visual progress indicators.
- * 3. Handles all error scenarios with actionable user guidance.
- * 4. Exits with appropriate status codes for automated workflows.
+ * 1. Validates environment (CLI availability, formatter compatibility).
+ * 2. Discovers files within the project's src/ structure.
+ * 3. Constructs and executes appropriate `compact format` commands.
+ * 4. Handles environment errors while letting format errors pass through.
  *
  * @example
  * ```bash
- * # Called from command line as:
- * compact-formatter --check --dir ./contracts/src/security
- * compact-formatter --write ./contracts/src/access/AccessControl.compact
+ * # Direct binary execution:
+ * ./node_modules/.bin/compact-formatter --check --dir security
+ * ./node_modules/.bin/compact-formatter Token.compact AccessControl.compact
+ *
+ * # Via package.json scripts:
+ * yarn format
+ * yarn format:fix
+ *
+ * # Via Turbo:
+ * turbo format
+ * turbo format:fix
  * ```
  */
 async function runFormatter(): Promise<void> {
@@ -45,29 +54,31 @@ async function runFormatter(): Promise<void> {
 }
 
 /**
- * Specialized error handler for formatting operation failures.
+ * Streamlined error handler focused on environment and setup issues.
  *
- * Implements multi-layered error handling that addresses both common infrastructure
- * issues and formatting-specific problems. Provides detailed diagnostic information
- * and recovery suggestions tailored to formatting workflows.
+ * Since the underlying `compact format` command handles most user-facing errors
+ * and feedback (including formatting differences and file processing failures),
+ * this handler primarily focuses on environment validation errors and setup
+ * issues that prevent the formatter from running.
  *
- * Error handling hierarchy:
+ * Error handling priority:
  *
- * 1. Common errors (CLI availability, directory validation).
- * 2. Formatter availability errors (toolchain compatibility issues).
- * 3. Formatting operation errors (file processing failures).
- * 4. Argument parsing errors (command-line usage problems).
- * 5. Unexpected errors (with comprehensive troubleshooting).
+ * 1. Common errors (CLI not found, directory issues, permissions).
+ * 2. Formatter availability errors (toolchain version compatibility).
+ * 3. Argument parsing errors (malformed command-line usage).
+ * 4. Formatting errors (let the underlying tool's output show through).
  *
- * @param error - The error that occurred during formatting operations
- * @param spinner - Ora spinner instance for consistent visual feedback
+ * @param error - The error that occurred during formatter execution
+ * @param spinner - Ora spinner instance for consistent UI feedback
  *
  * @example
  * ```typescript
- * // This function handles errors such as:
- * // - FormatterNotAvailableError: Formatter not available in current toolchain
- * // - FormatterError: Failed to format Token.compact
- * // - DirectoryNotFoundError: Target directory contracts/ does not exist
+ * // This function primarily handles setup errors like:
+ * // - FormatterNotAvailableError: Formatter requires compiler 0.25.0+
+ * // - CompactCliNotFoundError: 'compact' CLI not found in PATH
+ * // - DirectoryNotFoundError: Target directory security/ does not exist
+ *
+ * // Formatting errors from `compact format` are displayed directly
  * ```
  */
 function handleError(error: unknown, spinner: Ora): void {
@@ -86,24 +97,24 @@ function handleError(error: unknown, spinner: Ora): void {
     return;
   }
 
-  // FormatterError - specific to formatting
+  // FormatterError - let the underlying tool's output show through
   if (error instanceof Error && error.name === 'FormatterError') {
     const formatterError = error as FormatterError;
-    spinner.fail(
-      chalk.red(
-        `[FORMAT] Formatting failed${formatterError.target ? ` for: ${formatterError.target}` : ''}`,
-      ),
-    );
 
+    // For most formatting errors, the underlying `compact format` command
+    // already provides good user feedback, so we just show a simple failure message
+    spinner.fail(chalk.red('[FORMAT] Formatting operation failed'));
+
+    // Show additional details if available
     if (isPromisifiedChildProcessError(formatterError.cause)) {
       const execError = formatterError.cause;
-      if (execError.stderr && !execError.stderr.includes('stdout')) {
-        console.log(
-          chalk.red(`    Additional error details: ${execError.stderr}`),
-        );
+
+      // The underlying compact format command output is usually sufficient,
+      // but show additional details if they're helpful
+      if (execError.stderr && !execError.stderr.includes('compact format')) {
+        console.log(chalk.red(`    ${execError.stderr}`));
       }
-      if (execError.stdout) {
-        console.log(chalk.yellow('    Output:'));
+      if (execError.stdout && execError.stdout.trim()) {
         console.log(chalk.yellow(`    ${execError.stdout}`));
       }
     }
@@ -122,35 +133,33 @@ function handleError(error: unknown, spinner: Ora): void {
 }
 
 /**
- * Displays comprehensive usage documentation for the Compact formatter CLI.
+ * Displays comprehensive usage documentation for the Compact formatter CLI binary.
  *
- * Provides complete reference documentation including all command-line options,
- * practical usage patterns, and integration examples. Covers both basic formatting
- * operations and advanced workflows including check mode, directory targeting,
- * and specific file processing.
+ * Provides complete reference documentation for the package.json binary,
+ * including all command-line options and integration examples. Emphasizes that
+ * this is a wrapper around `compact format` that adds project-specific file
+ * discovery and environment validation.
  *
  * The help documentation includes:
  *
- * - Detailed option descriptions with behavior explanations.
- * - Comprehensive examples for common formatting scenarios.
- * - Integration patterns with build systems and CI/CD workflows.
- * - Best practices for different development workflows.
+ * - Wrapper-specific options (--dir for project structure).
+ * - Direct binary execution examples.
+ * - Package.json script integration patterns.
+ * - Turbo and Yarn workflow examples.
+ * - Reference to underlying `compact format` capabilities.
  *
  * @example
  * ```typescript
  * // Automatically displayed when argument parsing fails:
  * // compact-formatter --dir  # Missing directory name
- * // Shows complete usage guide to assist proper command construction
+ * // Shows complete usage guide including script integration examples
  * ```
  */
 function showUsageHelp(): void {
   console.log(chalk.yellow('\nUsage: compact-formatter [options] [files...]'));
   console.log(chalk.yellow('\nOptions:'));
-  console.log(
-    chalk.yellow(
-      '  --check           Check if files are properly formatted (no modifications)',
-    ),
-  );
+  console.log(chalk.yellow('  --check           Check if files are properly formatted (default)'));
+  console.log(chalk.yellow('  --write           Write formatting changes to files'));
   console.log(
     chalk.yellow(
       '  --dir <directory> Format specific directory (access, archive, security, token, utils)',
@@ -159,17 +168,17 @@ function showUsageHelp(): void {
   console.log(chalk.yellow('\nExamples:'));
   console.log(
     chalk.yellow(
-      '  compact-formatter                                    # Format all files',
+      '  compact-formatter                                    # Check all files (default)',
     ),
   );
   console.log(
     chalk.yellow(
-      '  compact-formatter --check                            # Check all files',
+      '  compact-formatter --write                            # Format all files',
     ),
   );
   console.log(
     chalk.yellow(
-      '  compact-formatter --dir security                     # Format security directory',
+      '  compact-formatter --write --dir security             # Format security directory',
     ),
   );
   console.log(
@@ -179,28 +188,12 @@ function showUsageHelp(): void {
   );
   console.log(
     chalk.yellow(
-      '  compact-formatter file1.compact file2.compact        # Format specific files',
+      '  compact-formatter --write f1.compact f2.compact      # Format specific files',
     ),
   );
   console.log(
     chalk.yellow(
       '  compact-formatter --check file1.compact              # Check specific file',
-    ),
-  );
-  console.log(chalk.yellow('\nIntegration examples:'));
-  console.log(
-    chalk.yellow(
-      '  turbo format                                     # Full formatting',
-    ),
-  );
-  console.log(
-    chalk.yellow(
-      '  turbo format:security                            # Directory formatting',
-    ),
-  );
-  console.log(
-    chalk.yellow(
-      '  turbo format:check                               # Check formatting',
     ),
   );
 }
