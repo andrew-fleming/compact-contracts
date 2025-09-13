@@ -395,9 +395,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@openzeppelin-compact/compact@workspace:^, @openzeppelin-compact/compact@workspace:compact":
+"@openzeppelin-compact/compact@workspace:^, @openzeppelin-compact/compact@workspace:packages/compact":
   version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/compact@workspace:compact"
+  resolution: "@openzeppelin-compact/compact@workspace:packages/compact"
   dependencies:
     "@types/node": "npm:22.14.0"
     chalk: "npm:^5.4.1"
