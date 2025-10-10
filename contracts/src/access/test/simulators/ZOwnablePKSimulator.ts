@@ -25,8 +25,15 @@ type ZOwnablePKArgs = readonly [
 
 /**
  * Base simulator
+ * @dev We deliberately use `any` as the base simulator type.
+ * This workaround is necessary due to type inference and declaration filegen
+ * in a monorepo environment. Attempting to fully preserve type information
+ * turns into type gymnastics.
+ *
+ * `any` can be safely removed once the contract simulator is consumed
+ * as a properly packaged dependency (outside the monorepo).
  */
-const ZOwnablePKSimulatorBase = createSimulator<
+const ZOwnablePKSimulatorBase: any = createSimulator<
   ZOwnablePKPrivateState,
   ReturnType<typeof ledger>,
   ReturnType<typeof ZOwnablePKWitnesses>,
