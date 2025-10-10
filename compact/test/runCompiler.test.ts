@@ -5,7 +5,6 @@ import {
   CompactCliNotFoundError,
   CompilationError,
   isPromisifiedChildProcessError,
-  type PromisifiedChildProcessError,
 } from '../src/types/errors.js';
 
 // Mock dependencies
