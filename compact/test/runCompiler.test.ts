@@ -5,6 +5,7 @@ import {
   CompactCliNotFoundError,
   CompilationError,
   isPromisifiedChildProcessError,
+  type PromisifiedChildProcessError,
 } from '../src/types/errors.js';
 
 // Mock dependencies
@@ -345,14 +346,14 @@ describe('runCompiler CLI', () => {
           'security',
           '--skip-zk',
           '--verbose',
-          '+0.24.0',
+          '+0.25.0',
         ],
         expectedArgs: [
           '--dir',
           'security',
           '--skip-zk',
           '--verbose',
-          '+0.24.0',
+          '+0.25.0',
         ],
       };
 
@@ -367,14 +368,14 @@ describe('runCompiler CLI', () => {
   describe('integration with CompactCompiler', () => {
     it('passes arguments correctly to CompactCompiler.fromArgs', async () => {
       const testData = {
-        args: ['--dir', 'token', '--skip-zk', '+0.24.0'],
+        args: ['--dir', 'token', '--skip-zk', '+0.25.0'],
         processArgv: [
           'node',
           'runCompiler.js',
           '--dir',
           'token',
           '--skip-zk',
-          '+0.24.0',
+          '+0.25.0',
         ],
       };
 

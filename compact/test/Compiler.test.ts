@@ -42,7 +42,7 @@ describe('CompilerEnvironmentValidator', () => {
   describe('getToolchainVersion', () => {
     it('returns default toolchain version', async () => {
       const testData = {
-        expectedOutput: 'Compactc version: 0.24.0',
+        expectedOutput: 'Compactc version: 0.25.0',
         expectedCommand: 'compact compile  --version',
       };
 
@@ -80,7 +80,7 @@ describe('CompilerEnvironmentValidator', () => {
     it('returns both dev tools and toolchain versions', async () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0',
+        toolchainVersion: 'Compactc version: 0.25.0',
       };
 
       mockExec
@@ -137,11 +137,11 @@ describe('CompilerService', () => {
       const testData = {
         file: 'contracts/MyToken.compact',
         flags: '--skip-zk --verbose',
-        version: '0.24.0',
+        version: '0.25.0',
         expectedInputPath: join(SRC_DIR, 'contracts/MyToken.compact'),
         expectedOutputDir: join(ARTIFACTS_DIR, 'MyToken'),
         expectedCommand:
-          'compact compile +0.24.0 --skip-zk --verbose "src/contracts/MyToken.compact" "artifacts/MyToken"',
+          'compact compile +0.25.0 --skip-zk --verbose "src/contracts/MyToken.compact" "artifacts/MyToken"',
       };
 
       mockExec.mockResolvedValue({ stdout: 'Success', stderr: '' });
@@ -214,6 +214,18 @@ describe('CompilerService', () => {
         expect((error as CompilationError).file).toBe(testData.file);
       }
     });
+
+    it('should include cause in CompilationError', async () => {
+      const mockError = new Error('Syntax error');
+      mockExec.mockRejectedValue(mockError);
+
+      try {
+        await service.compileFile('MyToken.compact', '--skip-zk');
+      } catch (error) {
+        expect(error).toBeInstanceOf(CompilationError);
+        expect((error as CompilationError).cause).toEqual(mockError);
+      }
+    });
   });
 
   describe('createError', () => {
@@ -257,9 +269,9 @@ describe('CompilerUIService', () => {
     it('displays all environment information', () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0',
+        toolchainVersion: 'Compactc version: 0.25.0',
         targetDir: 'security',
-        version: '0.24.0',
+        version: '0.25.0',
       };
 
       CompilerUIService.displayEnvInfo(
@@ -276,17 +288,17 @@ describe('CompilerUIService', () => {
         '[COMPILE] Compact developer tools: compact 0.2.0',
       );
       expect(mockSpinner.info).toHaveBeenCalledWith(
-        '[COMPILE] Compact toolchain: Compactc version: 0.24.0',
+        '[COMPILE] Compact toolchain: Compactc version: 0.25.0',
       );
       expect(mockSpinner.info).toHaveBeenCalledWith(
-        '[COMPILE] Using toolchain version: 0.24.0',
+        '[COMPILE] Using toolchain version: 0.25.0',
       );
     });
 
     it('displays minimal environment information', () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0',
+        toolchainVersion: 'Compactc version: 0.25.0',
       };
 
       CompilerUIService.displayEnvInfo(
@@ -298,7 +310,7 @@ describe('CompilerUIService', () => {
         '[COMPILE] Compact developer tools: compact 0.2.0',
       );
       expect(mockSpinner.info).toHaveBeenCalledWith(
-        '[COMPILE] Compact toolchain: Compactc version: 0.24.0',
+        '[COMPILE] Compact toolchain: Compactc version: 0.25.0',
       );
       expect(mockSpinner.info).not.toHaveBeenCalledWith(
         expect.stringContaining('TARGET_DIR'),
@@ -332,7 +344,7 @@ describe('CompactCompiler', () => {
       const testData = {
         flags: '--skip-zk --verbose',
         targetDir: 'security',
-        version: '0.24.0',
+        version: '0.25.0',
       };
 
       compiler = new CompactCompiler(
@@ -392,11 +404,11 @@ describe('CompactCompiler', () => {
 
     it('parses complex arguments with all options', () => {
       const testData = {
-        args: ['--dir', 'security', '--skip-zk', '--verbose', '+0.24.0'],
+        args: ['--dir', 'security', '--skip-zk', '--verbose', '+0.25.0'],
         env: {},
         expectedTargetDir: 'security',
         expectedFlags: '--skip-zk --verbose',
-        expectedVersion: '0.24.0',
+        expectedVersion: '0.25.0',
       };
 
       compiler = CompactCompiler.fromArgs(testData.args, testData.env);
@@ -447,9 +459,9 @@ describe('CompactCompiler', () => {
     it('calls validator and displays environment info', async () => {
       const testData = {
         devToolsVersion: 'compact 0.2.0',
-        toolchainVersion: 'Compactc version: 0.24.0',
+        toolchainVersion: 'Compactc version: 0.25.0',
         targetDir: 'security',
-        version: '0.24.0',
+        version: '0.25.0',
       };
 
       mockExec

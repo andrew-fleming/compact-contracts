@@ -26,7 +26,7 @@ import {
  * @example
  * ```bash
  * # Called from command line as:
- * compact-compiler --dir ./contracts/src/security --skip-zk +0.24.0
+ * compact-compiler --dir ./contracts/src/security --skip-zk +0.25.0
  * ```
  */
 async function runCompiler(): Promise<void> {
