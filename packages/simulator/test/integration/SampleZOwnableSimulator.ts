@@ -1,15 +1,15 @@
 import { type BaseSimulatorOptions, createSimulator } from '../../src/index';
 import {
+  SampleZOwnablePrivateState,
+  SampleZOwnableWitnesses,
+} from '../fixtures/sample-contracts/witnesses/SampleZOwnableWitnesses';
+import {
   type ContractAddress,
   type Either,
   ledger,
   Contract as SampleZOwnable,
   type ZswapCoinPublicKey,
 } from '../fixtures/test-artifacts/SampleZOwnable/contract/index.cjs';
-import {
-  SampleZOwnablePrivateState,
-  SampleZOwnableWitnesses,
-} from '../fixtures/sample-contracts/witnesses/SampleZOwnableWitnesses';
 
 /**
  * Type constructor args
@@ -131,7 +131,8 @@ export class SampleZOwnableSimulator extends SampleZOwnableSimulatorBase {
     injectSecretNonce: (
       newNonce: Buffer<ArrayBufferLike>,
     ): SampleZOwnablePrivateState => {
-      const currentState = this.circuitContextManager.getContext().currentPrivateState;
+      const currentState =
+        this.circuitContextManager.getContext().currentPrivateState;
       const updatedState = { ...currentState, secretNonce: newNonce };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
@@ -142,7 +143,8 @@ export class SampleZOwnableSimulator extends SampleZOwnableSimulatorBase {
      * @returns The secret nonce.
      */
     getCurrentSecretNonce: (): Uint8Array => {
-      return this.circuitContextManager.getContext().currentPrivateState.secretNonce;
+      return this.circuitContextManager.getContext().currentPrivateState
+        .secretNonce;
     },
   };
 }

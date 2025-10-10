@@ -1,12 +1,12 @@
 import { type BaseSimulatorOptions, createSimulator } from '../../src/index';
 import {
-  ledger,
-  Contract as SampleZOwnable,
-} from '../fixtures/test-artifacts/Witness/contract/index.cjs';
-import {
   WitnessPrivateState,
   WitnessWitnesses,
 } from '../fixtures/sample-contracts/witnesses/WitnessWitnesses';
+import {
+  ledger,
+  Contract as SampleZOwnable,
+} from '../fixtures/test-artifacts/Witness/contract/index.cjs';
 
 /**
  * Type constructor args
@@ -61,19 +61,22 @@ export class WitnessSimulator extends WitnessSimulatorBase {
     injectSecretBytes: (
       newBytes: Buffer<ArrayBufferLike>,
     ): WitnessPrivateState => {
-      const currentState = this.circuitContextManager.getContext().currentPrivateState;
+      const currentState =
+        this.circuitContextManager.getContext().currentPrivateState;
       const updatedState = { ...currentState, secretBytes: newBytes };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
     },
     injectSecretField: (newField: bigint): WitnessPrivateState => {
-      const currentState = this.circuitContextManager.getContext().currentPrivateState;
+      const currentState =
+        this.circuitContextManager.getContext().currentPrivateState;
       const updatedState = { ...currentState, secretField: newField };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
     },
     injectSecretUint: (newUint: bigint): WitnessPrivateState => {
-      const currentState = this.circuitContextManager.getContext().currentPrivateState;
+      const currentState =
+        this.circuitContextManager.getContext().currentPrivateState;
       const updatedState = { ...currentState, secretUint: newUint };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;

@@ -136,7 +136,8 @@ export class ZOwnablePKSimulator extends ZOwnablePKSimulatorBase {
     injectSecretNonce: (
       newNonce: Buffer<ArrayBufferLike>,
     ): ZOwnablePKPrivateState => {
-      const currentState = this.circuitContextManager.getContext().currentPrivateState;
+      const currentState =
+        this.circuitContextManager.getContext().currentPrivateState;
       const updatedState = { ...currentState, secretNonce: newNonce };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
@@ -147,7 +148,8 @@ export class ZOwnablePKSimulator extends ZOwnablePKSimulatorBase {
      * @returns The secret nonce.
      */
     getCurrentSecretNonce: (): Uint8Array => {
-      return this.circuitContextManager.getContext().currentPrivateState.secretNonce;
+      return this.circuitContextManager.getContext().currentPrivateState
+        .secretNonce;
     },
   };
 }

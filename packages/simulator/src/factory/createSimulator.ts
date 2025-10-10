@@ -1,7 +1,7 @@
 import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 import { sampleContractAddress } from '@midnight-ntwrk/zswap';
-import { ContractSimulator } from '../core/ContractSimulator.js';
 import { CircuitContextManager } from '../core/CircuitContextManager.js';
+import { ContractSimulator } from '../core/ContractSimulator.js';
 import type { IMinimalContract } from '../types/Contract.js';
 import type { BaseSimulatorOptions } from '../types/Options.js';
 import type { SimulatorConfig } from './SimulatorConfig.js';
