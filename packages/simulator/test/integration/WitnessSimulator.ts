@@ -6,7 +6,7 @@ import {
 import {
   WitnessPrivateState,
   WitnessWitnesses,
-} from '../fixtures/sampleContracts/witnesses/WitnessWitnesses';
+} from '../fixtures/sample-contracts/witnesses/WitnessWitnesses';
 
 /**
  * Type constructor args

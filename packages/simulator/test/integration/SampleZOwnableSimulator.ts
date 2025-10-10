@@ -9,7 +9,7 @@ import {
 import {
   SampleZOwnablePrivateState,
   SampleZOwnableWitnesses,
-} from '../fixtures/sampleContracts/witnesses/SampleZOwnableWitnesses';
+} from '../fixtures/sample-contracts/witnesses/SampleZOwnableWitnesses';
 
 /**
  * Type constructor args

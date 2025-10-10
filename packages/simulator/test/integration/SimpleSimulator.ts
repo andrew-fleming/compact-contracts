@@ -6,7 +6,7 @@ import {
 import {
   SimplePrivateState,
   SimpleWitnesses,
-} from '../fixtures/sampleContracts/witnesses/SimpleWitnesses';
+} from '../fixtures/sample-contracts/witnesses/SimpleWitnesses';
 
 /**
  * Base simulator
