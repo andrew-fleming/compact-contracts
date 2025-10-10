@@ -8,14 +8,16 @@ on:
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
-  COMPILER_VERSION: "0.24.0"
-  LANGUAGE_VERSION: "0.16.0"
+  COMPILER_VERSION: "0.25.0"
+  LANGUAGE_VERSION: "0.17.0"
 
 jobs:
   run-suite:
     name: Run Test Suite
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Check out code
