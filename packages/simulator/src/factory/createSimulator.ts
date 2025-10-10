@@ -1,7 +1,7 @@
 import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 import { sampleContractAddress } from '@midnight-ntwrk/zswap';
 import { ContractSimulator } from '../core/ContractSimulator.js';
-import { StateManager } from '../core/StateManager.js';
+import { CircuitContextManager } from '../core/CircuitContextManager.js';
 import type { IMinimalContract } from '../types/Contract.js';
 import type { BaseSimulatorOptions } from '../types/Options.js';
 import type { SimulatorConfig } from './SimulatorConfig.js';
@@ -48,7 +48,7 @@ export function createSimulator<P, L, W, TArgs extends readonly any[]>(
 
       const processedArgs = config.contractArgs(...contractArgs);
 
-      this.stateManager = new StateManager(
+      this.circuitContextManager = new CircuitContextManager(
         this.contract,
         privateState,
         coinPK,

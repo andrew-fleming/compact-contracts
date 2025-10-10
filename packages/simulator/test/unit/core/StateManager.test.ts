@@ -11,8 +11,8 @@ import {
   sampleTokenType,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { StateManager } from '../../../src/core/StateManager';
-import { Contract as MockSimple } from '../../fixtures/artifacts/Simple/contract/index.cjs';
+import { CircuitContextManager } from '../../../src/core/CircuitContextManager';
+import { Contract as MockSimple } from '../../fixtures/test-artifacts/Simple/contract/index.cjs';
 import {
   type SimplePrivateState,
   SimpleWitnesses,
@@ -26,10 +26,10 @@ const deployer = toHexPadded(DEPLOYER);
 // Mut vars
 let mockContract: MockSimple<SimplePrivateState>;
 let initialPrivateState: SimplePrivateState;
-let stateManager: StateManager<SimplePrivateState>;
+let circuitCtxManager: CircuitContextManager<SimplePrivateState>;
 let ctx: CircuitContext<SimplePrivateState>;
 
-describe('StateManager', () => {
+describe('CircuitContextManager', () => {
   /**
    * Parametrize me!
    */
@@ -38,14 +38,14 @@ describe('StateManager', () => {
       mockContract = new MockSimple<SimplePrivateState>(SimpleWitnesses());
       initialPrivateState = {};
 
-      stateManager = new StateManager(
+      circuitCtxManager = new CircuitContextManager(
         mockContract,
         initialPrivateState,
         deployer,
         dummyContractAddress(),
       );
 
-      ctx = stateManager.getContext();
+      ctx = circuitCtxManager.getContext();
     });
 
     it('should set private state', () => {
@@ -84,21 +84,21 @@ describe('StateManager', () => {
       mockContract = new MockSimple<SimplePrivateState>(SimpleWitnesses());
       initialPrivateState = {};
 
-      stateManager = new StateManager(
+      circuitCtxManager = new CircuitContextManager(
         mockContract,
         initialPrivateState,
         deployer,
         dummyContractAddress(),
       );
 
-      ctx = stateManager.getContext();
+      ctx = circuitCtxManager.getContext();
     });
 
     /**
      * Improve me
      */
     it('should set new ctx', () => {
-      const oldCtx = stateManager.getContext();
+      const oldCtx = circuitCtxManager.getContext();
 
       const qualCoin: QualifiedCoinInfo = {
         type: sampleTokenType(),
@@ -136,9 +136,9 @@ describe('StateManager', () => {
         transactionContext: modifiedTxCtx,
       };
 
-      stateManager.setContext(newCtx);
-      expect(stateManager.getContext()).toEqual(newCtx);
-      expect(stateManager.getContext()).not.toEqual(oldCtx);
+      circuitCtxManager.setContext(newCtx);
+      expect(circuitCtxManager.getContext()).toEqual(newCtx);
+      expect(circuitCtxManager.getContext()).not.toEqual(oldCtx);
     });
   });
 });

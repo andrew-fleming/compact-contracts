@@ -3,13 +3,13 @@ import {
   emptyZswapLocalState,
 } from '@midnight-ntwrk/compact-runtime';
 import { AbstractSimulator } from './AbstractSimulator.js';
-import type { StateManager } from './StateManager.js';
+import type { CircuitContextManager } from './CircuitContextManager.js';
 
 /**
  * Enhanced base class for simulating Compact contract behavior with state management.
  *
  * Extends `AbstractSimulator` with:
- * - Simplified state management through `StateManager`
+ * - Simplified state management through `CircuitContextManager`
  * - Circuit context getters/setters that delegate to the state manager
  * - Caller context handling that respects both single-use and persistent overrides
  */
@@ -18,7 +18,7 @@ export abstract class ContractSimulator<P, L> extends AbstractSimulator<P, L> {
    * State manager that handles circuit context, private state, and contract state lifecycle.
    * Must be initialized by concrete subclasses in their constructor.
    */
-  public stateManager!: StateManager<P>;
+  public circuitContextManager!: CircuitContextManager<P>;
 
   /** Retrieves the current public ledger state */
   abstract getPublicState(): L;
@@ -50,11 +50,11 @@ export abstract class ContractSimulator<P, L> extends AbstractSimulator<P, L> {
    * @returns The current circuit context
    */
   get circuitContext(): CircuitContext<P> {
-    return this.stateManager.getContext();
+    return this.circuitContextManager.getContext();
   }
 
   /** Updates the circuit context in the state manager */
   set circuitContext(ctx: CircuitContext<P>) {
-    this.stateManager.setContext(ctx);
+    this.circuitContextManager.setContext(ctx);
   }
 }

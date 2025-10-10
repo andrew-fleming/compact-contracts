@@ -5,7 +5,7 @@ import {
   persistentHash,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { ZswapCoinPublicKey } from '../fixtures/artifacts/SampleZOwnable/contract/index.cjs';
+import type { ZswapCoinPublicKey } from '../fixtures/test-artifacts/SampleZOwnable/contract/index.cjs';
 import { SampleZOwnablePrivateState } from '../fixtures/sampleContracts/witnesses/SampleZOwnableWitnesses.js';
 import * as utils from '../fixtures/utils/address.js';
 import { SampleZOwnableSimulator } from './SampleZOwnableSimulator.js';

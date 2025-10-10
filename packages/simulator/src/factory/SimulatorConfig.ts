@@ -4,7 +4,7 @@ import type { StateValue } from '@midnight-ntwrk/compact-runtime';
  * @template P - Private state type
  * @template L - Ledger state type
  * @template W - Witnesses type
- * @template TArgs - Tuple type of contract-specific arguments passed to StateManager
+ * @template TArgs - Tuple type of contract-specific arguments passed to CircuitContextManager
  */
 export interface SimulatorConfig<
   P,
@@ -17,9 +17,9 @@ export interface SimulatorConfig<
   /** Function to generate default private state */
   defaultPrivateState: () => P;
   /**
-   * Function to process contract-specific arguments for StateManager initialization.
+   * Function to process contract-specific arguments for CircuitContextManager initialization.
    * Receives the arguments as spread parameters and returns them as an array
-   * to be passed to StateManager after the standard parameters (contract, privateState, coinPK, contractAddress).
+   * to be passed to CircuitContextManager after the standard parameters (contract, privateState, coinPK, contractAddress).
    *
    * @example
    * // For a contract with owner and salt arguments:

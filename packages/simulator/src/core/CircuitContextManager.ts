@@ -15,11 +15,11 @@ import {
  * Handles initialization and lifecycle management of the `CircuitContext`,
  * which includes private state, public (ledger) state, zswap local state, and transaction context.
  */
-export class StateManager<P> {
+export class CircuitContextManager<P> {
   public context: CircuitContext<P>;
 
   /**
-   * Creates an instance of `StateManager`.
+   * Creates an instance of `CircuitContextManager`.
    *
    * @param contract - A compiled Compact contract instance exposing `initialState()`
    * @param contract.initialState - Function that initializes contract state given a constructor context
