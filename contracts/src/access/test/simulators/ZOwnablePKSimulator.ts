@@ -1,7 +1,7 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/simulator';
+} from '@openzeppelin-compact/contracts-simulator';
 import {
   type ContractAddress,
   type Either,
