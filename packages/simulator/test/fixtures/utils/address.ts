@@ -1,9 +1,9 @@
 import {
-  convert_bigint_to_Uint8Array,
+  convertFieldToBytes,
   encodeCoinPublicKey,
 } from '@midnight-ntwrk/compact-runtime';
 import { encodeContractAddress } from '@midnight-ntwrk/ledger';
-import type * as Compact from '../artifacts/SampleZOwnable/contract/index.cjs';
+import type * as Compact from '../test-artifacts/SampleZOwnable/contract/index.cjs';
 
 const PREFIX_ADDRESS = '0200';
 
@@ -86,7 +86,7 @@ export const generateEitherPubKeyPair = (str: string) =>
   ];
 
 export const zeroUint8Array = (length = 32) =>
-  convert_bigint_to_Uint8Array(length, 0n);
+  convertFieldToBytes(length, 0n, 'zeroUint8Array');
 
 export const ZERO_KEY = {
   is_left: true,
