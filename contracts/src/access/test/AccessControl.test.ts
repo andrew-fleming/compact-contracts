@@ -1,6 +1,6 @@
 import {
   type CoinPublicKey,
-  convert_bigint_to_Uint8Array,
+  convertFieldToBytes,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AccessControlSimulator } from './simulators/AccessControlSimulator.js';
@@ -24,11 +24,11 @@ const Z_OPERATOR_CONTRACT =
 
 // Roles
 const DEFAULT_ADMIN_ROLE = utils.zeroUint8Array();
-const OPERATOR_ROLE_1 = convert_bigint_to_Uint8Array(32, 1n);
-const OPERATOR_ROLE_2 = convert_bigint_to_Uint8Array(32, 2n);
-const OPERATOR_ROLE_3 = convert_bigint_to_Uint8Array(32, 3n);
-const CUSTOM_ADMIN_ROLE = convert_bigint_to_Uint8Array(32, 4n);
-const UNINITIALIZED_ROLE = convert_bigint_to_Uint8Array(32, 5n);
+const OPERATOR_ROLE_1 = convertFieldToBytes(32, 1n, '123');
+const OPERATOR_ROLE_2 = convertFieldToBytes(32, 2n, '123');
+const OPERATOR_ROLE_3 = convertFieldToBytes(32, 3n, '123');
+const CUSTOM_ADMIN_ROLE = convertFieldToBytes(32, 4n, '123');
+const UNINITIALIZED_ROLE = convertFieldToBytes(32, 5n, '123');
 
 let accessControl: AccessControlSimulator;
 let caller: CoinPublicKey;
