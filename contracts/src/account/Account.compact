@@ -1,0 +1,219 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.0.1-alpha.0 (account/Account.compact)
+
+pragma language_version >= 0.18.0;
+
+/**
+ * @module Account
+ * @description Account stuffsszzszszs
+ */
+module Account {
+  import CompactStandardLibrary;
+
+  export ledger _nonce: Counter; // Simple counter
+  export ledger _coins: Map<Bytes<32>, QualifiedCoinInfo>;
+
+  witness wit_secretKey(): Bytes<32>;
+
+  /**
+   * @description Represents UTXOs to spend
+   * @property amount - Amount of `coin` to spend
+   * @property coin - Coin color of the coin to spend
+   */
+  export struct Spend {
+    amount: Uint<128>,
+    coin: Bytes<32>
+  }
+
+  /**
+   * @description Represents a generic call the account can execute
+   * @property to - Target address (either ZswapCoinPublicKey or ContractAddress)
+   * @property circuitName - Circuit name for contract-specific routing logic
+   * @property calldata - Fixed-size arguments (workaround for static vector constraints, up to MAX_ARGS)
+   */
+  export struct Call {
+    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    circuitName: Bytes<32>,
+    calldata: Vector<16, Bytes<32>>
+  }
+
+  /**
+   * @description Receives a shielded UTXO and stores a commitment to track ownership
+   * @param coin - Coin description that will be received by the account
+   * @returns {[]} Empty tuple.
+   */
+  export circuit receive(coin: CoinInfo): [] {
+    const coinColor = disclose(coin.color);
+    const thisAcct = right<ZswapCoinPublicKey, ContractAddress>(kernel.self());
+    if (_coins.member(coinColor)) {
+      const merged = mergeCoinImmediate(_coins.lookup(coinColor), disclose(coin));
+      _coins.insertCoin(coinColor, disclose(merged), thisAcct);
+    } else {
+      _coins.insertCoin(coinColor, disclose(coin), thisAcct);
+    }
+  }
+
+  /**
+   * @description Sends UTXOs to a recipient address
+   * @param recipient - Recipient's shielded coin public key
+   * @param spend - UTXOs to spend and total amount to send
+   * @param input - Authorization input over H(recipient, spend)
+   * @returns {[]} Empty tuple.
+   */
+  export circuit send(
+    recipient: ZswapCoinPublicKey,
+    spend: Spend,
+    input: Bytes<32>
+  ): [] {
+    const msgHash = persistentHash<Vector<5, Bytes<32>>>(
+      [
+        sendDomain(),
+        recipient.bytes,
+        spend.amount as Field as Bytes<32>,
+        spend.coin,
+        _nonce as Field as Bytes<32>
+      ]
+    );
+    const checkInput = isValidInput(msgHash, input);
+    assert(checkInput == pad(32, "VALIDATED"), "Account: invalid input");
+
+    // Disclosures
+    const spendCoin = disclose(spend.coin);
+    const spendAmt = disclose(spend.amount);
+    const utxo = disclose(_coins.lookup(spendCoin));
+    const castRecipient = disclose(left<ZswapCoinPublicKey, ContractAddress>(recipient));
+
+    // Remove UTXO from list
+    _coins.remove(spendCoin);
+
+    // Check balance
+    assert(utxo.value >= spend.amount, "Account: insufficient balance");
+
+    // Send tx
+    const sendRes = send(utxo, castRecipient, spendAmt);
+    if (sendRes.change.is_some) {
+      _coins.insertCoin(spendCoin, sendRes.change.value, right<ZswapCoinPublicKey, ContractAddress>(kernel.self()));
+    }
+
+    // Bump nonce (simple ledger counter reveals # of txs)
+    _nonce.increment(1);
+  }
+
+  /**
+   * @description Invokes a contract circuit with optional UTXO transfer
+   * @param call - Call parameters (target, circuit name, and arguments)
+   * @param spend - Optional UTXOs to send to contract (None if no transfer needed)
+   * @param input - Authorization input over H(call, spend)
+   * @returns {[]} Empty tuple.
+   */
+  export circuit invoke(
+    call: Call,
+    spend: Maybe<Spend>,
+    input: Bytes<32>
+  ): [] {
+    //
+    // ~~~I don't work yet but add me when I dooooooo~~~
+    //
+    // const msgHash = persistentHash<Vector<2, Bytes<32>>>(
+    //   [
+    //     invokeDomain(),
+    //     // add `call`
+    //     // add `spend`
+    //     _nonce as Field as Bytes<32>
+    //   ]
+    // );
+    // const checkSig = isValidInput(msgHash, input);
+    // assert(checkSig == pad(32, "VALIDATED"), "Account: invalid input");
+  }
+
+  /**
+   * @description Verifies the validity of an input for a given call hash.
+   * If the input is valid, this circuit MUST return the UTF-8 encoding of the string
+   * `"VALIDATED"`, right-padded with zeros to a total length of 32 bytes using Compact’s
+   * `pad` literal syntax:
+   *
+   * ```compact
+   * pad(32, "VALIDATED")
+   * ```
+   *
+   * Any other return value MUST be interpreted as invalid.
+   *
+   * @param hash - The hash of the data
+   * @param input - The input to validate
+   * @returns {Bytes<32>} - The validity of the input
+   */
+  export circuit isValidInput(
+    hash: Bytes<32>,
+    input: Bytes<32>
+  ): Bytes<32> {
+    const id = accountId();
+    // TMP - inputDomain is required for hash-based validation
+    // to prevent cross-circuit input reuse
+    const _inputDomain = inputDomain();
+    const expected = persistentHash<Vector<3, Bytes<32>>>([_inputDomain, id, hash]);
+    if (disclose(expected) == input) {
+      return pad(32, "VALIDATED");
+    }
+    return pad(32, "");
+  }
+
+  /**
+  * Helper circuits for hash-based validation.
+  * This is for PoC—not part of the standard interface.
+  */
+
+  /**
+   * @description Returns the base account namespace for reuse with other domains.
+   */
+  export pure circuit ACCOUNT_NAMESPACE(): Bytes<32> {
+    return pad(32, "AccountContract:v1");
+  }
+
+  /**
+   * @description Returns the domain for `isValidInput`.
+   * This domain is only required for hash-based validation to prevent cross-circuit
+   * input reuse.
+   */
+  export pure circuit inputDomain(): Bytes<32> {
+    return persistentHash<Vector<2, Bytes<32>>>([
+      ACCOUNT_NAMESPACE(),
+      pad(32, "input")
+    ]);
+  }
+
+  /**
+   * @description Returns the domain for `send`.
+   */
+  export pure circuit sendDomain(): Bytes<32> {
+    return persistentHash<Vector<3, Bytes<32>>>([
+      ACCOUNT_NAMESPACE(),
+      pad(32, "send"),
+      pad(32, "v1")
+    ]);
+  }
+
+  /**
+   * @description Returns the domain for `invoke`.
+   */
+  export pure circuit invokeDomain(): Bytes<32> {
+    return persistentHash<Vector<3, Bytes<32>>>([
+      ACCOUNT_NAMESPACE(),
+      pad(32, "invoke"),
+      pad(32, "v1")
+    ]);
+  }
+
+  /**
+   * @description Returns an account identifier. This acts similar to a public key
+   * that's derived from `wit_secretKey`. This circuit uses the name `accountId` so
+   * it's NOT to be confused with a cryptographic public key.
+   */
+  export circuit accountId(): Bytes<32> {
+    const sk = wit_secretKey();
+    const domain = persistentHash<Vector<2, Bytes<32>>>([
+      ACCOUNT_NAMESPACE(),
+      pad(32, "identity")
+    ]);
+    return persistentHash<Vector<2, Bytes<32>>>([sk, domain]);
+  }
+}

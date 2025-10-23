@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: MIT
+
+pragma language_version >= 0.18.0;
+
+import CompactStandardLibrary;
+import "../../Account" prefix Account_;
+
+export { ZswapCoinPublicKey, ContractAddress, Either, Maybe, CoinInfo };
+export { Account_Spend, Account_Call };
+export { Account__nonce, Account__coins };
+
+export circuit receive(coin: CoinInfo): [] {
+  Account_receive(coin);
+}
+
+export circuit send(
+  recipient: ZswapCoinPublicKey,
+  spend: Account_Spend,
+  input: Bytes<32>
+): [] {
+  Account_send(recipient, spend, input);
+}
+
+export circuit isValidInput(
+  hash: Bytes<32>,
+  input: Bytes<32>
+): Bytes<32> {
+  return Account_isValidInput(hash, input);
+}
