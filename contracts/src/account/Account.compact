@@ -81,9 +81,9 @@ module Account {
       [
         sendDomain(),
         recipient.bytes,
-        spend.amount as Field as Bytes<32>,
+        spend.amount as Bytes<32>,
         spend.coin,
-        _nonce as Field as Bytes<32>
+        _nonce as Bytes<32>
       ]
     );
     const checkInput = isValidInput(msgHash, input);
@@ -131,7 +131,7 @@ module Account {
     //     invokeDomain(),
     //     // add `call`
     //     // add `spend`
-    //     _nonce as Field as Bytes<32>
+    //     _nonce as Bytes<32>
     //   ]
     // );
     // const checkSig = isValidInput(msgHash, input);
