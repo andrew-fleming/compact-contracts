@@ -77,38 +77,39 @@ module Account {
     spend: Spend,
     input: Bytes<32>
   ): [] {
+    // Disclosures
+    const spendCoin = disclose(spend.coin);
+    const utxo = disclose(_coins.lookup(spendCoin));
+    const spendAmt = disclose(spend.amount);
+    const castRecipient = disclose(left<ZswapCoinPublicKey, ContractAddress>(recipient));
+
+    // Check balance
+    assert(utxo.value >= spendAmt, "Account: insufficient balance");
+
+    // Check input
     const msgHash = persistentHash<Vector<5, Bytes<32>>>(
       [
         sendDomain(),
         recipient.bytes,
-        spend.amount as Bytes<32>,
-        spend.coin,
+        spendAmt as Bytes<32>,
+        spendCoin,
         _nonce as Bytes<32>
       ]
     );
     const checkInput = isValidInput(msgHash, input);
     assert(checkInput == pad(32, "VALIDATED"), "Account: invalid input");
 
-    // Disclosures
-    const spendCoin = disclose(spend.coin);
-    const spendAmt = disclose(spend.amount);
-    const utxo = disclose(_coins.lookup(spendCoin));
-    const castRecipient = disclose(left<ZswapCoinPublicKey, ContractAddress>(recipient));
-
     // Remove UTXO from list
     _coins.remove(spendCoin);
 
-    // Check balance
-    assert(utxo.value >= spend.amount, "Account: insufficient balance");
+    // Bump nonce (simple ledger counter reveals # of txs)
+    _nonce.increment(1);
 
     // Send tx
     const sendRes = send(utxo, castRecipient, spendAmt);
     if (sendRes.change.is_some) {
       _coins.insertCoin(spendCoin, sendRes.change.value, right<ZswapCoinPublicKey, ContractAddress>(kernel.self()));
     }
-
-    // Bump nonce (simple ledger counter reveals # of txs)
-    _nonce.increment(1);
   }
 
   /**
