@@ -3,11 +3,11 @@ import {
   createSimulator,
 } from '@openzeppelin-compact/contracts-simulator';
 import {
+  type Account_Spend,
+  type CoinInfo,
   ledger,
   Contract as MockOwnable,
-  CoinInfo,
   type ZswapCoinPublicKey,
-  Account_Spend,
 } from '../../../../artifacts/MockAccount/contract/index.cjs';
 import {
   AccountPrivateState,
@@ -38,7 +38,9 @@ const AccountSimulatorBase: any = createSimulator<
   contractFactory: (witnesses) =>
     new MockOwnable<AccountPrivateState>(witnesses),
   defaultPrivateState: () => AccountPrivateState.generate(),
-  contractArgs: () => { return []; },
+  contractArgs: () => {
+    return [];
+  },
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => AccountWitnesses(),
 });
@@ -60,7 +62,11 @@ export class AccountSimulator extends AccountSimulatorBase {
     this.circuits.impure.receiveCoin(coin);
   }
 
-  public send(recipient: ZswapCoinPublicKey, spend: Account_Spend, input: Uint8Array): void {
+  public send(
+    recipient: ZswapCoinPublicKey,
+    spend: Account_Spend,
+    input: Uint8Array,
+  ): void {
     this.circuits.impure.send(recipient, spend, input);
   }
 

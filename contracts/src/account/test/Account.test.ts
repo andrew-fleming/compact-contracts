@@ -4,8 +4,8 @@ import {
   persistentHash,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
-import * as utils from './utils/address.js';
 import { AccountSimulator } from './simulators/AccountSimulator.js';
+import * as utils from './utils/address.js';
 
 let account: AccountSimulator;
 

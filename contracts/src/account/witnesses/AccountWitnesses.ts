@@ -47,18 +47,16 @@ export const AccountPrivateState = {
   withSecretKey: (sk: Buffer): AccountPrivateState => {
     return { secretKey: sk };
   },
-}
+};
 
 /**
  * @description Factory function creating witness implementations for Account operations.
  * @returns An object implementing the Witnesses interface for AccountPrivateState.
  */
-export const AccountWitnesses =
-  (): IAccountWitnesses<AccountPrivateState> => ({
-    wit_secretKey(
-      context: WitnessContext<Ledger, AccountPrivateState>,
-    ): [AccountPrivateState, Uint8Array] {
-      return [context.privateState, context.privateState.secretKey];
-    },
-  }
-);
+export const AccountWitnesses = (): IAccountWitnesses<AccountPrivateState> => ({
+  wit_secretKey(
+    context: WitnessContext<Ledger, AccountPrivateState>,
+  ): [AccountPrivateState, Uint8Array] {
+    return [context.privateState, context.privateState.secretKey];
+  },
+});

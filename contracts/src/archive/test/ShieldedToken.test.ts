@@ -56,9 +56,7 @@ describe('Shielded token', () => {
       token = new ShieldedTokenSimulator(NONCE, NAME, SYMBOL, DECIMALS);
 
       expect(token.getPublicState().ShieldedToken__counter).toEqual(0n);
-      expect(token.getPublicState().ShieldedToken__domain).toEqual(
-        DOMAIN,
-      );
+      expect(token.getPublicState().ShieldedToken__domain).toEqual(DOMAIN);
       expect(token.getPublicState().ShieldedToken__counter).toEqual(0n);
     });
   });

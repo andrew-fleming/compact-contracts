@@ -1,6 +1,4 @@
-import {
-  type CircuitResults,
-} from '@midnight-ntwrk/compact-runtime';
+import type { CircuitResults } from '@midnight-ntwrk/compact-runtime';
 import {
   type BaseSimulatorOptions,
   createSimulator,

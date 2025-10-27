@@ -2,20 +2,23 @@ import {
   CompactTypeBytes,
   CompactTypeVector,
   convertFieldToBytes,
-  persistentHash,
   encodeContractAddress,
+  persistentHash,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { Maybe, Account_Spend } from '../../../artifacts/MockAccountWithToken/contract/index.cjs';
-import * as utils from './utils/address.js';
+import type { ZswapCoinPublicKey } from '../../../artifacts/MockAccessControl/contract/index.cjs';
+import type {
+  Account_Spend,
+  Maybe,
+} from '../../../artifacts/MockAccountWithToken/contract/index.cjs';
 import { AccountSimulator } from './simulators/AccountWithTokenSimulator.js';
-import { ZswapCoinPublicKey } from '../../../artifacts/MockAccessControl/contract/index.cjs';
+import * as utils from './utils/address.js';
 
 // PKs
 const [ALICE, zALICE] = utils.generateEitherPubKeyPair('ALICE');
 const [_, zBOB] = utils.generatePubKeyPair('BOB');
 
-let AccountAddressAsEither = utils.ZERO_ADDRESS // update this after deployment/fix me
+const AccountAddressAsEither = utils.ZERO_ADDRESS; // update this after deployment/fix me
 
 const NAME: Maybe<string> = {
   is_some: true,
@@ -29,7 +32,6 @@ const DECIMALS: bigint = 18n;
 const NONCE: Uint8Array = utils.pad('NONCE', 32);
 const AMOUNT: bigint = BigInt(250);
 
-let secretKey: Uint8Array;
 let account: AccountSimulator;
 
 //
@@ -52,9 +54,13 @@ const craftSendHashSimple = (
   const bRecipient = recipient.bytes;
   const bAmount = convertFieldToBytes(32, spend.amount, 'Account amount');
   const bCoinColor = spend.coin;
-  const bNonce = convertFieldToBytes(32, accountCtx.getPublicState().Account__nonce, 'Account nonce');
+  const bNonce = convertFieldToBytes(
+    32,
+    accountCtx.getPublicState().Account__nonce,
+    'Account nonce',
+  );
   return craftSendHash(bSendDomain, bRecipient, bAmount, bCoinColor, bNonce);
-}
+};
 
 const craftSendHash = (
   sendDomain: Uint8Array,
@@ -64,8 +70,14 @@ const craftSendHash = (
   nonce: Uint8Array,
 ) => {
   const rtTypeSend = new CompactTypeVector(5, new CompactTypeBytes(32));
-  return persistentHash(rtTypeSend, [sendDomain, recipient, amount, coinColor, nonce]);
-}
+  return persistentHash(rtTypeSend, [
+    sendDomain,
+    recipient,
+    amount,
+    coinColor,
+    nonce,
+  ]);
+};
 
 /**
  * Creates an input hash from a send transaction hash.
@@ -73,11 +85,14 @@ const craftSendHash = (
  * @param sendHash - The send transaction hash.
  * @returns Input hash as Uint8Array to be consumed by `account.send`.
  */
-const craftInputHashSimple = (accountCtx: AccountSimulator, sendHash: Uint8Array) => {
+const craftInputHashSimple = (
+  accountCtx: AccountSimulator,
+  sendHash: Uint8Array,
+) => {
   const inputDomain = accountCtx.inputDomain();
   const id = accountCtx.accountId();
   return craftInputHash(inputDomain, id, sendHash);
-}
+};
 
 const craftInputHash = (
   inputDomain: Uint8Array,
@@ -86,12 +101,14 @@ const craftInputHash = (
 ) => {
   const rtTypeInput = new CompactTypeVector(3, new CompactTypeBytes(32));
   return persistentHash(rtTypeInput, [inputDomain, id, sendHash]);
-}
+};
 
 describe('Account', () => {
   beforeEach(() => {
     account = new AccountSimulator(NONCE, NAME, SYMBOL, DECIMALS);
-    AccountAddressAsEither.right.bytes = encodeContractAddress(account.contractAddress);
+    AccountAddressAsEither.right.bytes = encodeContractAddress(
+      account.contractAddress,
+    );
   });
 
   describe('initialization', () => {
@@ -106,8 +123,8 @@ describe('Account', () => {
         const mintedCoinInfo = {
           nonce: ret.result.nonce,
           color: ret.result.color,
-          value: ret.result.value
-        }
+          value: ret.result.value,
+        };
         const receiveRet = account.as(ALICE).receiveCoin(mintedCoinInfo);
         // outputs[0] is the initial mint
         // We need to create a tx to improve testing
@@ -116,7 +133,9 @@ describe('Account', () => {
         expect(out.recipient).toEqual(AccountAddressAsEither);
 
         // Check QualifiedCoinInfo is stored
-        const storedUTXO = account.getPublicState().Account__coins.lookup(mintedCoinInfo.color);
+        const storedUTXO = account
+          .getPublicState()
+          .Account__coins.lookup(mintedCoinInfo.color);
         expect(storedUTXO.nonce).toEqual(mintedCoinInfo.nonce);
         expect(storedUTXO.color).toEqual(mintedCoinInfo.color);
         expect(storedUTXO.value).toEqual(mintedCoinInfo.value);
@@ -131,14 +150,14 @@ describe('Account', () => {
         const mintedCoinInfo1 = {
           nonce: ret1.result.nonce,
           color: ret1.result.color,
-          value: ret1.result.value
-        }
+          value: ret1.result.value,
+        };
         const ret2 = account.mint(zALICE, AMOUNT);
         const mintedCoinInfo2 = {
           nonce: ret2.result.nonce,
           color: ret2.result.color,
-          value: ret2.result.value
-        }
+          value: ret2.result.value,
+        };
 
         // First receive
         const receiveRet1 = account.as(ALICE).receiveCoin(mintedCoinInfo1);
@@ -157,7 +176,9 @@ describe('Account', () => {
         expect(out2.recipient).toEqual(AccountAddressAsEither);
 
         // Check QualifiedCoinInfo is merged and stored
-        const storedUTXO = account.getPublicState().Account__coins.lookup(mintedCoinInfo2.color);
+        const storedUTXO = account
+          .getPublicState()
+          .Account__coins.lookup(mintedCoinInfo2.color);
         expect(storedUTXO.nonce).not.toEqual(mintedCoinInfo2.nonce); // New nonce with merge
         expect(storedUTXO.color).toEqual(mintedCoinInfo2.color); // Same color
         expect(storedUTXO.value).toEqual(mintedCoinInfo2.value * 2n); // Combined
@@ -182,8 +203,8 @@ describe('Account', () => {
           const mintedCoinInfo = {
             nonce: ret.result.nonce,
             color: ret.result.color,
-            value: ret.result.value
-          }
+            value: ret.result.value,
+          };
           account.receiveCoin(mintedCoinInfo);
           thisCoinColor = ret.result.color;
           thisCoinNonce = ret.result.nonce;
@@ -212,7 +233,9 @@ describe('Account', () => {
           expect(newNonce).toEqual(expNonce);
 
           // Check spent coin is removed from account
-          const isCoin = account.getPublicState().Account__coins.member(thisSpend.coin);
+          const isCoin = account
+            .getPublicState()
+            .Account__coins.member(thisSpend.coin);
           expect(isCoin).toEqual(false);
         });
 
@@ -240,11 +263,15 @@ describe('Account', () => {
 
           // Check coin color is not removed from account
           // bc there is change in the spend
-          const isCoin = account.getPublicState().Account__coins.member(thisSpend.coin);
+          const isCoin = account
+            .getPublicState()
+            .Account__coins.member(thisSpend.coin);
           expect(isCoin).toEqual(true);
 
           // Check spent coin details
-          const storedCoin = account.getPublicState().Account__coins.lookup(thisSpend.coin);
+          const storedCoin = account
+            .getPublicState()
+            .Account__coins.lookup(thisSpend.coin);
           expect(storedCoin.nonce).not.toEqual(thisCoinNonce); // Bumped coin nonce
           expect(storedCoin.color).toEqual(thisCoinColor); // Same color
           expect(storedCoin.value).toEqual(1n); // Total - 1
@@ -263,15 +290,15 @@ describe('Account', () => {
           const mintedCoinInfo = {
             nonce: ret.result.nonce,
             color: ret.result.color,
-            value: ret.result.value
-          }
+            value: ret.result.value,
+          };
           account.receiveCoin(mintedCoinInfo);
           thisCoinColor = ret.result.color;
           thisCoinNonce = ret.result.nonce;
           thisSpend = {
             amount: AMOUNT,
-            coin: thisCoinColor
-          }
+            coin: thisCoinColor,
+          };
           thisSendDomain = account.sendDomain();
 
           // Store current nonce for utxo send
@@ -295,7 +322,7 @@ describe('Account', () => {
             params.recipient,
             params.amount,
             params.coinColor,
-            params.nonce
+            params.nonce,
           );
         };
 
@@ -311,20 +338,17 @@ describe('Account', () => {
           }).not.toThrow();
         });
 
-        it.each([
-          'sendDomain',
-          'recipient',
-          'amount',
-          'coinColor',
-          'nonce'
-        ])('should fail when %s is changed in send hash', (param) => {
-          const sendHash = craftHashWithOverrides({ [param]: badVal });
-          const inputHash = craftInputHashSimple(account, sendHash);
+        it.each(['sendDomain', 'recipient', 'amount', 'coinColor', 'nonce'])(
+          'should fail when %s is changed in send hash',
+          (param) => {
+            const sendHash = craftHashWithOverrides({ [param]: badVal });
+            const inputHash = craftInputHashSimple(account, sendHash);
 
-          expect(() => {
-            account.send(zBOB, thisSpend, inputHash);
-          }).toThrow('Account: invalid input');
-        });
+            expect(() => {
+              account.send(zBOB, thisSpend, inputHash);
+            }).toThrow('Account: invalid input');
+          },
+        );
       });
     });
   });

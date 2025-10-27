@@ -1,20 +1,18 @@
+import type { CircuitResults } from '@midnight-ntwrk/compact-runtime';
 import {
   type BaseSimulatorOptions,
   createSimulator,
 } from '@openzeppelin-compact/contracts-simulator';
 import {
-  type CircuitResults,
-} from '@midnight-ntwrk/compact-runtime';
-import {
-  ledger,
-  type Maybe,
+  type Account_Spend,
+  type CoinInfo,
   type ContractAddress,
   type Either,
+  ledger,
+  type Maybe,
   Contract as MockOwnable,
-  CoinInfo,
-  type ZswapCoinPublicKey,
-  Account_Spend,
   type SendResult,
+  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockAccountWithToken/contract/index.cjs';
 import {
   AccountPrivateState,
@@ -84,7 +82,11 @@ export class AccountSimulator extends AccountSimulatorBase {
     return res;
   }
 
-  public send(recipient: ZswapCoinPublicKey, spend: Account_Spend, input: Uint8Array): void {
+  public send(
+    recipient: ZswapCoinPublicKey,
+    spend: Account_Spend,
+    input: Uint8Array,
+  ): void {
     this.circuits.impure.send(recipient, spend, input);
   }
 

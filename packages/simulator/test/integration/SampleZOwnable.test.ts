@@ -84,7 +84,7 @@ const buildCommitment = (
   const id = createIdHash(pk, nonce);
 
   const rt_type = new CompactTypeVector(4, new CompactTypeBytes(32));
-  const bCounter = convertFieldToBytes(32, counter, "buildCommitment:bCounter");
+  const bCounter = convertFieldToBytes(32, counter, 'buildCommitment:bCounter');
   const bDomain = new TextEncoder().encode(domain);
 
   const commitment = persistentHash(rt_type, [
