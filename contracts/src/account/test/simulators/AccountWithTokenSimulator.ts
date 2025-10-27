@@ -74,8 +74,14 @@ export class AccountSimulator extends AccountSimulatorBase {
     super([nonce, name, symbol, decimals], options);
   }
 
-  public receive(coin: CoinInfo): void {
-    this.circuits.impure.receive(coin);
+  public receiveCoin(coin: CoinInfo) {
+    const res = this.contract.impureCircuits.receiveCoin(
+      this.circuitContext,
+      coin,
+    );
+
+    this.circuitContext = res.context;
+    return res;
   }
 
   public send(recipient: ZswapCoinPublicKey, spend: Account_Spend, input: Uint8Array): void {
@@ -86,9 +92,33 @@ export class AccountSimulator extends AccountSimulatorBase {
     return this.circuits.impure.isValidInput(hash, input);
   }
 
+  public accountId(): Uint8Array {
+    return this.circuits.impure.accountId();
+  }
 
+  /**
+   * Pure circuits
+   */
 
+  public ACCOUNT_NAMESPACE(): Uint8Array {
+    return this.circuits.pure.ACCOUNT_NAMESPACE();
+  }
 
+  public inputDomain(): Uint8Array {
+    return this.circuits.pure.inputDomain();
+  }
+
+  public sendDomain(): Uint8Array {
+    return this.circuits.pure.sendDomain();
+  }
+
+  public invokeDomain(): Uint8Array {
+    return this.circuits.pure.invokeDomain();
+  }
+
+  /**
+   * Token circuits for testing
+   */
 
   /**
    * @description Returns the token name.

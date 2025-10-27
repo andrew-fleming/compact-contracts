@@ -10,8 +10,8 @@ export { ZswapCoinPublicKey, ContractAddress, Either, Maybe, CoinInfo, SendResul
 export { Account_Spend, Account_Call };
 export { Account__nonce, Account__coins };
 
-export circuit receive(coin: CoinInfo): [] {
-  Account_receive(coin);
+export circuit receiveCoin(coin: CoinInfo): [] {
+  Account_receiveCoin(coin);
 }
 
 export circuit send(
@@ -27,6 +27,27 @@ export circuit isValidInput(
   input: Bytes<32>
 ): Bytes<32> {
   return Account_isValidInput(hash, input);
+}
+
+export pure circuit ACCOUNT_NAMESPACE(): Bytes<32> {
+  return Account_ACCOUNT_NAMESPACE();
+}
+
+export pure circuit inputDomain(): Bytes<32> {
+  return Account_inputDomain();
+
+}
+
+export pure circuit sendDomain(): Bytes<32> {
+  return Account_sendDomain();
+}
+
+export pure circuit invokeDomain(): Bytes<32> {
+  return Account_invokeDomain();
+}
+
+export circuit accountId(): Bytes<32> {
+  return disclose(Account_accountId());
 }
 
 /**

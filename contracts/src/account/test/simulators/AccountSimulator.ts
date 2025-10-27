@@ -56,8 +56,8 @@ export class AccountSimulator extends AccountSimulatorBase {
     super([], options);
   }
 
-  public receive(coin: CoinInfo): void {
-    this.circuits.impure.receive(coin);
+  public receiveCoin(coin: CoinInfo): void {
+    this.circuits.impure.receiveCoin(coin);
   }
 
   public send(recipient: ZswapCoinPublicKey, spend: Account_Spend, input: Uint8Array): void {
@@ -66,5 +66,29 @@ export class AccountSimulator extends AccountSimulatorBase {
 
   public isValidInput(hash: Uint8Array, input: Uint8Array): Uint8Array {
     return this.circuits.impure.isValidInput(hash, input);
+  }
+
+  public accountId(): Uint8Array {
+    return this.circuits.impure.accountId();
+  }
+
+  /**
+   * Pure circuits
+   */
+
+  public ACCOUNT_NAMESPACE(): Uint8Array {
+    return this.circuits.pure.ACCOUNT_NAMESPACE();
+  }
+
+  public inputDomain(): Uint8Array {
+    return this.circuits.pure.inputDomain();
+  }
+
+  public sendDomain(): Uint8Array {
+    return this.circuits.pure.sendDomain();
+  }
+
+  public invokeDomain(): Uint8Array {
+    return this.circuits.pure.invokeDomain();
   }
 }

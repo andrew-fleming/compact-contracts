@@ -86,7 +86,7 @@ export const generateEitherPubKeyPair = (str: string) =>
   ];
 
 export const zeroUint8Array = (length = 32) =>
-  convertFieldToBytes(length, 0n);
+  convertFieldToBytes(length, 0n, 'zeroUint8Array');
 
 export const ZERO_KEY = {
   is_left: true,
