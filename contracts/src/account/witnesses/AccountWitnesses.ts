@@ -42,7 +42,7 @@ export const AccountPrivateState = {
    * @description Generates a new private state with a user-defined secret key.
    *
    * @param sk - The 32-byte secret key to use.
-   * @returns A fresh ZOwnablePKPrivateState instance with the provided nonce.
+   * @returns A fresh AccountPrivateState instance with the provided nonce.
    */
   withSecretKey: (sk: Buffer): AccountPrivateState => {
     return { secretKey: sk };
