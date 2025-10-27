@@ -13,7 +13,7 @@ export interface IAccountWitnesses<P> {
   /**
    * Retrieves the secret key from the private state.
    * @param context - The witness context containing the private state.
-   * @returns A tuple of the private state and the secret nonce as a Uint8Array.
+   * @returns A tuple of the private state and the secret key as a Uint8Array.
    */
   wit_secretKey(context: WitnessContext<Ledger, P>): [P, Uint8Array];
 }
@@ -42,7 +42,7 @@ export const AccountPrivateState = {
    * @description Generates a new private state with a user-defined secret key.
    *
    * @param sk - The 32-byte secret key to use.
-   * @returns A fresh AccountPrivateState instance with the provided nonce.
+   * @returns A fresh AccountPrivateState instance with the provided key.
    */
   withSecretKey: (sk: Buffer): AccountPrivateState => {
     return { secretKey: sk };
