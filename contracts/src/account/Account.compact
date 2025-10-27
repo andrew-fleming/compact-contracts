@@ -64,6 +64,12 @@ module Account {
    * @param recipient - Recipient's shielded coin public key
    * @param spend - UTXOs to spend and total amount to send
    * @param input - Authorization input over H(recipient, spend)
+   *
+   * @dev Another idea is to integrate the coin's nonce into the msgHash.
+   * This might not work well with the initial utxo-merge approach bc if an account
+   * receives a utxo of MyCoin while crafting a transaction for MyCoin, the nonce will
+   * change.
+   *
    * @returns {[]} Empty tuple.
    */
   export circuit send(
