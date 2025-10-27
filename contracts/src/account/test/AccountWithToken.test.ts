@@ -253,7 +253,6 @@ describe('Account', () => {
 
       describe('failing scenarios', () => {
         let thisCoinColor: Uint8Array;
-        let thisCoinNonce: Uint8Array;
         let thisContractNonce: bigint;
         let thisSpend: Account_Spend;
         let thisSendDomain: Uint8Array;
@@ -301,7 +300,7 @@ describe('Account', () => {
         };
 
         // The baddest of values
-        const badVal = new Uint8Array(32).fill(0xf);
+        const badVal = new Uint8Array(32).fill(0xbad);
 
         it('should pass with default send hash', () => {
           const sendHash = craftHashWithOverrides(); // No override
