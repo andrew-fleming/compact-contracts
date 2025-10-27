@@ -119,7 +119,7 @@ describe('Account', () => {
 
     describe('receiveCoin', () => {
       it('should receive utxo (new color)', () => {
-        const ret = account.mint(zALICE, AMOUNT);
+        const ret = account.unsafeMint(zALICE, AMOUNT);
         const mintedCoinInfo = {
           nonce: ret.result.nonce,
           color: ret.result.color,
@@ -146,13 +146,13 @@ describe('Account', () => {
 
       it('should receive coin (duplicate color/merged)', () => {
         // Mint two UTXOs
-        const ret1 = account.mint(zALICE, AMOUNT);
+        const ret1 = account.unsafeMint(zALICE, AMOUNT);
         const mintedCoinInfo1 = {
           nonce: ret1.result.nonce,
           color: ret1.result.color,
           value: ret1.result.value,
         };
-        const ret2 = account.mint(zALICE, AMOUNT);
+        const ret2 = account.unsafeMint(zALICE, AMOUNT);
         const mintedCoinInfo2 = {
           nonce: ret2.result.nonce,
           color: ret2.result.color,
@@ -199,7 +199,7 @@ describe('Account', () => {
 
       describe('passing scenarios', () => {
         beforeEach(() => {
-          const ret = account.mint(zALICE, AMOUNT);
+          const ret = account.unsafeMint(zALICE, AMOUNT);
           const mintedCoinInfo = {
             nonce: ret.result.nonce,
             color: ret.result.color,
@@ -286,7 +286,7 @@ describe('Account', () => {
 
         beforeEach(() => {
           // Setup mint + account receive
-          const ret = account.mint(zALICE, AMOUNT);
+          const ret = account.unsafeMint(zALICE, AMOUNT);
           const mintedCoinInfo = {
             nonce: ret.result.nonce,
             color: ret.result.color,

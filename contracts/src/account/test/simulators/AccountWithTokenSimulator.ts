@@ -154,27 +154,17 @@ export class AccountSimulator extends AccountSimulatorBase {
     return this.circuits.impure.totalSupply();
   }
 
-  public mint(
+  public unsafeMint(
     recipient: Either<ZswapCoinPublicKey, ContractAddress>,
     amount: bigint,
   ): CircuitResults<AccountPrivateState, CoinInfo> {
-    const res = this.contract.impureCircuits.mint(
+    // Using the older method for executing a call
+    // in order to see the zswap details.
+    // There should be a utility func(s) to make this easier
+    // in the simulator package
+    const res = this.contract.impureCircuits.unsafeMint(
       this.circuitContext,
       recipient,
-      amount,
-    );
-
-    this.circuitContext = res.context;
-    return res;
-  }
-
-  public burn(
-    coin: CoinInfo,
-    amount: bigint,
-  ): CircuitResults<AccountPrivateState, SendResult> {
-    const res = this.contract.impureCircuits.burn(
-      this.circuitContext,
-      coin,
       amount,
     );
 

@@ -85,13 +85,9 @@ export circuit totalSupply(): Uint<64> {
   return ShieldedToken_totalSupply();
 }
 
-export circuit mint(
+export circuit unsafeMint(
   recipient: Either<ZswapCoinPublicKey, ContractAddress>,
   amount: Uint<64>
 ): CoinInfo {
   return ShieldedToken_mint(recipient, amount);
-}
-
-export circuit burn(coin: CoinInfo, amount: Uint<64>): SendResult {
-  return ShieldedToken_burn(coin, amount);
 }
