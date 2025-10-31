@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
+    env:
+      COMPACT_INSTALLER_URL: ${{ vars.COMPACT_INSTALLER_URL }}
+
     steps:
       - name: Check out code
         uses: actions/checkout@v4

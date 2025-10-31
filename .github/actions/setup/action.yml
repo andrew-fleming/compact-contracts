@@ -21,8 +21,8 @@ runs:
     - name: Set shared environment variables
       shell: bash
       run: |
-        echo "COMPILER_VERSION=0.24.0" >> $GITHUB_ENV
-        echo "LANGUAGE_VERSION=0.16.0" >> $GITHUB_ENV
+        echo "COMPILER_VERSION=0.25.0" >> $GITHUB_ENV
+        echo "LANGUAGE_VERSION=0.17.0" >> $GITHUB_ENV
 
     - name: Get yarn cache directory path
       shell: bash
@@ -75,32 +75,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-
         COMPACT_HOME="$HOME/compactc"
-        COMPACT_ZIP_DIR="$HOME/compactc_download"
-
-        echo "🔧 Installing Compact compiler v$COMPILER_VERSION..."
-
         mkdir -p "$COMPACT_HOME"
-        mkdir -p "$COMPACT_ZIP_DIR"
 
-        ZIP_FILE="compactc_v${COMPILER_VERSION}_x86_64-unknown-linux-musl.zip"
-        DOWNLOAD_URL="https://d3fazakqrumx6p.cloudfront.net/artifacts/compiler/compactc_${COMPILER_VERSION}/${ZIP_FILE}"
+        echo "🔧 Installing Compact compiler from $COMPACT_INSTALLER_URL ..."
+        curl --proto '=https' --tlsv1.2 -LsSf "$COMPACT_INSTALLER_URL" | sh
 
-        echo "⬇️ Downloading Compact compiler from $DOWNLOAD_URL..."
-        curl -fLs "$DOWNLOAD_URL" -o "$COMPACT_ZIP_DIR/compactc.zip"
-
-        echo "🧪 Validating ZIP archive..."
-        if ! unzip -tq "$COMPACT_ZIP_DIR/compactc.zip"; then
-          echo "::error::❌ ZIP file is invalid or corrupted."
-          exit 1
-        fi
-
-        echo "📦 Extracting Compact compiler..."
-        unzip -q "$COMPACT_ZIP_DIR/compactc.zip" -d "$COMPACT_HOME"
-        chmod +x "$COMPACT_HOME"/{compactc,compactc.bin,zkir}
-
-        echo "✅ Compact compiler extracted to $COMPACT_HOME"
+        echo "✅ Compact compiler installed"
 
     - name: Setup Compact environment
       if: inputs.skip-compact != 'true'
