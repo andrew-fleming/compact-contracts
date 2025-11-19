@@ -116,6 +116,12 @@ Compiling 3 circuits:
 Overall progress [====================] 3/3
 ```
 
+## Learn
+
+### Documentation
+
+Check out the [full documentation site](https://docs.openzeppelin.com/contracts-compact)!
+
 ## Development
 
 OpenZeppelin Contracts for Compact exists thanks to its contributors.
