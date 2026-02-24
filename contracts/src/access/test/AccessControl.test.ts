@@ -1,37 +1,31 @@
-import {
-  type CoinPublicKey,
-  convert_bigint_to_Uint8Array,
-} from '@midnight-ntwrk/compact-runtime';
+import { convertFieldToBytes } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it } from 'vitest';
+import * as utils from '#test-utils/address.js';
 import { AccessControlSimulator } from './simulators/AccessControlSimulator.js';
-import * as utils from './utils/address.js';
 
-// Callers
-const OPERATOR_1 = utils.toHexPadded('OPERATOR_1');
-const ADMIN = utils.toHexPadded('ADMIN');
-const CUSTOM_ADMIN = utils.toHexPadded('CUSTOM_ADMIN');
-const UNAUTHORIZED = utils.toHexPadded('UNAUTHORIZED');
+// PKs
+const [OPERATOR_1, Z_OPERATOR_1] = utils.generateEitherPubKeyPair('OPERATOR_1');
+const [_, Z_OPERATOR_2] = utils.generateEitherPubKeyPair('OPERATOR_2');
+const [ADMIN, Z_ADMIN] = utils.generateEitherPubKeyPair('ADMIN');
+const [CUSTOM_ADMIN, Z_CUSTOM_ADMIN] =
+  utils.generateEitherPubKeyPair('CUSTOM_ADMIN');
+const [UNAUTHORIZED, Z_UNAUTHORIZED] =
+  utils.generateEitherPubKeyPair('UNAUTHORIZED');
+
+// Encoded contract addresses
 const OPERATOR_CONTRACT = utils.toHexPadded('OPERATOR_CONTRACT');
-
-// Encoded PK/Addresses
-const Z_OPERATOR_1 = utils.createEitherTestUser('OPERATOR_1');
-const Z_OPERATOR_2 = utils.createEitherTestUser('OPERATOR_2');
-const Z_ADMIN = utils.createEitherTestUser('ADMIN');
-const Z_CUSTOM_ADMIN = utils.createEitherTestUser('CUSTOM_ADMIN');
-const Z_UNAUTHORIZED = utils.createEitherTestUser('UNAUTHORIZED');
 const Z_OPERATOR_CONTRACT =
   utils.createEitherTestContractAddress('OPERATOR_CONTRACT');
 
 // Roles
 const DEFAULT_ADMIN_ROLE = utils.zeroUint8Array();
-const OPERATOR_ROLE_1 = convert_bigint_to_Uint8Array(32, 1n);
-const OPERATOR_ROLE_2 = convert_bigint_to_Uint8Array(32, 2n);
-const OPERATOR_ROLE_3 = convert_bigint_to_Uint8Array(32, 3n);
-const CUSTOM_ADMIN_ROLE = convert_bigint_to_Uint8Array(32, 4n);
-const UNINITIALIZED_ROLE = convert_bigint_to_Uint8Array(32, 5n);
+const OPERATOR_ROLE_1 = convertFieldToBytes(32, 1n, '');
+const OPERATOR_ROLE_2 = convertFieldToBytes(32, 2n, '');
+const OPERATOR_ROLE_3 = convertFieldToBytes(32, 3n, '');
+const CUSTOM_ADMIN_ROLE = convertFieldToBytes(32, 4n, '');
+const UNINITIALIZED_ROLE = convertFieldToBytes(32, 5n, '');
 
 let accessControl: AccessControlSimulator;
-let caller: CoinPublicKey;
 
 const callerTypes = {
   contract: OPERATOR_CONTRACT,
@@ -79,25 +73,22 @@ describe('AccessControl', () => {
     });
 
     it('should allow operator with role to call', () => {
-      caller = OPERATOR_1;
       expect(() =>
-        accessControl.assertOnlyRole(OPERATOR_ROLE_1, caller),
+        accessControl.as(OPERATOR_1).assertOnlyRole(OPERATOR_ROLE_1),
       ).not.toThrow();
     });
 
     it('should throw if caller is unauthorized', () => {
-      caller = UNAUTHORIZED;
       expect(() =>
-        accessControl.assertOnlyRole(OPERATOR_ROLE_1, caller),
+        accessControl.as(UNAUTHORIZED).assertOnlyRole(OPERATOR_ROLE_1),
       ).toThrow('AccessControl: unauthorized account');
     });
 
     it('should throw if ContractAddress with role is caller', () => {
-      caller = OPERATOR_CONTRACT;
       accessControl._unsafeGrantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
 
       expect(() =>
-        accessControl.assertOnlyRole(OPERATOR_ROLE_1, caller),
+        accessControl.as(OPERATOR_CONTRACT).assertOnlyRole(OPERATOR_ROLE_1),
       ).toThrow('AccessControl: unauthorized account');
     });
   });
@@ -108,16 +99,15 @@ describe('AccessControl', () => {
       accessControl._unsafeGrantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
     });
 
-    describe.each(operatorTypes)(
-      'when the operator is a %s',
-      (_operatorType, _operator) => {
-        it(`should not throw if ${_operatorType} has role`, () => {
-          expect(() =>
-            accessControl._checkRole(OPERATOR_ROLE_1, _operator),
-          ).not.toThrow();
-        });
-      },
-    );
+    describe.each(
+      operatorTypes,
+    )('when the operator is a %s', (_operatorType, _operator) => {
+      it(`should not throw if ${_operatorType} has role`, () => {
+        expect(() =>
+          accessControl._checkRole(OPERATOR_ROLE_1, _operator),
+        ).not.toThrow();
+      });
+    });
 
     it('should throw if operator is unauthorized', () => {
       expect(() =>
@@ -144,11 +134,10 @@ describe('AccessControl', () => {
   describe('grantRole', () => {
     beforeEach(() => {
       accessControl._grantRole(DEFAULT_ADMIN_ROLE, Z_ADMIN);
-      caller = ADMIN;
     });
 
     it('admin should grant role', () => {
-      accessControl.grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller);
+      accessControl.as(ADMIN).grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1);
       expect(accessControl.hasRole(OPERATOR_ROLE_1, Z_OPERATOR_1)).toBe(true);
     });
 
@@ -156,7 +145,7 @@ describe('AccessControl', () => {
       for (let i = 0; i < operatorRoles.length; i++) {
         // length - 1 because we test ContractAddress separately
         for (let j = 0; j < operatorPKs.length - 1; j++) {
-          accessControl.grantRole(operatorRoles[i], operatorPKs[j], caller);
+          accessControl.as(ADMIN).grantRole(operatorRoles[i], operatorPKs[j]);
           expect(accessControl.hasRole(operatorRoles[i], operatorPKs[j])).toBe(
             true,
           );
@@ -165,17 +154,16 @@ describe('AccessControl', () => {
     });
 
     it('should throw if operator grants role', () => {
-      accessControl.grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller);
+      accessControl.as(ADMIN).grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1);
 
-      caller = OPERATOR_1;
       expect(() => {
-        accessControl.grantRole(OPERATOR_ROLE_1, Z_UNAUTHORIZED, caller);
+        accessControl.as(OPERATOR_1).grantRole(OPERATOR_ROLE_1, Z_UNAUTHORIZED);
       }).toThrow('AccessControl: unauthorized account');
     });
 
     it('should throw if admin grants role to ContractAddress', () => {
       expect(() => {
-        accessControl.grantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT, caller);
+        accessControl.as(ADMIN).grantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
       }).toThrow('AccessControl: unsafe role approval');
     });
   });
@@ -187,33 +175,28 @@ describe('AccessControl', () => {
       accessControl._unsafeGrantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
     });
 
-    describe.each(operatorTypes)(
-      'when the operator is a %s',
-      (_operatorType, _operator) => {
-        it('admin should revoke role', () => {
-          caller = ADMIN;
+    describe.each(
+      operatorTypes,
+    )('when the operator is a %s', (_operatorType, _operator) => {
+      it('admin should revoke role', () => {
+        accessControl.as(ADMIN).revokeRole(OPERATOR_ROLE_1, _operator);
+        expect(accessControl.hasRole(OPERATOR_ROLE_1, _operator)).toBe(false);
+      });
 
-          accessControl.revokeRole(OPERATOR_ROLE_1, _operator, caller);
-          expect(accessControl.hasRole(OPERATOR_ROLE_1, _operator)).toBe(false);
-        });
+      it('should throw if operator revokes role', () => {
+        const caller = callerTypes[_operatorType];
 
-        it('should throw if operator revokes role', () => {
-          caller = callerTypes[_operatorType];
-
-          expect(() => {
-            accessControl.revokeRole(OPERATOR_ROLE_1, Z_UNAUTHORIZED, caller);
-          }).toThrow('AccessControl: unauthorized account');
-        });
-      },
-    );
+        expect(() => {
+          accessControl.as(caller).revokeRole(OPERATOR_ROLE_1, Z_UNAUTHORIZED);
+        }).toThrow('AccessControl: unauthorized account');
+      });
+    });
 
     it('admin should revoke multiple roles', () => {
-      caller = ADMIN;
-
       for (let i = 0; i < operatorRoles.length; i++) {
         for (let j = 0; j < operatorPKs.length; j++) {
           accessControl._unsafeGrantRole(operatorRoles[i], operatorPKs[j]);
-          accessControl.revokeRole(operatorRoles[i], operatorPKs[j], caller);
+          accessControl.as(ADMIN).revokeRole(operatorRoles[i], operatorPKs[j]);
           expect(accessControl.hasRole(operatorRoles[i], operatorPKs[j])).toBe(
             false,
           );
@@ -225,31 +208,28 @@ describe('AccessControl', () => {
   describe('renounceRole', () => {
     beforeEach(() => {
       accessControl._grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1);
-      caller = OPERATOR_1;
     });
 
     it('should allow operator to renounce own role', () => {
-      accessControl.renounceRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller);
+      accessControl.as(OPERATOR_1).renounceRole(OPERATOR_ROLE_1, Z_OPERATOR_1);
       expect(accessControl.hasRole(OPERATOR_ROLE_1, Z_OPERATOR_1)).toBe(false);
     });
 
     it('ContractAddress renounce should throw', () => {
-      caller = OPERATOR_CONTRACT;
       accessControl._unsafeGrantRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
 
       expect(() => {
-        accessControl.renounceRole(
-          OPERATOR_ROLE_1,
-          Z_OPERATOR_CONTRACT,
-          caller,
-        );
+        accessControl
+          .as(OPERATOR_CONTRACT)
+          .renounceRole(OPERATOR_ROLE_1, Z_OPERATOR_CONTRACT);
       }).toThrow('AccessControl: bad confirmation');
     });
 
     it('unauthorized renounce should throw', () => {
-      caller = UNAUTHORIZED;
       expect(() => {
-        accessControl.renounceRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller);
+        accessControl
+          .as(UNAUTHORIZED)
+          .renounceRole(OPERATOR_ROLE_1, Z_OPERATOR_1);
       }).toThrow('AccessControl: bad confirmation');
     });
   });
@@ -281,31 +261,29 @@ describe('AccessControl', () => {
     });
 
     it('should authorize new admin to grant / revoke roles', () => {
-      caller = CUSTOM_ADMIN;
-
       accessControl._grantRole(CUSTOM_ADMIN_ROLE, Z_CUSTOM_ADMIN);
       accessControl._setRoleAdmin(OPERATOR_ROLE_1, CUSTOM_ADMIN_ROLE);
 
       expect(() =>
-        accessControl.grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller),
+        accessControl.as(CUSTOM_ADMIN).grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1),
       ).not.toThrow();
       expect(() =>
-        accessControl.revokeRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller),
+        accessControl
+          .as(CUSTOM_ADMIN)
+          .revokeRole(OPERATOR_ROLE_1, Z_OPERATOR_1),
       ).not.toThrow();
     });
 
     it('should disallow previous admin from granting / revoking roles', () => {
-      caller = ADMIN;
-
       accessControl._grantRole(DEFAULT_ADMIN_ROLE, Z_ADMIN);
       accessControl._grantRole(CUSTOM_ADMIN_ROLE, Z_CUSTOM_ADMIN);
       accessControl._setRoleAdmin(OPERATOR_ROLE_1, CUSTOM_ADMIN_ROLE);
 
       expect(() =>
-        accessControl.grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller),
+        accessControl.as(ADMIN).grantRole(OPERATOR_ROLE_1, Z_OPERATOR_1),
       ).toThrow('AccessControl: unauthorized account');
       expect(() =>
-        accessControl.revokeRole(OPERATOR_ROLE_1, Z_OPERATOR_1, caller),
+        accessControl.as(ADMIN).revokeRole(OPERATOR_ROLE_1, Z_OPERATOR_1),
       ).toThrow('AccessControl: unauthorized account');
     });
   });
@@ -393,18 +371,17 @@ describe('AccessControl', () => {
   });
 
   describe('_revokeRole', () => {
-    describe.each(operatorTypes)(
-      'when the operator is a %s',
-      (_, _operator) => {
-        it('should revoke role', () => {
-          accessControl._unsafeGrantRole(OPERATOR_ROLE_1, _operator);
-          expect(accessControl._revokeRole(OPERATOR_ROLE_1, _operator)).toBe(
-            true,
-          );
-          expect(accessControl.hasRole(OPERATOR_ROLE_1, _operator)).toBe(false);
-        });
-      },
-    );
+    describe.each(
+      operatorTypes,
+    )('when the operator is a %s', (_, _operator) => {
+      it('should revoke role', () => {
+        accessControl._unsafeGrantRole(OPERATOR_ROLE_1, _operator);
+        expect(accessControl._revokeRole(OPERATOR_ROLE_1, _operator)).toBe(
+          true,
+        );
+        expect(accessControl.hasRole(OPERATOR_ROLE_1, _operator)).toBe(false);
+      });
+    });
 
     it('should return false if account does not have role', () => {
       expect(accessControl._revokeRole(OPERATOR_ROLE_1, Z_OPERATOR_1)).toBe(

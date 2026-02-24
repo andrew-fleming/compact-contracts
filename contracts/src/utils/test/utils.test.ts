@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import * as contractUtils from '#test-utils/address.js';
 import { UtilsSimulator } from './simulators/UtilsSimulator.js';
-import * as contractUtils from './utils/address.js';
 
 const Z_SOME_KEY = contractUtils.createEitherTestUser('SOME_KEY');
 const Z_OTHER_KEY = contractUtils.createEitherTestUser('OTHER_KEY');
@@ -19,14 +19,17 @@ describe('Utils', () => {
   describe('isKeyOrAddressZero', () => {
     it('should return zero for the zero address', () => {
       expect(contract.isKeyOrAddressZero(contractUtils.ZERO_KEY)).toBe(true);
-      expect(contract.isKeyOrAddressZero(contractUtils.ZERO_ADDRESS)).toBe(
-        true,
-      );
     });
 
     it('should not return zero for nonzero addresses', () => {
       expect(contract.isKeyOrAddressZero(Z_SOME_KEY)).toBe(false);
       expect(contract.isKeyOrAddressZero(SOME_CONTRACT)).toBe(false);
+    });
+
+    it('should not return zero for a zero contract address', () => {
+      expect(contract.isKeyOrAddressZero(contractUtils.ZERO_ADDRESS)).toBe(
+        true,
+      );
     });
   });
 

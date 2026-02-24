@@ -41,7 +41,6 @@
         "compact:security",
         "compact:utils",
         "compact:access",
-        "compact:archive",
         "compact:token"
       ],
       "env": ["COMPACT_HOME", "SKIP_ZK"],
@@ -76,7 +75,7 @@
     "types": {
       "dependsOn": [
         "@openzeppelin-compact/compact#build",
-        "@openzeppelin-compact/contracts#compact"
+        "@openzeppelin/compact-contracts#compact"
       ],
       "outputs": [],
       "cache": false
@@ -87,14 +86,6 @@
       "cache": false
     },
     "clean": {
-      "outputs": [],
-      "cache": false
-    },
-    "docs": {
-      "outputs": [],
-      "cache": false
-    },
-    "docs:watch": {
       "outputs": [],
       "cache": false
     }

@@ -1,7 +1,6 @@
-import type { CoinPublicKey } from '@midnight-ntwrk/compact-runtime';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import * as utils from '#test-utils/address.js';
 import { FungibleTokenSimulator } from './simulators/FungibleTokenSimulator.js';
-import * as utils from './utils/address.js';
 
 // Metadata
 const EMPTY_STRING = '';
@@ -16,17 +15,15 @@ const BAD_INIT = false;
 const AMOUNT: bigint = BigInt(250);
 const MAX_UINT128 = BigInt(2 ** 128) - BigInt(1);
 
-// Callers
-const OWNER = utils.toHexPadded('OWNER');
-const SPENDER = utils.toHexPadded('SPENDER');
-const UNAUTHORIZED = utils.toHexPadded('UNAUTHORIZED');
-const ZERO = utils.toHexPadded('');
+// PKs
+const [OWNER, Z_OWNER] = utils.generateEitherPubKeyPair('OWNER');
+const [SPENDER, Z_SPENDER] = utils.generateEitherPubKeyPair('SPENDER');
+const [UNAUTHORIZED] = utils.generateEitherPubKeyPair('UNAUTHORIZED');
+const [ZERO] = utils.generateEitherPubKeyPair('');
+const [, Z_RECIPIENT] = utils.generateEitherPubKeyPair('RECIPIENT');
+const [, Z_OTHER] = utils.generateEitherPubKeyPair('OTHER');
 
-// Encoded PK/Addresses
-const Z_OWNER = utils.createEitherTestUser('OWNER');
-const Z_RECIPIENT = utils.createEitherTestUser('RECIPIENT');
-const Z_SPENDER = utils.createEitherTestUser('SPENDER');
-const Z_OTHER = utils.createEitherTestUser('OTHER');
+// Encoded contract addresses
 const Z_OWNER_CONTRACT =
   utils.createEitherTestContractAddress('OWNER_CONTRACT');
 const Z_RECIPIENT_CONTRACT =
@@ -44,7 +41,6 @@ const recipientTypes = [
 ] as const;
 
 let token: FungibleTokenSimulator;
-let caller: CoinPublicKey;
 
 describe('FungibleToken', () => {
   describe('before initialization', () => {
@@ -155,8 +151,7 @@ describe('FungibleToken', () => {
 
       it('should transfer partial', () => {
         const partialAmt = AMOUNT - 1n;
-        caller = OWNER;
-        const txSuccess = token.transfer(Z_RECIPIENT, partialAmt, caller);
+        const txSuccess = token.as(OWNER).transfer(Z_RECIPIENT, partialAmt);
 
         expect(txSuccess).toBe(true);
         expect(token.balanceOf(Z_OWNER)).toEqual(1n);
@@ -164,8 +159,7 @@ describe('FungibleToken', () => {
       });
 
       it('should transfer full', () => {
-        caller = OWNER;
-        const txSuccess = token.transfer(Z_RECIPIENT, AMOUNT, caller);
+        const txSuccess = token.as(OWNER).transfer(Z_RECIPIENT, AMOUNT);
 
         expect(txSuccess).toBe(true);
         expect(token.balanceOf(Z_OWNER)).toEqual(0n);
@@ -173,31 +167,25 @@ describe('FungibleToken', () => {
       });
 
       it('should fail with insufficient balance', () => {
-        caller = OWNER;
-
         expect(() => {
-          token.transfer(Z_RECIPIENT, AMOUNT + 1n, caller);
+          token.as(OWNER).transfer(Z_RECIPIENT, AMOUNT + 1n);
         }).toThrow('FungibleToken: insufficient balance');
       });
 
       it('should fail with transfer from zero', () => {
-        caller = ZERO;
-
         expect(() => {
-          token.transfer(Z_RECIPIENT, AMOUNT, caller);
+          token.as(ZERO).transfer(Z_RECIPIENT, AMOUNT);
         }).toThrow('FungibleToken: invalid sender');
       });
 
       it('should fail with transfer to zero', () => {
-        caller = OWNER;
-
         expect(() => {
-          token.transfer(utils.ZERO_KEY, AMOUNT, caller);
+          token.as(OWNER).transfer(utils.ZERO_KEY, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
 
       it('should allow transfer of 0 tokens', () => {
-        const txSuccess = token.transfer(Z_RECIPIENT, 0n, caller);
+        const txSuccess = token.as(OWNER).transfer(Z_RECIPIENT, 0n);
 
         expect(txSuccess).toBe(true);
         expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
@@ -205,10 +193,8 @@ describe('FungibleToken', () => {
       });
 
       it('should handle transfer with empty _balances', () => {
-        caller = SPENDER;
-
         expect(() => {
-          token.transfer(Z_RECIPIENT, 1n, caller);
+          token.as(SPENDER).transfer(Z_RECIPIENT, 1n);
         }).toThrow('FungibleToken: insufficient balance');
       });
 
@@ -220,91 +206,75 @@ describe('FungibleToken', () => {
     });
 
     describe('_unsafeTransfer', () => {
-      describe.each(recipientTypes)(
-        'when the recipient is a %s',
-        (_, recipient) => {
-          beforeEach(() => {
-            token._mint(Z_OWNER, AMOUNT);
+      describe.each(
+        recipientTypes,
+      )('when the recipient is a %s', (_, recipient) => {
+        beforeEach(() => {
+          token._mint(Z_OWNER, AMOUNT);
 
-            expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
-            expect(token.balanceOf(recipient)).toEqual(0n);
-          });
+          expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
+          expect(token.balanceOf(recipient)).toEqual(0n);
+        });
 
-          afterEach(() => {
-            expect(token.totalSupply()).toEqual(AMOUNT);
-          });
+        afterEach(() => {
+          expect(token.totalSupply()).toEqual(AMOUNT);
+        });
 
-          it('should transfer partial', () => {
-            const partialAmt = AMOUNT - 1n;
-            caller = OWNER;
-            const txSuccess = token._unsafeTransfer(
-              recipient,
-              partialAmt,
-              caller,
-            );
+        it('should transfer partial', () => {
+          const partialAmt = AMOUNT - 1n;
+          const txSuccess = token
+            .as(OWNER)
+            ._unsafeTransfer(recipient, partialAmt);
 
-            expect(txSuccess).toBe(true);
-            expect(token.balanceOf(Z_OWNER)).toEqual(1n);
-            expect(token.balanceOf(recipient)).toEqual(partialAmt);
-          });
+          expect(txSuccess).toBe(true);
+          expect(token.balanceOf(Z_OWNER)).toEqual(1n);
+          expect(token.balanceOf(recipient)).toEqual(partialAmt);
+        });
 
-          it('should transfer full', () => {
-            caller = OWNER;
-            const txSuccess = token._unsafeTransfer(recipient, AMOUNT, caller);
+        it('should transfer full', () => {
+          const txSuccess = token.as(OWNER)._unsafeTransfer(recipient, AMOUNT);
 
-            expect(txSuccess).toBe(true);
-            expect(token.balanceOf(Z_OWNER)).toEqual(0n);
-            expect(token.balanceOf(recipient)).toEqual(AMOUNT);
-          });
+          expect(txSuccess).toBe(true);
+          expect(token.balanceOf(Z_OWNER)).toEqual(0n);
+          expect(token.balanceOf(recipient)).toEqual(AMOUNT);
+        });
 
-          it('should fail with insufficient balance', () => {
-            caller = OWNER;
+        it('should fail with insufficient balance', () => {
+          expect(() => {
+            token.as(OWNER)._unsafeTransfer(recipient, AMOUNT + 1n);
+          }).toThrow('FungibleToken: insufficient balance');
+        });
 
-            expect(() => {
-              token._unsafeTransfer(recipient, AMOUNT + 1n, caller);
-            }).toThrow('FungibleToken: insufficient balance');
-          });
+        it('should fail with transfer from zero', () => {
+          expect(() => {
+            token.as(ZERO)._unsafeTransfer(recipient, AMOUNT);
+          }).toThrow('FungibleToken: invalid sender');
+        });
 
-          it('should fail with transfer from zero', () => {
-            caller = ZERO;
+        it('should allow transfer of 0 tokens', () => {
+          const txSuccess = token.as(OWNER)._unsafeTransfer(recipient, 0n);
 
-            expect(() => {
-              token._unsafeTransfer(recipient, AMOUNT, caller);
-            }).toThrow('FungibleToken: invalid sender');
-          });
+          expect(txSuccess).toBe(true);
+          expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
+          expect(token.balanceOf(recipient)).toEqual(0n);
+        });
 
-          it('should allow transfer of 0 tokens', () => {
-            caller = OWNER;
-            const txSuccess = token._unsafeTransfer(recipient, 0n, caller);
-
-            expect(txSuccess).toBe(true);
-            expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
-            expect(token.balanceOf(recipient)).toEqual(0n);
-          });
-
-          it('should handle transfer with empty _balances', () => {
-            caller = SPENDER;
-
-            expect(() => {
-              token._unsafeTransfer(recipient, 1n, caller);
-            }).toThrow('FungibleToken: insufficient balance');
-          });
-        },
-      );
+        it('should handle transfer with empty _balances', () => {
+          expect(() => {
+            token.as(SPENDER)._unsafeTransfer(recipient, 1n);
+          }).toThrow('FungibleToken: insufficient balance');
+        });
+      });
 
       it('should fail with transfer to zero (pk)', () => {
-        caller = OWNER;
-
         expect(() => {
-          token._unsafeTransfer(utils.ZERO_KEY, AMOUNT, caller);
+          token.as(OWNER)._unsafeTransfer(utils.ZERO_KEY, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
 
       it('should fail with transfer to zero (contract)', () => {
-        caller = OWNER;
-
         expect(() => {
-          token._unsafeTransfer(utils.ZERO_ADDRESS, AMOUNT, caller);
+          token.as(OWNER)._unsafeTransfer(utils.ZERO_ADDRESS, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
     });
@@ -315,57 +285,46 @@ describe('FungibleToken', () => {
       });
 
       it('should approve and update allowance', () => {
-        caller = OWNER;
-
-        token.approve(Z_SPENDER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT);
         expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(AMOUNT);
       });
 
       it('should approve and update allowance for multiple spenders', () => {
-        caller = OWNER;
-
-        token.approve(Z_SPENDER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT);
         expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(AMOUNT);
 
-        token.approve(Z_OTHER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_OTHER, AMOUNT);
         expect(token.allowance(Z_OWNER, Z_OTHER)).toEqual(AMOUNT);
 
         expect(token.allowance(Z_OWNER, Z_RECIPIENT)).toEqual(0n);
       });
 
       it('should fail when approve from zero', () => {
-        caller = ZERO;
-
         expect(() => {
-          token.approve(Z_SPENDER, AMOUNT, caller);
+          token.as(ZERO).approve(Z_SPENDER, AMOUNT);
         }).toThrow('FungibleToken: invalid owner');
       });
 
       it('should fail when approve to zero', () => {
-        caller = OWNER;
-
         expect(() => {
-          token.approve(utils.ZERO_KEY, AMOUNT, caller);
+          token.as(OWNER).approve(utils.ZERO_KEY, AMOUNT);
         }).toThrow('FungibleToken: invalid spender');
       });
 
       it('should transfer exact allowance and fail subsequent transfer', () => {
         token._mint(Z_OWNER, AMOUNT);
-        caller = OWNER;
-        token.approve(Z_SPENDER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT);
 
-        caller = SPENDER;
-        token.transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT, caller);
+        token.as(SPENDER).transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT);
         expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(0n);
 
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_RECIPIENT, 1n, caller);
+          token.as(SPENDER).transferFrom(Z_OWNER, Z_RECIPIENT, 1n);
         }).toThrow('FungibleToken: insufficient allowance');
       });
 
       it('should allow approve of 0 tokens', () => {
-        caller = OWNER;
-        token.approve(Z_SPENDER, 0n, caller);
+        token.as(OWNER).approve(Z_SPENDER, 0n);
         expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(0n);
       });
 
@@ -376,9 +335,7 @@ describe('FungibleToken', () => {
 
     describe('transferFrom', () => {
       beforeEach(() => {
-        caller = OWNER;
-
-        token.approve(Z_SPENDER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT);
         token._mint(Z_OWNER, AMOUNT);
       });
 
@@ -387,15 +344,11 @@ describe('FungibleToken', () => {
       });
 
       it('should transferFrom spender (partial)', () => {
-        caller = SPENDER;
         const partialAmt = AMOUNT - 1n;
 
-        const txSuccess = token.transferFrom(
-          Z_OWNER,
-          Z_RECIPIENT,
-          partialAmt,
-          caller,
-        );
+        const txSuccess = token
+          .as(SPENDER)
+          .transferFrom(Z_OWNER, Z_RECIPIENT, partialAmt);
         expect(txSuccess).toBe(true);
 
         // Check balances
@@ -406,14 +359,9 @@ describe('FungibleToken', () => {
       });
 
       it('should transferFrom spender (full)', () => {
-        caller = SPENDER;
-
-        const txSuccess = token.transferFrom(
-          Z_OWNER,
-          Z_RECIPIENT,
-          AMOUNT,
-          caller,
-        );
+        const txSuccess = token
+          .as(SPENDER)
+          .transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT);
         expect(txSuccess).toBe(true);
 
         // Check balances
@@ -424,16 +372,11 @@ describe('FungibleToken', () => {
       });
 
       it('should transferFrom and not consume infinite allowance', () => {
-        caller = OWNER;
-        token.approve(Z_SPENDER, MAX_UINT128, caller);
+        token.as(OWNER).approve(Z_SPENDER, MAX_UINT128);
 
-        caller = SPENDER;
-        const txSuccess = token.transferFrom(
-          Z_OWNER,
-          Z_RECIPIENT,
-          AMOUNT,
-          caller,
-        );
+        const txSuccess = token
+          .as(SPENDER)
+          .transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT);
         expect(txSuccess).toBe(true);
 
         // Check balances
@@ -444,60 +387,48 @@ describe('FungibleToken', () => {
       });
 
       it('should fail when transfer amount exceeds allowance', () => {
-        caller = SPENDER;
-
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT + 1n);
+          token.as(SPENDER).transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT + 1n);
         }).toThrow('FungibleToken: insufficient allowance');
       });
 
       it('should fail when transfer amount exceeds balance', () => {
-        caller = OWNER;
         // Increase allowance > balance
-        token.approve(Z_SPENDER, AMOUNT + 1n, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT + 1n);
 
-        caller = SPENDER;
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT + 1n, caller);
+          token.as(SPENDER).transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT + 1n);
         }).toThrow('FungibleToken: insufficient balance');
       });
 
       it('should fail when spender does not have allowance', () => {
-        caller = UNAUTHORIZED;
-
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT, caller);
+          token.as(UNAUTHORIZED).transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT);
         }).toThrow('FungibleToken: insufficient allowance');
       });
 
       it('should fail to transferFrom zero address', () => {
-        caller = ZERO;
-
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT, caller);
+          token.as(ZERO).transferFrom(Z_OWNER, Z_RECIPIENT, AMOUNT);
         }).toThrow('FungibleToken: insufficient allowance');
       });
 
       it('should fail to transferFrom to the zero address', () => {
-        caller = SPENDER;
-
         expect(() => {
-          token.transferFrom(Z_OWNER, utils.ZERO_KEY, AMOUNT, caller);
+          token.as(SPENDER).transferFrom(Z_OWNER, utils.ZERO_KEY, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
 
       it('should fail when transferring to a contract', () => {
         expect(() => {
-          token.transferFrom(Z_OWNER, Z_OWNER_CONTRACT, AMOUNT, caller);
+          token.as(OWNER).transferFrom(Z_OWNER, Z_OWNER_CONTRACT, AMOUNT);
         }).toThrow('FungibleToken: Unsafe Transfer');
       });
     });
 
     describe('_unsafeTransferFrom', () => {
       beforeEach(() => {
-        caller = OWNER;
-
-        token.approve(Z_SPENDER, AMOUNT, caller);
+        token.as(OWNER).approve(Z_SPENDER, AMOUNT);
         token._mint(Z_OWNER, AMOUNT);
       });
 
@@ -505,126 +436,99 @@ describe('FungibleToken', () => {
         expect(token.totalSupply()).toEqual(AMOUNT);
       });
 
-      describe.each(recipientTypes)(
-        'when the recipient is a %s',
-        (_, recipient) => {
-          it('should transferFrom spender (partial)', () => {
-            caller = SPENDER;
-            const partialAmt = AMOUNT - 1n;
+      describe.each(
+        recipientTypes,
+      )('when the recipient is a %s', (_, recipient) => {
+        it('should transferFrom spender (partial)', () => {
+          const partialAmt = AMOUNT - 1n;
 
-            const txSuccess = token._unsafeTransferFrom(
-              Z_OWNER,
-              recipient,
-              partialAmt,
-              caller,
-            );
-            expect(txSuccess).toBe(true);
+          const txSuccess = token
+            .as(SPENDER)
+            ._unsafeTransferFrom(Z_OWNER, recipient, partialAmt);
+          expect(txSuccess).toBe(true);
 
-            // Check balances
-            expect(token.balanceOf(Z_OWNER)).toEqual(1n);
-            expect(token.balanceOf(recipient)).toEqual(partialAmt);
-            // Check leftover allowance
-            expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(1n);
-          });
+          // Check balances
+          expect(token.balanceOf(Z_OWNER)).toEqual(1n);
+          expect(token.balanceOf(recipient)).toEqual(partialAmt);
+          // Check leftover allowance
+          expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(1n);
+        });
 
-          it('should transferFrom spender (full)', () => {
-            caller = SPENDER;
+        it('should transferFrom spender (full)', () => {
+          const txSuccess = token
+            .as(SPENDER)
+            ._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT);
+          expect(txSuccess).toBe(true);
 
-            const txSuccess = token._unsafeTransferFrom(
-              Z_OWNER,
-              recipient,
-              AMOUNT,
-              caller,
-            );
-            expect(txSuccess).toBe(true);
+          // Check balances
+          expect(token.balanceOf(Z_OWNER)).toEqual(0n);
+          expect(token.balanceOf(recipient)).toEqual(AMOUNT);
+          // Check no allowance
+          expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(0n);
+        });
 
-            // Check balances
-            expect(token.balanceOf(Z_OWNER)).toEqual(0n);
-            expect(token.balanceOf(recipient)).toEqual(AMOUNT);
-            // Check no allowance
-            expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(0n);
-          });
+        it('should transferFrom and not consume infinite allowance', () => {
+          token.as(OWNER).approve(Z_SPENDER, MAX_UINT128);
 
-          it('should transferFrom and not consume infinite allowance', () => {
-            caller = OWNER;
-            token.approve(Z_SPENDER, MAX_UINT128, caller);
+          const txSuccess = token
+            .as(SPENDER)
+            ._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT);
+          expect(txSuccess).toBe(true);
 
-            caller = SPENDER;
-            const txSuccess = token._unsafeTransferFrom(
-              Z_OWNER,
-              recipient,
-              AMOUNT,
-              caller,
-            );
-            expect(txSuccess).toBe(true);
+          // Check balances
+          expect(token.balanceOf(Z_OWNER)).toEqual(0n);
+          expect(token.balanceOf(recipient)).toEqual(AMOUNT);
+          // Check infinite allowance
+          expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(MAX_UINT128);
+        });
 
-            // Check balances
-            expect(token.balanceOf(Z_OWNER)).toEqual(0n);
-            expect(token.balanceOf(recipient)).toEqual(AMOUNT);
-            // Check infinite allowance
-            expect(token.allowance(Z_OWNER, Z_SPENDER)).toEqual(MAX_UINT128);
-          });
+        it('should fail when transfer amount exceeds allowance', () => {
+          expect(() => {
+            token
+              .as(SPENDER)
+              ._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT + 1n);
+          }).toThrow('FungibleToken: insufficient allowance');
+        });
 
-          it('should fail when transfer amount exceeds allowance', () => {
-            caller = SPENDER;
+        it('should fail when transfer amount exceeds balance', () => {
+          // Increase allowance > balance
+          token.as(OWNER).approve(Z_SPENDER, AMOUNT + 1n);
 
-            expect(() => {
-              token._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT + 1n);
-            }).toThrow('FungibleToken: insufficient allowance');
-          });
+          expect(() => {
+            token
+              .as(SPENDER)
+              ._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT + 1n);
+          }).toThrow('FungibleToken: insufficient balance');
+        });
 
-          it('should fail when transfer amount exceeds balance', () => {
-            caller = OWNER;
-            // Increase allowance > balance
-            token.approve(Z_SPENDER, AMOUNT + 1n, caller);
+        it('should fail when spender does not have allowance', () => {
+          expect(() => {
+            token
+              .as(UNAUTHORIZED)
+              ._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT);
+          }).toThrow('FungibleToken: insufficient allowance');
+        });
 
-            caller = SPENDER;
-            expect(() => {
-              token._unsafeTransferFrom(
-                Z_OWNER,
-                recipient,
-                AMOUNT + 1n,
-                caller,
-              );
-            }).toThrow('FungibleToken: insufficient balance');
-          });
-
-          it('should fail when spender does not have allowance', () => {
-            caller = UNAUTHORIZED;
-
-            expect(() => {
-              token._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT, caller);
-            }).toThrow('FungibleToken: insufficient allowance');
-          });
-
-          it('should fail to transfer from the zero address', () => {
-            caller = ZERO;
-
-            expect(() => {
-              token._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT, caller);
-            }).toThrow('FungibleToken: insufficient allowance');
-          });
-        },
-      );
+        it('should fail to transfer from the zero address', () => {
+          expect(() => {
+            token.as(ZERO)._unsafeTransferFrom(Z_OWNER, recipient, AMOUNT);
+          }).toThrow('FungibleToken: insufficient allowance');
+        });
+      });
 
       it('should fail to transfer to the zero address (pk)', () => {
-        caller = SPENDER;
-
         expect(() => {
-          token._unsafeTransferFrom(Z_OWNER, utils.ZERO_KEY, AMOUNT, caller);
+          token
+            .as(SPENDER)
+            ._unsafeTransferFrom(Z_OWNER, utils.ZERO_KEY, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
 
       it('should fail to transfer to the zero address (contract)', () => {
-        caller = SPENDER;
-
         expect(() => {
-          token._unsafeTransferFrom(
-            Z_OWNER,
-            utils.ZERO_ADDRESS,
-            AMOUNT,
-            caller,
-          );
+          token
+            .as(SPENDER)
+            ._unsafeTransferFrom(Z_OWNER, utils.ZERO_ADDRESS, AMOUNT);
         }).toThrow('FungibleToken: invalid receiver');
       });
     });
@@ -662,41 +566,40 @@ describe('FungibleToken', () => {
         expect(token.totalSupply()).toEqual(AMOUNT);
       });
 
-      describe.each(recipientTypes)(
-        'when the recipient is a %s',
-        (_, recipient) => {
-          it('should update balances (partial)', () => {
-            const partialAmt = AMOUNT - 1n;
-            token._unsafeUncheckedTransfer(Z_OWNER, recipient, partialAmt);
+      describe.each(
+        recipientTypes,
+      )('when the recipient is a %s', (_, recipient) => {
+        it('should update balances (partial)', () => {
+          const partialAmt = AMOUNT - 1n;
+          token._unsafeUncheckedTransfer(Z_OWNER, recipient, partialAmt);
 
-            expect(token.balanceOf(Z_OWNER)).toEqual(1n);
-            expect(token.balanceOf(recipient)).toEqual(partialAmt);
-          });
+          expect(token.balanceOf(Z_OWNER)).toEqual(1n);
+          expect(token.balanceOf(recipient)).toEqual(partialAmt);
+        });
 
-          it('should update balances (full)', () => {
-            token._unsafeUncheckedTransfer(Z_OWNER, recipient, AMOUNT);
+        it('should update balances (full)', () => {
+          token._unsafeUncheckedTransfer(Z_OWNER, recipient, AMOUNT);
 
-            expect(token.balanceOf(Z_OWNER)).toEqual(0n);
-            expect(token.balanceOf(recipient)).toEqual(AMOUNT);
-          });
+          expect(token.balanceOf(Z_OWNER)).toEqual(0n);
+          expect(token.balanceOf(recipient)).toEqual(AMOUNT);
+        });
 
-          it('should fail when transfer amount exceeds balance', () => {
-            expect(() => {
-              token._unsafeUncheckedTransfer(Z_OWNER, recipient, AMOUNT + 1n);
-            }).toThrow('FungibleToken: insufficient balance');
-          });
+        it('should fail when transfer amount exceeds balance', () => {
+          expect(() => {
+            token._unsafeUncheckedTransfer(Z_OWNER, recipient, AMOUNT + 1n);
+          }).toThrow('FungibleToken: insufficient balance');
+        });
 
-          it('should fail when transfer from zero', () => {
-            expect(() => {
-              token._unsafeUncheckedTransfer(
-                utils.ZERO_ADDRESS,
-                recipient,
-                AMOUNT,
-              );
-            }).toThrow('FungibleToken: invalid sender');
-          });
-        },
-      );
+        it('should fail when transfer from zero', () => {
+          expect(() => {
+            token._unsafeUncheckedTransfer(
+              utils.ZERO_ADDRESS,
+              recipient,
+              AMOUNT,
+            );
+          }).toThrow('FungibleToken: invalid sender');
+        });
+      });
 
       it('should fail when transfer to zero (pk)', () => {
         expect(() => {
@@ -754,32 +657,31 @@ describe('FungibleToken', () => {
     });
 
     describe('_unsafeMint', () => {
-      describe.each(recipientTypes)(
-        'when the recipient is a %s',
-        (_, recipient) => {
-          it('should mint and update supply', () => {
-            expect(token.totalSupply()).toEqual(0n);
+      describe.each(
+        recipientTypes,
+      )('when the recipient is a %s', (_, recipient) => {
+        it('should mint and update supply', () => {
+          expect(token.totalSupply()).toEqual(0n);
 
-            token._unsafeMint(recipient, AMOUNT);
-            expect(token.totalSupply()).toEqual(AMOUNT);
-            expect(token.balanceOf(recipient)).toEqual(AMOUNT);
-          });
+          token._unsafeMint(recipient, AMOUNT);
+          expect(token.totalSupply()).toEqual(AMOUNT);
+          expect(token.balanceOf(recipient)).toEqual(AMOUNT);
+        });
 
-          it('should catch mint overflow', () => {
-            token._unsafeMint(recipient, MAX_UINT128);
+        it('should catch mint overflow', () => {
+          token._unsafeMint(recipient, MAX_UINT128);
 
-            expect(() => {
-              token._unsafeMint(recipient, 1n);
-            }).toThrow('FungibleToken: arithmetic overflow');
-          });
+          expect(() => {
+            token._unsafeMint(recipient, 1n);
+          }).toThrow('FungibleToken: arithmetic overflow');
+        });
 
-          it('should allow mint of 0 tokens', () => {
-            token._unsafeMint(recipient, 0n);
-            expect(token.totalSupply()).toEqual(0n);
-            expect(token.balanceOf(recipient)).toEqual(0n);
-          });
-        },
-      );
+        it('should allow mint of 0 tokens', () => {
+          token._unsafeMint(recipient, 0n);
+          expect(token.totalSupply()).toEqual(0n);
+          expect(token.balanceOf(recipient)).toEqual(0n);
+        });
+      });
 
       it('should not mint to zero pubkey', () => {
         expect(() => {
@@ -924,8 +826,7 @@ describe('FungibleToken', () => {
         expect(token.totalSupply()).toEqual(AMOUNT);
         expect(token.balanceOf(Z_OWNER)).toEqual(AMOUNT);
 
-        caller = OWNER;
-        token.transfer(Z_RECIPIENT, AMOUNT - 1n, caller);
+        token.as(OWNER).transfer(Z_RECIPIENT, AMOUNT - 1n);
         expect(token.balanceOf(Z_OWNER)).toEqual(1n);
         expect(token.balanceOf(Z_RECIPIENT)).toEqual(AMOUNT - 1n);
 
