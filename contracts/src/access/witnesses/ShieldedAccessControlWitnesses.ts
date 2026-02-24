@@ -2,7 +2,7 @@ import { getRandomValues } from 'node:crypto';
 import {
   CompactTypeBytes,
   CompactTypeVector,
-  convert_bigint_to_Uint8Array,
+  convertFieldToBytes,
   persistentHash,
   type WitnessContext,
 } from '@midnight-ntwrk/compact-runtime';
@@ -13,10 +13,19 @@ import type {
   MerkleTreePath,
   ZswapCoinPublicKey,
 } from '../../../artifacts/MockShieldedAccessControl/contract/index.cjs';
-import { eitherToBytes } from '../test/utils/address';
 
 const COMMITMENT_DOMAIN = new Uint8Array(32);
 new TextEncoder().encodeInto('ShieldedAccessControl:commitment', COMMITMENT_DOMAIN);
+
+const eitherToBytes = (
+  account: Either<ZswapCoinPublicKey, ContractAddress>,
+) => {
+  if (account.is_left) {
+    return account.left.bytes;
+  }
+
+  return account.right.bytes;
+};
 
 export function fmtHexString(bytes: string | Uint8Array): string {
   if (bytes instanceof String) {
@@ -25,12 +34,6 @@ export function fmtHexString(bytes: string | Uint8Array): string {
     const buffStr = Buffer.from(bytes as Uint8Array).toString('hex');
     return `${buffStr.slice(0, 4)}...${buffStr.slice(-4)}`;
   }
-}
-
-export function createAccountId(account: Either<ZswapCoinPublicKey, ContractAddress>, secretNonce: Uint8Array): Uint8Array {
-  const rt_type = new CompactTypeVector(2, new CompactTypeBytes(32));
-  const bAccount = eitherToBytes(account);
-  return persistentHash(rt_type, [secretNonce, bAccount]);
 }
 
 /**
@@ -51,18 +54,14 @@ export interface IShieldedAccessControlWitnesses<P> {
     context: WitnessContext<Ledger, P>,
     roleCommitment: Uint8Array,
   ): [P, MerkleTreePath<Uint8Array>];
-  wit_getRoleIndex(
-    context: WitnessContext<Ledger, P>,
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ): [P, bigint];
 }
 
 type RoleId = string;
 type SecretNonce = Uint8Array;
 
 /**
- * @description Represents the private state of an ownable contract, storing a secret nonce.
+ * @description Represents the private state of a Shielded AccessControl contract, storing
+ * mappings from a 32 byte hex string to a 32 byte secret nonce.
  */
 export type ShieldedAccessControlPrivateState = {
   /** @description A 32-byte secret nonce used as a privacy additive. */
@@ -82,11 +81,7 @@ export const ShieldedAccessControlPrivateState = {
     const defaultRoleId: string = Buffer.alloc(32).toString('hex');
     const secretNonce = new Uint8Array(getRandomValues(Buffer.alloc(32)));
 
-    const privateState: ShieldedAccessControlPrivateState = {
-      roles: {},
-    };
-    privateState.roles[defaultRoleId] = secretNonce;
-    return privateState;
+    return { roles: { [defaultRoleId]: secretNonce } };
   },
 
   /**
@@ -108,11 +103,7 @@ export const ShieldedAccessControlPrivateState = {
     nonce: Buffer,
   ): ShieldedAccessControlPrivateState => {
     const roleString = roleId.toString('hex');
-    const privateState: ShieldedAccessControlPrivateState = {
-      roles: {},
-    };
-    privateState.roles[roleString] = nonce;
-    return privateState;
+    return { roles: { [roleString]: nonce } };
   },
 
   setRole: (
@@ -142,55 +133,7 @@ export const ShieldedAccessControlPrivateState = {
     };
     return path ? path : defaultPath;
   },
-
-  // If index cannot be found in MT return _currentMTIndex
-  getRoleIndex: (
-    {
-      ledger,
-      privateState,
-    }: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ): bigint => {
-    const rt_type = new CompactTypeVector(4, new CompactTypeBytes(32));
-    // Iterate over each MT index to determine if commitment exists
-    console.log("current MT index ", ledger.ShieldedAccessControl__currentMerkleTreeIndex);
-    for (let i = 0; i <= ledger.ShieldedAccessControl__currentMerkleTreeIndex; i++) {
-      const index = BigInt(i);
-      const bIndex = convert_bigint_to_Uint8Array(32, index);
-      const commitment = persistentHash(rt_type, [
-        accountId,
-        roleId,
-        bIndex,
-        COMMITMENT_DOMAIN,
-      ]);
-      try {
-        const pathForLeaf = ledger.ShieldedAccessControl__operatorRoles.pathForLeaf(
-          index,
-          commitment,
-        );
-        if (Buffer.from(pathForLeaf.leaf).compare(Buffer.from(commitment)) === 0) {
-          return index;
-        }
-      } catch (e: unknown) {
-        if (e instanceof Error) {
-          const [msg, index] = e.message.split(':');
-          if (msg === 'invalid index into sparse merkle tree') {
-            // console.log(`accountId ${fmtHexString(accountId)} with commitment ${fmtHexString(commitment)} not found at index ${index}`);
-          } else {
-            throw e;
-          }
-        }
-      }
-    }
-
-    console.log("WIT - Commitment DNE, returning MT index ", ledger.ShieldedAccessControl__currentMerkleTreeIndex.toString());
-
-    // If commitment doesn't exist return currentMTIndex
-    // Used for adding roles
-    return ledger.ShieldedAccessControl__currentMerkleTreeIndex;
-  },
-};
+}
 
 /**
  * @description Factory function creating witness implementations for Shielded AccessControl operations.
@@ -215,16 +158,6 @@ export const ShieldedAccessControlWitnesses =
           context.ledger,
           roleCommitment,
         ),
-      ];
-    },
-    wit_getRoleIndex(
-      context: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,
-      roleId: Uint8Array,
-      accountId: Uint8Array
-    ): [ShieldedAccessControlPrivateState, bigint] {
-      return [
-        context.privateState,
-        ShieldedAccessControlPrivateState.getRoleIndex(context, roleId, accountId),
       ];
     },
   });

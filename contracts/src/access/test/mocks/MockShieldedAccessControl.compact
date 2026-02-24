@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma language_version >= 0.16.0;
+pragma language_version >= 0.21.0;
 
 import CompactStandardLibrary;
 
@@ -14,24 +14,22 @@ export {
   MerkleTreePath,
   ShieldedAccessControl_DEFAULT_ADMIN_ROLE,
   ShieldedAccessControl__operatorRoles,
-  ShieldedAccessControl__currentMerkleTreeIndex,
   ShieldedAccessControl__roleCommitmentNullifiers,
   ShieldedAccessControl_Role
 };
 
 export pure circuit _computeRoleCommitment(
-  accountId: Bytes<32>,
   roleId: Bytes<32>,
-  index: Uint<64>,
+  accountId: Bytes<32>
 ): Bytes<32> {
-  return ShieldedAccessControl__computeRoleCommitment(accountId, roleId, index);
+  return ShieldedAccessControl__computeRoleCommitment(roleId, accountId);
 }
 
-export pure circuit _computeRoleId(
+export pure circuit _computeAccountId(
   pk: Either<ZswapCoinPublicKey, ContractAddress>,
   nonce: Bytes<32>
 ): Bytes<32> {
-  return ShieldedAccessControl__computeRoleId(pk, nonce);
+  return ShieldedAccessControl__computeAccountId(pk, nonce);
 }
 
 export pure circuit _computeNullifier(commitment: Bytes<32>): Bytes<32> {

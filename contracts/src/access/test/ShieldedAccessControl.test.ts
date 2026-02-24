@@ -1,8 +1,8 @@
 import {
   CompactTypeBytes,
   CompactTypeVector,
-  convert_bigint_to_Uint8Array,
   persistentHash,
+  convertFieldToBytes,
   type WitnessContext,
 } from '@midnight-ntwrk/compact-runtime';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +17,7 @@ import {
 } from '../../../artifacts/MockShieldedAccessControl/contract/index.cjs';
 import { fmtHexString, ShieldedAccessControlPrivateState, ShieldedAccessControlWitnesses } from '../witnesses/ShieldedAccessControlWitnesses.js';
 import { ShieldedAccessControlSimulator } from './simulators/ShieldedAccessControlSimulator.js';
-import * as utils from './utils/address.js';
+import * as utils from '#test-utils/address.js';
 
 // Helpers
 const buildCommitment = (
@@ -26,7 +26,7 @@ const buildCommitment = (
   index: bigint,
 ): Uint8Array => {
   const rt_type = new CompactTypeVector(4, new CompactTypeBytes(32));
-  const bIndex = convert_bigint_to_Uint8Array(32, index);
+  const bIndex = convertFieldToBytes(32, index, '');
 
   const commitment = persistentHash(rt_type, [
     accountId,
@@ -70,11 +70,11 @@ const [UNAUTHORIZED, Z_UNAUTHORIZED] = utils.generatePubKeyPair('UNAUTHORIZED');
 
 // Roles
 const DEFAULT_ADMIN_ROLE = utils.zeroUint8Array();
-const OPERATOR_1_ROLE = convert_bigint_to_Uint8Array(32, 1n);
-const OPERATOR_2_ROLE = convert_bigint_to_Uint8Array(32, 2n);
-const OPERATOR_3_ROLE = convert_bigint_to_Uint8Array(32, 3n);
-const UNINITIALIZED_ROLE = convert_bigint_to_Uint8Array(32, 555n);
-const BAD_ROLE = convert_bigint_to_Uint8Array(32, 99999999n);
+const OPERATOR_1_ROLE = convertFieldToBytes(32, 1n, '');
+const OPERATOR_2_ROLE = convertFieldToBytes(32, 2n, '');
+const OPERATOR_3_ROLE = convertFieldToBytes(32, 3n, '');
+const UNINITIALIZED_ROLE = convertFieldToBytes(32, 555n, '');
+const BAD_ROLE = convertFieldToBytes(32, 99999999n, '');
 
 // Nonces
 const ADMIN_SECRET_NONCE = Buffer.alloc(32, 'ADMIN_SECRET_NONCE');
@@ -207,44 +207,6 @@ describe('ShieldedAccessControl', () => {
         }).not.toEqual(ADMIN_ID);
       }
     )
-  });
-
-  // Complete testing once issue with pathForLeaf is resolved
-  describe.todo('wit_getRoleIndex', () => {
-    it.todo('should return 0 if no roles granted', () => {
-      const [_, index] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), UNINITIALIZED_ROLE, ADMIN_ID);
-      expect(index).toBe(0n);
-    });
-
-    it.todo('should return correct index', () => {
-      let granted = shieldedAccessControl._grantRole(DEFAULT_ADMIN_ROLE, ADMIN_ID);
-      expect(granted).toBe(true);
-      let [, adminIndex] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), DEFAULT_ADMIN_ROLE, ADMIN_ID);
-      expect(adminIndex).toBe(0n);
-
-      shieldedAccessControl.privateState.injectSecretNonce(OPERATOR_1_ROLE, OPERATOR_1_SECRET_NONCE);
-      granted = shieldedAccessControl._grantRole(OPERATOR_1_ROLE, OPERATOR_1_ID);
-      expect(granted).toBe(true);
-      const [, operatorIndex] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), OPERATOR_1_ROLE, OPERATOR_1_ID);
-      expect(operatorIndex).toBe(1n);
-
-      shieldedAccessControl.privateState.injectSecretNonce(OPERATOR_2_ROLE, OPERATOR_2_SECRET_NONCE);
-      granted = shieldedAccessControl._grantRole(OPERATOR_2_ROLE, OPERATOR_2_ID);
-      expect(granted).toBe(true);
-      shieldedAccessControl._grantRole(OPERATOR_2_ROLE, OPERATOR_2_ID);
-      const [, operatorIndex2] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), OPERATOR_2_ROLE, OPERATOR_2_ID);
-      expect(operatorIndex2).toBe(2n);
-
-      shieldedAccessControl.privateState.injectSecretNonce(OPERATOR_3_ROLE, OPERATOR_3_SECRET_NONCE);
-      shieldedAccessControl._grantRole(OPERATOR_3_ROLE, OPERATOR_3_ID);
-      const [_, operatorIndex3] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), OPERATOR_3_ROLE, OPERATOR_3_ID);
-      expect(operatorIndex3).toBe(3n);
-
-      let [, adminIndex2] = shieldedAccessControl.witnesses.wit_getRoleIndex(shieldedAccessControl.getWitnessContext(), DEFAULT_ADMIN_ROLE, ADMIN_ID);
-      expect(adminIndex2).toBe(0n);
-    });
-
-    it.todo('should return current Merkle tree index if role does not exist')
   });
 
   describe('wit_getRoleCommitmentPath', () => {
