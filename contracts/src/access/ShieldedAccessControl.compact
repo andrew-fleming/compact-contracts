@@ -8,7 +8,7 @@ pragma language_version >= 0.21.0;
  * This module provides a shielded role-based access control mechanism, where roles can be used to
  * represent a set of permissions. Roles are stored as Merkle tree commitments to avoid
  * disclosing information about role holder. Role commitments are created with the following
- * hashing scheme SHA256(accountId | roleId | instanceSalt | "ShieldedAccessControl:commitment").
+ * hashing scheme SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment").
  * Where `accountId` is a unique SHA256 hash of a user's ZswapCoinPublicKey and a 32 byte secret nonce value
  * held in a user's local private state. `roleId` is a unique `Bytes<32>` identifier
  *
@@ -80,8 +80,8 @@ module ShieldedAccessControl {
   import "../utils/Utils" prefix Utils_;
 
   /**
-   * @description A Merkle tree of role commitments stored as SHA256(accountId | roleId | instanceSalt | "ShieldedAccessControl:commitment")
-   * @type {Bytes<32>} roleCommitment - A role commitment created by the following hash: SHA256(accountId | roleId | instanceSalt | "ShieldedAccessControl:commitment").
+   * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment")
+   * @type {Bytes<32>} roleCommitment - A role commitment created by the following hash: SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment").
    * @type {MerkleTree<10, roleCommitment>}
    * @type {MerkleTree<10, Bytes<32>>} _operatorRoles
    */
@@ -134,7 +134,7 @@ module ShieldedAccessControl {
    * - `nonce`: A secret nonce scoped to the role.
    *
    * ## Commitment Derivation
-   * `commitment = SHA256(accountId, roleId, instanceSalt, domain)`
+   * `commitment = SHA256(roleId, accountId, instanceSalt, domain)`
    *
    * - `accountId`: See above.
    * - `roleId`: A unique role identifier.
@@ -290,7 +290,7 @@ module ShieldedAccessControl {
     const commitmentNullifier = _computeNullifier(commitment);
     const authPath = wit_getRoleCommitmentPath(commitment);
     const rootMatches =
-            _operatorRoles.checkRoot(merkleTreePathRootNoLeafHash<10>(disclose(authPath)));
+            _operatorRoles.checkRoot(merkleTreePathRoot<10, Bytes<32>>(disclose(authPath)));
 
     if (!_roleCommitmentNullifiers.member(disclose(commitmentNullifier)) && rootMatches) {
       return Role { isApproved: true,
@@ -481,7 +481,7 @@ module ShieldedAccessControl {
       return false;
     }
 
-    _operatorRoles.insertHash(role.roleCommitment);
+    _operatorRoles.insert(role.roleCommitment);
     return true;
   }
 
