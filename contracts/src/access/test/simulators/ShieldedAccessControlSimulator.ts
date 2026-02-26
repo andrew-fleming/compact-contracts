@@ -64,8 +64,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeAccountId(pk, nonce);
   }
 
-  public _computeNullifier(commitment: Uint8Array): Uint8Array {
-    return this.circuits.pure._computeNullifier(commitment);
+  public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {
+    return this.circuits.pure._computeNullifier(roleCommitment);
   }
 
   public callerHasRole(roleId: Uint8Array): Boolean {
