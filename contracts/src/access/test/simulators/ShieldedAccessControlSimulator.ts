@@ -20,17 +20,7 @@ import {
  */
 type ShieldedAccessControlArgs = readonly [];
 
-/**
- * Base simulator
- * @dev We deliberately use `any` as the base simulator type.
- * This workaround is necessary due to type inference and declaration filegen
- * in a monorepo environment. Attempting to fully preserve type information
- * turns into type gymnastics.
- *
- * `any` can be safely removed once the contract simulator is consumed
- * as a properly packaged dependency (outside the monorepo).
- */
-const ShieldedAccessControlSimulatorBase: any = createSimulator<
+const ShieldedAccessControlSimulatorBase = createSimulator<
   ShieldedAccessControlPrivateState,
   ReturnType<typeof ledger>,
   ReturnType<typeof ShieldedAccessControlWitnesses>,
@@ -78,20 +68,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeNullifier(commitment);
   }
 
-  public callerHasRole(roleId: Uint8Array): Role {
+  public callerHasRole(roleId: Uint8Array): Boolean {
     return this.circuits.impure.callerHasRole(roleId);
-  }
-
-  /**
-   * @description Returns the current commitment representing the contract owner.
-   * The full commitment is: `SHA256(SHA256(pk, nonce), instanceSalt, counter, domain)`.
-   * @returns The current owner's commitment.
-   */
-  public hasRole(
-    roleId: Uint8Array,
-    accountId: Uint8Array,
-  ): Boolean {
-    return this.circuits.impure.hasRole(roleId, accountId);
   }
 
   /**
@@ -103,12 +81,12 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.assertOnlyRole(roleId);
   }
 
-  public getRole(roleId: Uint8Array, accountId: Uint8Array): Role {
-    return this.circuits.impure.getRole(roleId, accountId);
+  public computeRole(roleId: Uint8Array, accountId: Uint8Array): Role {
+    return this.circuits.impure.computeRole(roleId, accountId);
   }
 
   /**
-   * @description Computes the owner commitment from the given `id` and `counter`.
+   * @description Computes the role commitment from the given `id` and `counter`.
    * @param id - The unique identifier of the owner calculated by `SHA256(pk, nonce)`.
    * @param counter - The current counter or round. This increments by `1`
    * after every transfer to prevent duplicate commitments given the same `id`.
@@ -193,19 +171,19 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     /**
      * @description Contextually sets a new nonce into the private state.
      * @param newNonce The secret nonce.
-     * @returns The ShieldedAccessControlPK private state after setting the new nonce.
+     * @returns The ShieldedAccessControl private state after setting the new nonce.
      */
     injectSecretNonce: (
       roleId: Uint8Array,
       newNonce: Buffer<ArrayBufferLike>,
     ): ShieldedAccessControlPrivateState => {
-      const currentState = this.stateManager.getContext().currentPrivateState;
+      const currentState = this.getPrivateState();
       const updatedState = {
         roles: { ...currentState.roles },
       };
       const roleString = Buffer.from(roleId).toString('hex');
       updatedState.roles[roleString] = newNonce;
-      this.stateManager.updatePrivateState(updatedState);
+      this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
     },
 
@@ -215,7 +193,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
      */
     getCurrentSecretNonce: (roleId: Uint8Array): Uint8Array => {
       const roleString = Buffer.from(roleId).toString('hex');
-      return this.stateManager.getContext().currentPrivateState.roles[
+      return this.getPrivateState().roles[
         roleString
       ];
     },
