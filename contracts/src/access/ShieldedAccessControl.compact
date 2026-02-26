@@ -7,10 +7,13 @@ pragma language_version >= 0.21.0;
  * @description A Shielded AccessControl library.
  * This module provides a shielded role-based access control mechanism, where roles can be used to
  * represent a set of permissions. Roles are stored as Merkle tree commitments to avoid
- * disclosing information about role holder. Role commitments are created with the following
- * hashing scheme SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment").
- * Where `accountId` is a unique SHA256 hash of a user's ZswapCoinPublicKey and a 32 byte secret nonce value
- * held in a user's local private state. `roleId` is a unique `Bytes<32>` identifier
+ * disclosing information about role holders. Role commitments are created with the following
+ * hashing scheme SHA256(roleId | accountId | instanceSalt | commitmentDomain). Where
+ *  - `accountId` is a unique SHA256 hash of a user's ZswapCoinPublicKey and a 32 byte secret nonce value
+ * held in a user's local private state
+ *  - `roleId` is a unique `Bytes<32>` identifier
+ *  - `instanceSalt` is an immutable, cryptographically strong random value provided on deployment
+ *  - `commitmentDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:commitment"
  *
  * @notice Using the SHA256 hashing function comes at a significant performance cost. In the future, we
  * plan on migrating to a ZK-friendly hashing function when an implementation is available.
@@ -46,29 +49,16 @@ pragma language_version >= 0.21.0;
  * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means
  * that only accounts with this role will be able to grant or revoke other
  * roles. More complex role relationships can be created by using
- * {_setRoleAdmin}. To set a custom `DEFAULT_ADMIN_ROLE`, implement the `Initializable`
- * module and set `DEFAULT_ADMIN_ROLE` in the `initialize()` circuit.
+ * {_setRoleAdmin}. To set a custom `DEFAULT_ADMIN_ROLE` set `DEFAULT_ADMIN_ROLE`
+ * in the `initialize()` circuit.
  *
  * WARNING: The `DEFAULT_ADMIN_ROLE` is also its own admin: it has permission to
  * grant and revoke this role. Extra precautions should be taken to secure
  * accounts that have been granted it.
  *
- * @notice Roles can only be granted to ZswapCoinPublicKeys
- * through the main role approval circuits (`grantRole` and `_grantRole`).
- * In other words, role approvals to contract addresses are disallowed through these
- * circuits.
- * This is because Compact currently does not support contract-to-contract calls which means
- * if a contract is granted a role, the contract cannot directly call the protected
- * circuit.
- *
- * @notice This module does offer an experimental circuit that allows roles to be granted
- * to contract addresses (`_unsafeGrantRole`).
- * Note that the circuit name is very explicit ("unsafe") with this experimental circuit.
- * Until contract-to-contract calls are supported,
- * there is no direct way for a contract to call protected circuits.
- *
- * @notice The unsafe circuits are planned to become deprecated once contract-to-contract calls
- * are supported.
+ * @dev In this system, adversaries will have knowledge of all role and admin
+ * identifiers. They will know when an admin is added and how many admins exist
+ * in the system.
  *
  * @notice Missing Features and Improvements:
  *
@@ -80,10 +70,10 @@ module ShieldedAccessControl {
   import "../utils/Utils" prefix Utils_;
 
   /**
-   * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment")
-   * @type {Bytes<32>} roleCommitment - A role commitment created by the following hash: SHA256(roleId | accountId | instanceSalt | "ShieldedAccessControl:commitment").
-   * @type {MerkleTree<10, roleCommitment>}
-   * @type {MerkleTree<10, Bytes<32>>} _operatorRoles
+   * @ledger _operatorRoles
+   * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | commitmentDomain)
+   * Role commitments are derived from a public role identifier (e.g., `persistentHash<Bytes<32>>(pad(32, "MY_ROLE")`),
+   * an account identifier (e.g., `SHA256(pk, nonce)`), the `instanceSalt`, and a domain separator.
    */
   export ledger _operatorRoles: MerkleTree<10, Bytes<32>>;
 
@@ -447,32 +437,21 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Attempts to grant `roleId` to `account` and returns a boolean indicating if `roleId` was granted.
+   * @description Attempts to grant `roleId` to `accountId` and returns a boolean indicating if `roleId` was granted.
    * Internal circuit without access restriction.
    *
    * @circuitInfo k=17, rows=109163
    *
    * Requirements:
    *
-   * - `account` must not be a ContractAddress.
-   * - An index for the intermediate role commitment produced by SHA256(roleId | account | nonce)
-   * must exist in the `_roleCommitmentIndex` map.
-   * - A nullifier for the role commitment produced by SHA256(roleId | account | nonce)
-   * must not exist in the `_roleCommitmentNullifiers` set.
-   * - A path for the role commitment produced by SHA256(roleId | account | nonce) must
-   * exist at `index` in the `_operatorRoles` Merkle tree.
    *
    * Disclosures:
    *
-   * - The intermediate role commitment produced by SHA256(roleId | account | nonce).
-   * - The role commitment produced by SHA256(roleId | account | nonce).
-   * - The Merkle tree path for the role commitment stored at `index` in the `_operatorRoles`
-   * Merkle tree.
-   * - The type data of `account` - a ZswapCoinPublicKey or ContractAddress.
+   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
+   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain ).
    *
    * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Either<ZswapCoinPublicKey, ContractAddress>} account - A ZswapCoinPublicKey or ContractAddress.
-   * @param {Bytes<32>} nonce - A nonce created using SHA256(SK | "role-nonce" | role | PK)
+   * @param {Bytes<32>} accountId - The account identifier.
    * @return {Boolean} roleGranted - A boolean indicating if `roleId` was granted.
    */
   export circuit _grantRole(roleId: Bytes<32>, accountId: Bytes<32>): Boolean {
