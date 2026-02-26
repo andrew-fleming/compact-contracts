@@ -1,40 +1,14 @@
 import { getRandomValues } from 'node:crypto';
 import {
-  CompactTypeBytes,
-  CompactTypeVector,
-  convertFieldToBytes,
-  persistentHash,
   type WitnessContext,
 } from '@midnight-ntwrk/compact-runtime';
 import type {
-  ContractAddress,
-  Either,
   Ledger,
   MerkleTreePath,
-  ZswapCoinPublicKey,
-} from '../../../artifacts/MockShieldedAccessControl/contract/index.cjs';
+} from '../../../artifacts/MockShieldedAccessControl/contract/index.js';
 
 const COMMITMENT_DOMAIN = new Uint8Array(32);
 new TextEncoder().encodeInto('ShieldedAccessControl:commitment', COMMITMENT_DOMAIN);
-
-const eitherToBytes = (
-  account: Either<ZswapCoinPublicKey, ContractAddress>,
-) => {
-  if (account.is_left) {
-    return account.left.bytes;
-  }
-
-  return account.right.bytes;
-};
-
-export function fmtHexString(bytes: string | Uint8Array): string {
-  if (bytes instanceof String) {
-    return `${bytes.slice(0, 4)}...${bytes.slice(-4)}`;
-  } else {
-    const buffStr = Buffer.from(bytes as Uint8Array).toString('hex');
-    return `${buffStr.slice(0, 4)}...${buffStr.slice(-4)}`;
-  }
-}
 
 /**
  * @description Interface defining the witness methods for ShieldedAccessControl operations.
