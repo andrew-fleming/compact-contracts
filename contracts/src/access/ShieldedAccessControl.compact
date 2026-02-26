@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.0.1-alpha.1 (access/ShieldedAccessControl.compact)
 
 pragma language_version >= 0.21.0;
 
@@ -10,7 +11,7 @@ pragma language_version >= 0.21.0;
  * disclosing information about role holders. Role commitments are created with the following
  * hashing scheme SHA256(roleId | accountId | instanceSalt | commitmentDomain). Where
  *  - `accountId` is a unique SHA256 hash of a user's ZswapCoinPublicKey and a 32 byte secret nonce value
- * held in a user's local private state
+ *     held in a user's local private state
  *  - `roleId` is a unique `Bytes<32>` identifier
  *  - `instanceSalt` is an immutable, cryptographically strong random value provided on deployment
  *  - `commitmentDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:commitment"
@@ -56,9 +57,21 @@ pragma language_version >= 0.21.0;
  * grant and revoke this role. Extra precautions should be taken to secure
  * accounts that have been granted it.
  *
- * @dev In this system, adversaries will have knowledge of all role and admin
- * identifiers. They will know when an admin is added and how many admins exist
- * in the system.
+ * @dev Privacy Assumptions
+ * - Outside observers will know when an admin is added and how many admins exist.
+ * - Outside observers will have knowledge of all role identifiers.
+ * - Outside observers will have knowledge of role additions and revocations.
+ * - Outside observers will NOT be able to identify the public address of any role holder
+ *   so long as secret nonce values are kept private and generated using cryptographically
+ *   secure random values.
+ *
+ * @dev Security Considerations:
+ * - The `secretNonce` must be kept private. Loss of the nonce prevents role holders
+ *   and admins from proving access or transferring it.
+ * - Role validation is entirely circuit-based using witness-provided values.
+ * - It's strongly recommended to use cryptographically secure random values for the `_instanceSalt`.
+ *   Failure to do so could lead to the exposure of public keys.
+ * - The `_instanceSalt` is immutable and used to differentiate deployments.
  *
  * @notice Missing Features and Improvements:
  *
