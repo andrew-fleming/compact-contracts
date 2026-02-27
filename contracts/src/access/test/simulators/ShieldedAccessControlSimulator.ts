@@ -18,7 +18,10 @@ import {
 /**
  * Type constructor args
  */
-type ShieldedAccessControlArgs = readonly [];
+type ShieldedAccessControlArgs = readonly [
+  instanceSalt: Uint8Array,
+  isInit: boolean,
+];
 
 const ShieldedAccessControlSimulatorBase = createSimulator<
   ShieldedAccessControlPrivateState,
@@ -30,8 +33,8 @@ const ShieldedAccessControlSimulatorBase = createSimulator<
   contractFactory: (witnesses) =>
     new MockShieldedAccessControl<ShieldedAccessControlPrivateState>(witnesses),
   defaultPrivateState: () => ShieldedAccessControlPrivateState.generate(),
-  contractArgs: () => {
-    return [];
+  contractArgs: (instanceSalt, isInit) => {
+    return [instanceSalt, isInit];
   },
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => ShieldedAccessControlWitnesses(),
@@ -42,19 +45,21 @@ const ShieldedAccessControlSimulatorBase = createSimulator<
  */
 export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulatorBase {
   constructor(
+    instanceSalt: Uint8Array,
+    isInit: boolean,
     options: BaseSimulatorOptions<
       ShieldedAccessControlPrivateState,
       ReturnType<typeof ShieldedAccessControlWitnesses>
     > = {},
   ) {
-    super([], options);
+    super([instanceSalt, isInit], options);
   }
 
   public _computeRoleCommitment(
     roleId: Uint8Array,
     accountId: Uint8Array,
   ): Uint8Array {
-    return this.circuits.pure._computeRoleCommitment(roleId, accountId);
+    return this.circuits.impure._computeRoleCommitment(roleId, accountId);
   }
 
   public _computeAccountId(
