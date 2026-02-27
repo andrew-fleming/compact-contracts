@@ -14,6 +14,7 @@ import {
   ShieldedAccessControlPrivateState,
   ShieldedAccessControlWitnesses,
 } from '../../witnesses/ShieldedAccessControlWitnesses.js';
+import { MerkleTreePath } from '@midnight-ntwrk/compact-runtime';
 
 /**
  * Type constructor args
@@ -202,5 +203,11 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
         roleString
       ];
     },
+    getPathWithFindForLeaf: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
+      return this.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(roleCommitment);
+    },
+    getPathWithWitnessImpl: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
+      return this.witnesses.wit_getRoleCommitmentPath(this.getWitnessContext(), roleCommitment)[1];
+    }
   };
 }
