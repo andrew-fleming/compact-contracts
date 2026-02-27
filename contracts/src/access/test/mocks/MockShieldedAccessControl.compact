@@ -16,10 +16,23 @@ export { ZswapCoinPublicKey,
          ShieldedAccessControl__roleCommitmentNullifiers,
          ShieldedAccessControl_Role };
 
-export pure circuit _computeRoleCommitment(
-                      roleId: ShieldedAccessControl_RoleIdentifier,
-                      accountId: ShieldedAccessControl_AccountIdentifier
-                      ): ShieldedAccessControl_RoleCommitment {
+/**
+ * @description `isInit` is a param for testing.
+ *
+ * If `isInit` is false, the constructor will not initialize the contract.
+ * This behavior is to test that circuits are not callable unless the
+ * contract is initialized.
+*/
+constructor(instanceSalt: Bytes<32>, isInit: Boolean) {
+  if (disclose(isInit)) {
+    ShieldedAccessControl_initialize(instanceSalt);
+  }
+}
+
+export circuit _computeRoleCommitment(
+                 roleId: ShieldedAccessControl_RoleIdentifier,
+                 accountId: ShieldedAccessControl_AccountIdentifier
+                 ): ShieldedAccessControl_RoleCommitment {
   return ShieldedAccessControl__computeRoleCommitment(roleId, accountId);
 }
 
