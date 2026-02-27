@@ -333,9 +333,9 @@ module ShieldedAccessControl {
   export circuit computeRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Role {
     Initializable_assertInitialized();
 
-    const commitment = _computeRoleCommitment(roleId, accountId);
-    const roleNullifier = _computeNullifier(commitment);
-    const roleCommitmentPath = wit_getRoleCommitmentPath(commitment);
+    const roleCommitment = _computeRoleCommitment(roleId, accountId);
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
     const rootMatches =
             _operatorRoles.checkRoot(
               merkleTreePathRoot<10, RoleCommitment>(disclose(roleCommitmentPath))
@@ -343,11 +343,11 @@ module ShieldedAccessControl {
 
     if (!_roleCommitmentNullifiers.member(disclose(roleNullifier)) && rootMatches) {
       return Role { hasRole: true,
-                    roleCommitment: disclose(commitment),
+                    roleCommitment: disclose(roleCommitment),
                     roleNullifier: disclose(roleNullifier) };
     } else {
       return Role { hasRole: false,
-                    roleCommitment: disclose(commitment),
+                    roleCommitment: disclose(roleCommitment),
                     roleNullifier: disclose(roleNullifier) };
     }
   }
