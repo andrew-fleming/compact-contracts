@@ -513,21 +513,24 @@ module ShieldedAccessControl {
    *
    * Requirements:
    *
+   * - A role commitment not exist for the `roleId` | `accountId` pairing.
+   * - A role nullifier must not exist for role commitment.
    *
    * Disclosures:
    *
    * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
    * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain ).
+   * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The account identifier.
-   * @return {Boolean} roleGranted - A boolean indicating if `roleId` was granted.
+   * @return {Boolean} isGranted - A boolean indicating if `roleId` was granted to `accountId`.
    */
   export circuit _grantRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
 
     const role = computeRole(roleId, accountId);
-    if (role.hasRole) {
+    if (role.hasRole || _roleCommitmentNullifiers.member(disclose(role.roleNullifier))) {
       return false;
     }
 
@@ -536,38 +539,31 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Attempts to revoke `roleId` from `account` and returns a boolean indicating if `roleId` was revoked.
+   * @description Attempts to revoke `roleId` from `accountId` and returns a boolean indicating if `roleId` was revoked.
    * Internal circuit without access restriction.
    *
    * @circuitInfo k=17, rows=108916
    *
    * Requirements:
    *
-   * - An index for the intermediate role commitment produced by SHA256(roleId | account | nonce)
-   * must exist in the `_roleCommitmentIndex` map.
-   * - A nullifier for the role commitment produced by SHA256(roleId | account | nonce)
-   * must not exist in the `_roleCommitmentNullifiers` set.
-   * - A path for the role commitment produced by SHA256(roleId | account | nonce) must
-   * exist at `index` in the `_operatorRoles` Merkle tree.
+   * - A role commitment must exist for the `roleId` | `accountId` pairing.
+   * - A role nullifier must not exist for role commitment.
    *
    * Disclosures:
    *
-   * - The intermediate role commitment produced by SHA256(roleId | account | nonce).
-   * - The role commitment produced by SHA256(roleId | account | nonce).
-   * - The Merkle tree path for the role commitment stored at `index` in the `_operatorRoles`
-   * Merkle tree.
-   * - The type data of `account` - a ZswapCoinPublicKey or ContractAddress.
+   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
+   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
+   * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Either<ZswapCoinPublicKey, ContractAddress>} account - A ZswapCoinPublicKey or ContractAddress.
-   * @param {Bytes<32>} nonce - A nonce created using SHA256(SK | "role-nonce" | role | PK)
-   * @return {Boolean} roleRevoked - A boolean indicating if `roleId` was revoked.
+   * @param {Bytes<32>} accountId - The account identifier.
+   * @return {Boolean} isRevoked - A boolean indicating if `roleId` was revoked for `accountId`
    */
   export circuit _revokeRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
 
     const role = computeRole(roleId, accountId);
-    if (!role.hasRole) {
+    if (!role.hasRole || _roleCommitmentNullifiers.member(disclose(role.roleNullifier))) {
       return false;
     }
 
