@@ -382,12 +382,12 @@ module ShieldedAccessControl {
 
     if (!_roleCommitmentNullifiers.member(disclose(roleNullifier)) && rootMatches) {
       return Role { hasRole: true,
-                    roleCommitment: disclose(roleCommitment),
-                    roleNullifier: disclose(roleNullifier) };
+                    roleCommitment: roleCommitment,
+                    roleNullifier: roleNullifier };
     } else {
       return Role { hasRole: false,
-                    roleCommitment: disclose(roleCommitment),
-                    roleNullifier: disclose(roleNullifier) };
+                    roleCommitment: roleCommitment,
+                    roleNullifier: roleNullifier };
     }
   }
 
@@ -548,7 +548,7 @@ module ShieldedAccessControl {
       return false;
     }
 
-    _operatorRoles.insert(role.roleCommitment);
+    _operatorRoles.insert(disclose(role.roleCommitment));
     return true;
   }
 
