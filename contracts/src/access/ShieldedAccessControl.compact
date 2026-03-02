@@ -387,24 +387,31 @@ module ShieldedAccessControl {
 
     const roleCommitment = _computeRoleCommitment(roleId, accountId);
     const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    assert(roleCommitment == roleCommitmentPath.leaf,
-           "ShieldedAccessControl: Path must contain queried role commitment"
-           );
-
-    const roleNullifier = _computeNullifier(roleCommitment);
-    const nullifierCommitmentPath = wit_getCommitmentNullifierPath(roleNullifier);
-    assert(roleNullifier == nullifierCommitmentPath.leaf,
-           "ShieldedAccessControl: Path must contain queried nullifier commitment"
-           );
-
     const hasCommitment =
             _operatorRoles.checkRoot(
               merkleTreePathRoot<20, RoleCommitment>(disclose(roleCommitmentPath))
               );
+
+    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
+    if (hasCommitment) {
+    assert(roleCommitmentPath.leaf == roleCommitment,
+           "ShieldedAccessControl: Path must contain queried role commitment"
+           );
+    }
+
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const nullifierCommitmentPath = wit_getCommitmentNullifierPath(roleNullifier);
     const isRevoked =
             _roleCommitmentNullifiers.checkRoot(
               merkleTreePathRoot<20, RoleNullifier>(disclose(nullifierCommitmentPath))
               );
+
+    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
+    if (isRevoked) {
+    assert(nullifierCommitmentPath.leaf == roleNullifier,
+           "ShieldedAccessControl: Path must contain queried role nullifier"
+           );
+    }
 
     const hasRole = hasCommitment && !isRevoked;
 
