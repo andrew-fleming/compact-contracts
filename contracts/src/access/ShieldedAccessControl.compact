@@ -394,9 +394,9 @@ module ShieldedAccessControl {
 
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (hasCommitment) {
-    assert(roleCommitmentPath.leaf == roleCommitment,
-           "ShieldedAccessControl: Path must contain queried role commitment"
-           );
+      assert(roleCommitmentPath.leaf == roleCommitment,
+             "ShieldedAccessControl: Path must contain queried role commitment"
+             );
     }
 
     const roleNullifier = _computeNullifier(roleCommitment);
@@ -408,9 +408,9 @@ module ShieldedAccessControl {
 
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (isRevoked) {
-    assert(nullifierCommitmentPath.leaf == roleNullifier,
-           "ShieldedAccessControl: Path must contain queried role nullifier"
-           );
+      assert(nullifierCommitmentPath.leaf == roleNullifier,
+             "ShieldedAccessControl: Path must contain queried role nullifier"
+             );
     }
 
     const hasRole = hasCommitment && !isRevoked;
