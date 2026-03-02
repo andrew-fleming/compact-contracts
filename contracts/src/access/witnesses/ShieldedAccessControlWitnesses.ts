@@ -7,9 +7,6 @@ import type {
   MerkleTreePath,
 } from '../../../artifacts/MockShieldedAccessControl/contract/index.js';
 
-const COMMITMENT_DOMAIN = new Uint8Array(32);
-new TextEncoder().encodeInto('ShieldedAccessControl:commitment', COMMITMENT_DOMAIN);
-
 /**
  * @description Interface defining the witness methods for ShieldedAccessControl operations.
  * @template P - The private state type.
@@ -104,7 +101,7 @@ export const ShieldedAccessControlPrivateState = {
       );
     const defaultPath: MerkleTreePath<Uint8Array> = {
       leaf: new Uint8Array(32),
-      path: Array.from({ length: 10 }, () => ({
+      path: Array.from({ length: 20 }, () => ({
         sibling: { field: 0n },
         goes_left: false,
       })),
@@ -121,7 +118,7 @@ export const ShieldedAccessControlPrivateState = {
       );
     const defaultPath: MerkleTreePath<Uint8Array> = {
       leaf: new Uint8Array(32),
-      path: Array.from({ length: 10 }, () => ({
+      path: Array.from({ length: 20 }, () => ({
         sibling: { field: 0n },
         goes_left: false,
       })),
