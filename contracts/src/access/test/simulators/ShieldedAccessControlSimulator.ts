@@ -5,7 +5,7 @@ import {
 import {
   type ContractAddress,
   type Either,
-  type ShieldedAccessControl_Role as Role,
+  type ShieldedAccessControl_RoleCheck as RoleCheck,
   ledger,
   Contract as MockShieldedAccessControl,
   type ZswapCoinPublicKey,
@@ -67,7 +67,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     pk: Either<ZswapCoinPublicKey, ContractAddress>,
     nonce: Uint8Array
   ): Uint8Array {
-    return this.circuits.pure._computeAccountId(pk, nonce);
+    return this.circuits.impure._computeAccountId(pk, nonce);
   }
 
   public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {
@@ -87,12 +87,12 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.assertOnlyRole(roleId);
   }
 
-  public computeRole(roleId: Uint8Array, accountId: Uint8Array): Role {
-    return this.circuits.impure.computeRole(roleId, accountId);
+  public checkRole(roleId: Uint8Array, accountId: Uint8Array): RoleCheck {
+    return this.circuits.impure.checkRole(roleId, accountId);
   }
 
   /**
-   * @description Computes the role commitment from the given `id` and `counter`.
+   * @description Computes the RoleCheck commitment from the given `id` and `counter`.
    * @param id - The unique identifier of the owner calculated by `SHA256(pk, nonce)`.
    * @param counter - The current counter or round. This increments by `1`
    * after every transfer to prevent duplicate commitments given the same `id`.
@@ -203,11 +203,17 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
         roleString
       ];
     },
-    getPathWithFindForLeaf: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
+    getCommitmentPathWithFindForLeaf: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
       return this.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(roleCommitment);
     },
-    getPathWithWitnessImpl: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
+    getCommitmentPathWithWitnessImpl: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
       return this.witnesses.wit_getRoleCommitmentPath(this.getWitnessContext(), roleCommitment)[1];
+    },
+    getNullifierPathWithFindForLeaf: (nullifierCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
+      return this.getPublicState().ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(nullifierCommitment);
+    },
+    getNullifierPathWithWitnessImpl: (nullifierCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
+      return this.witnesses.wit_getCommitmentNullifierPath(this.getWitnessContext(), nullifierCommitment)[1];
     }
   };
 }
