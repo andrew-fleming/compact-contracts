@@ -93,9 +93,9 @@ export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] 
 
 // checkRole is re-implemented in the Mock contract for testing
 export circuit _checkRole(
-          roleId: ShieldedAccessControl_RoleIdentifier,
-          accountId: ShieldedAccessControl_AccountIdentifier
-          ): ShieldedAccessControl_RoleCheck {
+                 roleId: ShieldedAccessControl_RoleIdentifier,
+                 accountId: ShieldedAccessControl_AccountIdentifier
+                 ): ShieldedAccessControl_RoleCheck {
   Initializable_assertInitialized();
 
   const roleCommitment = _computeRoleCommitment(roleId, accountId);
