@@ -67,6 +67,8 @@ pragma language_version >= 0.21.0;
  * - Outside observers will know which role identifiers are admin identifiers.
  * - Outside observers will have knowledge of all role identifiers.
  * - Outside observers will have knowledge of role additions and revocations.
+ * - Outside observers can link calls made by the same role instance across time.
+ * - If a user ever reveals their nonce or reuses it poorly, they can be deanonymized retroactively.
  * - Outside observers will NOT be able to identify the public address of any role holder
  *   so long as secret nonce values are kept private and generated using cryptographically
  *   secure random values.
@@ -93,17 +95,17 @@ module ShieldedAccessControl {
   export new type RoleIdentifier = Bytes<32>;
   export new type AccountIdentifier = Bytes<32>;
   export new type AdminIdentifier = Bytes<32>;
-  export new type RoleNullifer = Bytes<32>;
+  export new type RoleNullifier = Bytes<32>;
   type ZcpkOrContractAddress = Either<ZswapCoinPublicKey, ContractAddress>;
 
   /**
    * @ledger _operatorRoles
    * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | commitmentDomain)
    * Role commitments are derived from a public role identifier (e.g., `persistentHash<Bytes<32>>(pad(32, "MY_ROLE")`),
-   * an account identifier (e.g., `SHA256(zcpk, nonce)`), the `instanceSalt`, and a domain separator.
+   * an account identifier (e.g., `SHA256(zcpk, nonce, instanceSalt, accountDomain)`), the `instanceSalt`, and a domain separator.
    * @type {Bytes<32>} RoleCommitment - A role commitment created by the following hash: SHA256( roleId | accountId | instanceSalt | commitmentDomain).
    */
-  export ledger _operatorRoles: MerkleTree<10, RoleCommitment>;
+  export ledger _operatorRoles: MerkleTree<20, RoleCommitment>;
 
   /**
    * @ledger _adminRoles
@@ -112,11 +114,11 @@ module ShieldedAccessControl {
   export ledger _adminRoles: Map<RoleIdentifier, AdminIdentifier>;
 
   /**
-   * @description A set of nullifiers used to revoke the permissions of a role
-   * @type {Bytes<32>} RoleNullifier - A role nullifier created by the following hash: SHA256( roleCommitment | nullifierDomain).
+   * @description A Merkle tree of nullifiers used to prove a role has been revoked
+   * @type {Bytes<32>} RoleNullifier - A role nullifier created by the following hash: SHA256(roleCommitment | nullifierDomain).
    * @type {Set<Bytes<32>} _roleCommitmentNullifiers
    */
-  export ledger _roleCommitmentNullifiers: Set<RoleNullifer>;
+  export ledger _roleCommitmentNullifiers: MerkleTree<20, RoleNullifier>;
 
   /**
    * @description The default admin role for all roles. Only accounts with this role will be able to grant or revoke other roles
@@ -141,34 +143,43 @@ module ShieldedAccessControl {
    * @description Returns a path to a role commitment in the `_operatorRoles` Merkle tree if one exists. Otherwise, returns an invalid path.
    *
    * @param {Bytes<32>} RoleCommitment - A commitment created by the following hash: SHA256( roleId | accountId | instanceSalt | commitmentDomain).
-   * @return {MerkleTreePath<10, Bytes<32>>} - The Merkle tree path to `roleCommitment` in the `_operatorRoles` Merkle tree
+   * @return {MerkleTreePath<20, Bytes<32>>} - The Merkle tree path to `roleCommitment` in the `_operatorRoles` Merkle tree
    */
   witness wit_getRoleCommitmentPath(
             roleCommitment: RoleCommitment
-            ): MerkleTreePath<10, RoleCommitment>;
+            ): MerkleTreePath<20, RoleCommitment>;
+
+  /**
+   * @witness wit_getCommitmentNullifierPath
+   * @description Returns a path to a role nullifier in the `_roleCommitmentNullifiers` Merkle tree if one exists. Otherwise, returns an invalid path.
+   *
+   * @param {Bytes<32>} RoleNullifier - A nullifier created by the following hash: SHA256( roleCommitment | commitmentDomain).
+   * @return {MerkleTreePath<20, Bytes<32>>} - The Merkle tree path to `roleNullifier` in the `_roleCommitmentNullifiers` Merkle tree
+   */
+  witness wit_getCommitmentNullifierPath(
+            roleNullifier: RoleNullifier
+            ): MerkleTreePath<20, RoleNullifier>;
 
   /**
    * @witness wit_secretNonce
    * @description A private per-accountId nonce used in deriving the shielded account identifier.
    *
-   * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce)` to produce an obfuscated,
-   * unlinkable identity commitment.
+   * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce, instanceSalt, accountDomain)` to produce an obfuscated,
+   * unlinkable identity commitment. Nonce MUST be unique per role to avoid cross-role linking.
    *
    * @param {Bytes<32>} roleId - The unique identifier of a role.
    */
   witness wit_secretNonce(roleId: RoleIdentifier): Bytes<32>;
 
   /**
-   * @description A struct containing information for a particular `roleId` | `accountId` pairing.
+   * @description A struct containing auth information for a particular `roleId` | `accountId` pairing.
    *
-   * @type {Boolean} hasRole - A boolean flag indicating an `accountId` is authorized for a `roleId`
-   * @type {<Bytes<32>} roleCommitment - The role commitment for a particular `roleId` | `accountId` pairing.
-   * @type {<Bytes<32>} roleNullifier - The associated role nullifier for `roleCommitment`.
+   * @type {Boolean} hasRole - A boolean flag indicating an `accountId` is authorized for a `roleId`.
+   * @type {Boolean} isRevoked - A boolean flag indicating if a nullifier exists for `roleCommitment`.
    */
-  export struct Role {
+  export struct RoleCheck {
     hasRole: Boolean;
-    roleCommitment: RoleCommitment;
-    roleNullifier: RoleNullifer;
+    isRevoked: Boolean;
   }
 
   /**
@@ -199,7 +210,7 @@ module ShieldedAccessControl {
    *
    * ## Account ID (`accountId`)
    * The `accountId` is expected to be computed off-chain as:
-   * `accountId = SHA256(zcpk, nonce)`
+   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountDomain)`
    *
    * - `zcpk`: The account's ZswapCoinPublicKey.
    * - `nonce`: A secret nonce scoped to the role.
@@ -221,13 +232,13 @@ module ShieldedAccessControl {
    * - Contract is initialized.
    *
    * @param {Bytes<32>} roleId - The unique identifier of a role.
-   * @param {Bytes<32>} accountId - The unique identifier of the account calculated by `SHA256(zcpk, nonce)`.
+   * @param {Bytes<32>} accountId - The unique identifier of the account calculated by `SHA256(zcpk, nonce, instanceSalt, accountDomain)`.
    * @returns {Bytes<32>} The commitment derived from `accountId` and `roleId`.
    */
-  export circuit _computeRoleCommitment(
-                   roleId: RoleIdentifier,
-                   accountId: AccountIdentifier,
-                   ): RoleCommitment {
+  circuit _computeRoleCommitment(
+            roleId: RoleIdentifier,
+            accountId: AccountIdentifier,
+            ): RoleCommitment {
     Initializable_assertInitialized();
 
     return persistentHash<Vector<4, Bytes<32>>>(
@@ -254,11 +265,11 @@ module ShieldedAccessControl {
    * @param {<Bytes<32>} roleCommitment - The role commitment for a particular `roleId` | `accountId` pairing.
    * @returns {Bytes<32>} roleNullifier - The associated nullifier for `roleCommitment`.
    */
-  export pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifer {
+  pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
     return persistentHash<Vector<2, Bytes<32>>>(
              [roleCommitment as Bytes<32>, pad(32, "ShieldedAccessControl:nullifier")]
              )
-           as RoleNullifer;
+           as RoleNullifier;
   }
 
   /**
@@ -266,13 +277,17 @@ module ShieldedAccessControl {
    * ZswapCoinPublicKey and a secret nonce.
    *
    * ## ID Derivation
-   * `accountId = SHA256(zcpk, nonce)`
+   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountDomain)`
    *
    * - `zcpk`: The ZswapCoinPublicKey of the caller. This is passed explicitly to allow
    * for off-chain derivation, testing, or scenarios where the caller is
    * different from the subject of the computation. We recommend using an Air-Gapped Public Key.
    * - `nonce`: A secret nonce tied to the identity. The generation strategy is
    * left to the user, offering different security/convenience trade-offs.
+   * - `instanceSalt`: A unique per-deployment salt, stored during initialization.
+   * This prevents commitment collisions across deployments.
+   * - `accountIdDomain`: Domain separator `"ShieldedAccessControl:accountId"` (padded to 32 bytes) to prevent
+   * hash collisions when extending the module or using similar commitment schemes.
    *
    * The result is a 32-byte commitment that uniquely identifies the account.
    * This value is later used in role commitment hashing,
@@ -292,13 +307,13 @@ module ShieldedAccessControl {
    * @param {Bytes<32>} nonce - A private nonce to scope the commitment.
    * @returns {Bytes<32>} accountId - The computed account ID.
    */
-  export pure circuit _computeAccountId(
-                        pk: ZcpkOrContractAddress,
-                        nonce: Bytes<32>
-                        ): AccountIdentifier {
+  circuit _computeAccountId(pk: ZcpkOrContractAddress, nonce: Bytes<32>): AccountIdentifier {
     assert(pk.is_left, "ShieldedAccessControl: contract address roles are not yet supported");
 
-    return persistentHash<Vector<2, Bytes<32>>>([pk.left.bytes, nonce]) as AccountIdentifier;
+    return persistentHash<Vector<4, Bytes<32>>>(
+             [pk.left.bytes, nonce, _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
+             )
+           as AccountIdentifier;
   }
 
   /**
@@ -308,9 +323,8 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @return {Boolean} - A boolean determining if a caller has the specified role.
@@ -324,7 +338,7 @@ module ShieldedAccessControl {
                                     right: ContractAddress { bytes: pad(32, "") } };
     const nonce = wit_secretNonce(roleId);
     const accountId = _computeAccountId(callerAsEither, nonce);
-    return computeRole(roleId, accountId).hasRole;
+    return checkRole(roleId, accountId).hasRole;
   }
 
   /**
@@ -338,9 +352,8 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @return {[]} - Empty tuple.
@@ -355,39 +368,49 @@ module ShieldedAccessControl {
    * @description Computes the role commitment and associated role nullifier for a `roleId` | `accountId`
    * pairing. A role commitment is valid for a `roleId` | `accountId` pairing if and only if a valid
    * path exists in the `_operatorRoles` Merkle tree for the role commitment and a role nullifier doesn't
-   * exist for the role commitment in the `_roleNullifiers` set.
+   * exist for the role commitment in the `_roleCommitmentNullifiers` set.
    *
    * @circuitInfo k=15, rows=29780
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
    * @return {[]} - Empty tuple.
    */
-  export circuit computeRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Role {
+  circuit checkRole(roleId: RoleIdentifier, accountId: AccountIdentifier): RoleCheck {
     Initializable_assertInitialized();
 
     const roleCommitment = _computeRoleCommitment(roleId, accountId);
-    const roleNullifier = _computeNullifier(roleCommitment);
     const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    const rootMatches =
+    assert(roleCommitment == roleCommitmentPath.leaf,
+           "ShieldedAccessControl: Path must contain queried role commitment"
+           );
+
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const nullifierCommitmentPath = wit_getCommitmentNullifierPath(roleNullifier);
+    assert(roleNullifier == nullifierCommitmentPath.leaf,
+           "ShieldedAccessControl: Path must contain queried nullifier commitment"
+           );
+
+    const hasCommitment =
             _operatorRoles.checkRoot(
-              merkleTreePathRoot<10, RoleCommitment>(disclose(roleCommitmentPath))
+              merkleTreePathRoot<20, RoleCommitment>(disclose(roleCommitmentPath))
+              );
+    const isRevoked =
+            _roleCommitmentNullifiers.checkRoot(
+              merkleTreePathRoot<20, RoleNullifier>(disclose(nullifierCommitmentPath))
               );
 
-    if (!_roleCommitmentNullifiers.member(disclose(roleNullifier)) && rootMatches) {
-      return Role { hasRole: true,
-                    roleCommitment: roleCommitment,
-                    roleNullifier: roleNullifier };
+    const hasRole = hasCommitment && !isRevoked;
+
+    if (hasRole) {
+      return RoleCheck { hasRole, isRevoked };
     } else {
-      return Role { hasRole: false,
-                    roleCommitment: roleCommitment,
-                    roleNullifier: roleNullifier };
+      return RoleCheck { hasRole, isRevoked };
     }
   }
 
@@ -398,6 +421,10 @@ module ShieldedAccessControl {
    * To change a role’s admin use {_setRoleAdmin}.
    *
    * @circuitInfo k=10, rows=207
+   *
+   * Disclosures:
+   *
+   * - The role identifier
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @return {Bytes<32>} roleAdmin - The admin role that controls `roleId`.
@@ -426,8 +453,9 @@ module ShieldedAccessControl {
    * Disclosures:
    *
    * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
+   * - The role identifier
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
@@ -455,9 +483,10 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
    * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
+   * - The role identifier
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
@@ -485,9 +514,9 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
    * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
@@ -509,9 +538,14 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Sets `adminID` as `roleId`'s admin identifier. Internal circuit without access restriction.
+   * @description Sets `adminId` as `roleId`'s admin identifier. Internal circuit without access restriction.
    *
    * @circuitInfo k=10, rows=209
+   *
+   * Disclosures:
+   *
+   * - The role identifier
+   * - The account identifier
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} adminId - The admin role identifier.
@@ -532,9 +566,9 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain ).
+   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The account identifier.
@@ -543,12 +577,14 @@ module ShieldedAccessControl {
   export circuit _grantRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
 
-    const role = computeRole(roleId, accountId);
-    if (role.hasRole || _roleCommitmentNullifiers.member(disclose(role.roleNullifier))) {
+    const roleCheck = checkRole(roleId, accountId);
+    if (roleCheck.hasRole || roleCheck.isRevoked) {
       return false;
     }
 
-    _operatorRoles.insert(disclose(role.roleCommitment));
+    const roleCommitment = _computeRoleCommitment(roleId, accountId);
+
+    _operatorRoles.insert(disclose(roleCommitment));
     return true;
   }
 
@@ -561,9 +597,9 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
    * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
    * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
+   * - The Merkle tree path for the nullifier commitment stored in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Bytes<32>} accountId - The account identifier.
@@ -572,12 +608,15 @@ module ShieldedAccessControl {
   export circuit _revokeRole(roleId: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
 
-    const role = computeRole(roleId, accountId);
-    if (!role.hasRole || _roleCommitmentNullifiers.member(disclose(role.roleNullifier))) {
+    const roleCheck = checkRole(roleId, accountId);
+    if (!roleCheck.hasRole || roleCheck.isRevoked) {
       return false;
     }
 
-    _roleCommitmentNullifiers.insert(disclose(role.roleNullifier));
+    const roleCommitment = _computeRoleCommitment(roleId, accountId);
+    const roleNullifier = _computeNullifier(roleCommitment);
+
+    _roleCommitmentNullifiers.insert(disclose(roleNullifier));
     return true;
   }
 }
