@@ -92,7 +92,7 @@ export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] 
 }
 
 // checkRole is re-implemented in the Mock contract for testing
-export circuit checkRole(
+export circuit _checkRole(
           roleId: ShieldedAccessControl_RoleIdentifier,
           accountId: ShieldedAccessControl_AccountIdentifier
           ): ShieldedAccessControl_RoleCheck {

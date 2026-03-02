@@ -87,8 +87,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.assertOnlyRole(roleId);
   }
 
-  public checkRole(roleId: Uint8Array, accountId: Uint8Array): RoleCheck {
-    return this.circuits.impure.checkRole(roleId, accountId);
+  public _checkRole(roleId: Uint8Array, accountId: Uint8Array): RoleCheck {
+    return this.circuits.impure._checkRole(roleId, accountId);
   }
 
   /**
