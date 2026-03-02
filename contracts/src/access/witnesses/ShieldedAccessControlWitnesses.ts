@@ -28,6 +28,10 @@ export interface IShieldedAccessControlWitnesses<P> {
     context: WitnessContext<Ledger, P>,
     roleCommitment: Uint8Array,
   ): [P, MerkleTreePath<Uint8Array>];
+  wit_getCommitmentNullifierPath(
+    context: WitnessContext<Ledger, P>,
+    nullifierCommitment: Uint8Array,
+  ): [P, MerkleTreePath<Uint8Array>];
 }
 
 type RoleId = string;
@@ -107,6 +111,23 @@ export const ShieldedAccessControlPrivateState = {
     };
     return path ? path : defaultPath;
   },
+  getCommitmentNullifierPath: (
+    ledger: Ledger,
+    nullifierCommitment: Uint8Array,
+  ): MerkleTreePath<Uint8Array> => {
+    const path =
+      ledger.ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(
+        nullifierCommitment,
+      );
+    const defaultPath: MerkleTreePath<Uint8Array> = {
+      leaf: new Uint8Array(32),
+      path: Array.from({ length: 10 }, () => ({
+        sibling: { field: 0n },
+        goes_left: false,
+      })),
+    };
+    return path ? path : defaultPath;
+  },
 }
 
 /**
@@ -131,6 +152,18 @@ export const ShieldedAccessControlWitnesses =
         ShieldedAccessControlPrivateState.getRoleCommitmentPath(
           context.ledger,
           roleCommitment,
+        ),
+      ];
+    },
+    wit_getCommitmentNullifierPath(
+      context: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,
+      nullifierCommitment: Uint8Array,
+    ): [ShieldedAccessControlPrivateState, MerkleTreePath<Uint8Array>] {
+      return [
+        context.privateState,
+        ShieldedAccessControlPrivateState.getCommitmentNullifierPath(
+          context.ledger,
+          nullifierCommitment,
         ),
       ];
     },
