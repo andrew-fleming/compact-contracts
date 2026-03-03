@@ -1,7 +1,5 @@
 import { getRandomValues } from 'node:crypto';
-import {
-  type WitnessContext,
-} from '@midnight-ntwrk/compact-runtime';
+import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 import type {
   Ledger,
   MerkleTreePath,
@@ -51,8 +49,7 @@ export const ShieldedAccessControlPrivateState = {
    * @description Generates a new private state with a random secret nonce and a default roleId of 0.
    * @returns A fresh ShieldedAccessControlPrivateState instance.
    */
-  generate: (
-  ): ShieldedAccessControlPrivateState => {
+  generate: (): ShieldedAccessControlPrivateState => {
     const defaultRoleId: string = Buffer.alloc(32).toString('hex');
     const secretNonce = new Uint8Array(getRandomValues(Buffer.alloc(32)));
 
@@ -125,7 +122,7 @@ export const ShieldedAccessControlPrivateState = {
     };
     return path ? path : defaultPath;
   },
-}
+};
 
 /**
  * @description Factory function creating witness implementations for Shielded AccessControl operations.

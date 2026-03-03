@@ -1,3 +1,4 @@
+import type { MerkleTreePath } from '@midnight-ntwrk/compact-runtime';
 import {
   type BaseSimulatorOptions,
   createSimulator,
@@ -5,16 +6,15 @@ import {
 import {
   type ContractAddress,
   type Either,
-  type ShieldedAccessControl_RoleCheck as RoleCheck,
   ledger,
   Contract as MockShieldedAccessControl,
+  type ShieldedAccessControl_RoleCheck as RoleCheck,
   type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
   ShieldedAccessControlPrivateState,
   ShieldedAccessControlWitnesses,
 } from '../../witnesses/ShieldedAccessControlWitnesses.js';
-import { MerkleTreePath } from '@midnight-ntwrk/compact-runtime';
 
 /**
  * Type constructor args
@@ -65,7 +65,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
 
   public _computeAccountId(
     pk: Either<ZswapCoinPublicKey, ContractAddress>,
-    nonce: Uint8Array
+    nonce: Uint8Array,
   ): Uint8Array {
     return this.circuits.impure._computeAccountId(pk, nonce);
   }
@@ -74,7 +74,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeNullifier(roleCommitment);
   }
 
-  public callerHasRole(roleId: Uint8Array): Boolean {
+  public callerHasRole(roleId: Uint8Array): boolean {
     return this.circuits.impure.callerHasRole(roleId);
   }
 
@@ -109,10 +109,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
    * @param nonce - A private nonce to scope the commitment.
    * @returns The computed owner ID.
    */
-  public grantRole(
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ) {
+  public grantRole(roleId: Uint8Array, accountId: Uint8Array) {
     this.circuits.impure.grantRole(roleId, accountId);
   }
 
@@ -121,10 +118,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
    * enforcing permission checks on the caller.
    * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
    */
-  public revokeRole(
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ) {
+  public revokeRole(roleId: Uint8Array, accountId: Uint8Array) {
     this.circuits.impure.revokeRole(roleId, accountId);
   }
 
@@ -133,10 +127,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
    * enforcing permission checks on the caller.
    * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
    */
-  public renounceRole(
-    roleId: Uint8Array,
-    callerConfirmation: Uint8Array
-  ) {
+  public renounceRole(roleId: Uint8Array, callerConfirmation: Uint8Array) {
     this.circuits.impure.renounceRole(roleId, callerConfirmation);
   }
 
@@ -154,10 +145,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
    * enforcing permission checks on the caller.
    * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
    */
-  public _grantRole(
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ): boolean {
+  public _grantRole(roleId: Uint8Array, accountId: Uint8Array): boolean {
     return this.circuits.impure._grantRole(roleId, accountId);
   }
 
@@ -166,10 +154,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
    * enforcing permission checks on the caller.
    * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
    */
-  public _revokeRole(
-    roleId: Uint8Array,
-    accountId: Uint8Array
-  ): boolean {
+  public _revokeRole(roleId: Uint8Array, accountId: Uint8Array): boolean {
     return this.circuits.impure._revokeRole(roleId, accountId);
   }
 
@@ -199,21 +184,37 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
      */
     getCurrentSecretNonce: (roleId: Uint8Array): Uint8Array => {
       const roleString = Buffer.from(roleId).toString('hex');
-      return this.getPrivateState().roles[
-        roleString
-      ];
+      return this.getPrivateState().roles[roleString];
     },
-    getCommitmentPathWithFindForLeaf: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
-      return this.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(roleCommitment);
+    getCommitmentPathWithFindForLeaf: (
+      roleCommitment: Uint8Array,
+    ): MerkleTreePath<Uint8Array> | undefined => {
+      return this.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(
+        roleCommitment,
+      );
     },
-    getCommitmentPathWithWitnessImpl: (roleCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
-      return this.witnesses.wit_getRoleCommitmentPath(this.getWitnessContext(), roleCommitment)[1];
+    getCommitmentPathWithWitnessImpl: (
+      roleCommitment: Uint8Array,
+    ): MerkleTreePath<Uint8Array> => {
+      return this.witnesses.wit_getRoleCommitmentPath(
+        this.getWitnessContext(),
+        roleCommitment,
+      )[1];
     },
-    getNullifierPathWithFindForLeaf: (nullifierCommitment: Uint8Array): MerkleTreePath<Uint8Array> | undefined => {
-      return this.getPublicState().ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(nullifierCommitment);
+    getNullifierPathWithFindForLeaf: (
+      nullifierCommitment: Uint8Array,
+    ): MerkleTreePath<Uint8Array> | undefined => {
+      return this.getPublicState().ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(
+        nullifierCommitment,
+      );
     },
-    getNullifierPathWithWitnessImpl: (nullifierCommitment: Uint8Array): MerkleTreePath<Uint8Array> => {
-      return this.witnesses.wit_getCommitmentNullifierPath(this.getWitnessContext(), nullifierCommitment)[1];
-    }
+    getNullifierPathWithWitnessImpl: (
+      nullifierCommitment: Uint8Array,
+    ): MerkleTreePath<Uint8Array> => {
+      return this.witnesses.wit_getCommitmentNullifierPath(
+        this.getWitnessContext(),
+        nullifierCommitment,
+      )[1];
+    },
   };
 }
