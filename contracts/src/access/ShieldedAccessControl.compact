@@ -209,7 +209,7 @@ module ShieldedAccessControl {
   /**
    * @description Returns `true` if a caller is authorized for `roleId`.
    *
-   * @circuitInfo k=16, rows=60150
+   * @circuitInfo k=15, rows=22128
    *
    * Disclosures:
    *
@@ -234,7 +234,7 @@ module ShieldedAccessControl {
   /**
    * @description Reverts if caller is not authorized for `roleId`.
    *
-   * @circuitInfo k=15, rows=29780
+   * @circuitInfo k=15, rows=22130
    *
    * Requirements:
    *
@@ -260,7 +260,7 @@ module ShieldedAccessControl {
    *
    * To change a role’s admin use {_setRoleAdmin}.
    *
-   * @circuitInfo k=10, rows=207
+   * @circuitInfo k=9, rows=375
    *
    * Disclosures:
    *
@@ -288,7 +288,7 @@ module ShieldedAccessControl {
    *
    * - caller must be admin for `roleId`
    *
-   * @circuitInfo k=18, rows=138761
+   * @circuitInfo k=16, rows=39993
    *
    * Disclosures:
    *
@@ -380,7 +380,7 @@ module ShieldedAccessControl {
   /**
    * @description Sets `adminId` as `roleId`'s admin identifier. Internal circuit without access restriction.
    *
-   * @circuitInfo k=10, rows=209
+   * @circuitInfo k=10, rows=583
    *
    * Disclosures:
    *
@@ -402,9 +402,9 @@ module ShieldedAccessControl {
    * Internal circuit without access restriction. Returns true if a role commitment doesn't exist for the
    * `roleId` | `accountId` pairing and a role nullifier doesn't exist for the computed role commitment.
    *
-   * @dev Auth logic is duplicated in this circuit to avoid an expensive re-computation of the role commitment
+   * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
    *
-   * @circuitInfo k=17, rows=109163
+   * @circuitInfo k=15, rows=18115
    *
    * Disclosures:
    *
@@ -461,9 +461,9 @@ module ShieldedAccessControl {
    * Internal circuit without access restriction. Returns true if a role commitment exists for the
    * `roleId` | `accountId` pairing and a role nullifier doesn't exist for the computed role commitment.
    *
-   * @dev Auth logic is duplicated in this circuit to avoid an expensive re-computation of the role commitment and nullifier
+   * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
    *
-   * @circuitInfo k=17, rows=108916
+   * @circuitInfo k=15, rows=18115
    *
    * Disclosures:
    *
@@ -521,7 +521,7 @@ module ShieldedAccessControl {
    * path exists in the `_operatorRoles` Merkle tree for the role commitment and a role nullifier doesn't
    * exist for the role commitment in the `_roleCommitmentNullifiers` set.
    *
-   * @circuitInfo k=15, rows=29780
+   * @circuitInfo k=14, rows=16089
    *
    * Disclosures:
    *
@@ -588,7 +588,7 @@ module ShieldedAccessControl {
    * - `commitmentDomain`: Domain separator `"ShieldedAccessControl:commitment"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
    *
-   * @circuitInfo k=14, rows=14853
+   * @circuitInfo k=13, rows=6423
    *
    * Requirements:
    *
@@ -622,8 +622,6 @@ module ShieldedAccessControl {
    * - `roleCommitment`: See `_computeRoleCommitment`.
    * - `nullifierDomain`: Domain separator `"ShieldedAccessControl:nullifier"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
-   *
-   * @circuitInfo k=14, rows=14853
    *
    * @param {<Bytes<32>} roleCommitment - The role commitment for a particular `roleId` | `accountId` pairing.
    * @returns {Bytes<32>} roleNullifier - The associated nullifier for `roleCommitment`.
@@ -661,6 +659,8 @@ module ShieldedAccessControl {
    * While typically used with user public keys, this mechanism may also
    * support contract addresses as identifiers in future contract-to-contract
    * interactions. Both are treated as 32-byte values (`Bytes<32>`).
+   *
+   * @circuitInfo k=13, rows=6705
    *
    * Requirements:
    *
