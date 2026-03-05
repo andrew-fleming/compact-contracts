@@ -331,7 +331,6 @@ describe('ShieldedAccessControl', () => {
         shieldedAccessControl._grantRole(OPERATOR_1.roleId, ADMIN.accountId);
         shieldedAccessControl._grantRole(OPERATOR_2.roleId, ADMIN.accountId);
         shieldedAccessControl._grantRole(OPERATOR_3.roleId, ADMIN.accountId);
-        shieldedAccessControl.getContractState()
 
         expect(
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
