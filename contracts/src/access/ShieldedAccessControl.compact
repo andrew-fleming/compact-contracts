@@ -201,6 +201,7 @@ module ShieldedAccessControl {
    * @returns {[]} Empty tuple.
    */
   export circuit initialize(instanceSalt: Bytes<32>): [] {
+    assert(instanceSalt != default<Bytes<32>>, "ShieldedAccessControl: Instance salt must not be 0");
     Initializable_initialize();
 
     _instanceSalt = disclose(instanceSalt);
