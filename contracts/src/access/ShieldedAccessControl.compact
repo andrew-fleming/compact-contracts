@@ -6,6 +6,7 @@ pragma language_version >= 0.21.0;
 /**
  * @module Shielded AccessControl
  * @description A Shielded AccessControl library.
+ * 
  * This module provides a shielded role-based access control (RBAC) mechanism, where roles can be used to
  * represent a set of permissions. Roles are stored as Merkle tree commitments to avoid
  * disclosing information about role holders. Role commitments are created with the following
@@ -30,7 +31,7 @@ pragma language_version >= 0.21.0;
  *
  * ```compact
  * import CompactStandardLibrary;
- * import "./node_modules/@openzeppelin-compact/accessControl/src/ShieldedAccessControl" prefix ShieldedAccessControl_;
+ * import "./node_modules/@openzeppelin/compact-contracts/src/access/ShieldedAccessControl" prefix ShieldedAccessControl_;
  *
  * export sealed ledger MY_ROLE: Bytes<32>;
  *
@@ -43,8 +44,8 @@ pragma language_version >= 0.21.0;
  *
  * ```compact
  * circuit foo(): [] {
- *  assertOnlyRole(MY_ROLE);
- *  ...
+ *  ShieldedAccessControl_assertOnlyRole(MY_ROLE);
+ *  // ... rest of circuit logic
  * }
  * ```
  *
@@ -83,9 +84,9 @@ pragma language_version >= 0.21.0;
  * - The `_instanceSalt` is immutable and used to differentiate deployments.
  *
  * @notice Missing Features and Improvements:
- *
  * - Role events
  * - An ERC165-like interface
+ * - Migrate from SHA256 to a ZK-friendly hashing function when an implementation is available.
  */
 module ShieldedAccessControl {
   import CompactStandardLibrary;
@@ -103,7 +104,7 @@ module ShieldedAccessControl {
    * @ledger _operatorRoles
    * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | commitmentDomain)
    * Role commitments are derived from a public role identifier (e.g., `persistentHash<Bytes<32>>(pad(32, "MY_ROLE")`),
-   * an account identifier (e.g., `SHA256(zcpk, nonce, instanceSalt, accountDomain)`), the `instanceSalt`, and a domain separator.
+   * an account identifier (e.g., `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`), the `instanceSalt`, and a domain separator.
    * @type {Bytes<32>} RoleCommitment - A role commitment created by the following hash: SHA256( roleId | accountId | instanceSalt | commitmentDomain).
    */
   export ledger _operatorRoles: MerkleTree<20, RoleCommitment>;
@@ -154,7 +155,7 @@ module ShieldedAccessControl {
    * @witness wit_getCommitmentNullifierPath
    * @description Returns a path to a role nullifier in the `_roleCommitmentNullifiers` Merkle tree if one exists. Otherwise, returns an invalid path.
    *
-   * @param {Bytes<32>} RoleNullifier - A nullifier created by the following hash: SHA256( roleCommitment | commitmentDomain).
+   * @param {Bytes<32>} RoleNullifier - A nullifier created by the following hash: SHA256( roleCommitment | nullifierDomain).
    * @return {MerkleTreePath<20, Bytes<32>>} - The Merkle tree path to `roleNullifier` in the `_roleCommitmentNullifiers` Merkle tree
    */
   witness wit_getCommitmentNullifierPath(
@@ -165,7 +166,7 @@ module ShieldedAccessControl {
    * @witness wit_secretNonce
    * @description A private per-accountId nonce used in deriving the shielded account identifier.
    *
-   * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce, instanceSalt, accountDomain)` to produce an obfuscated,
+   * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)` to produce an obfuscated,
    * unlinkable identity commitment. Nonce MUST be unique per role to avoid cross-role linking.
    *
    * @param {Bytes<32>} roleId - The unique identifier of a role.
