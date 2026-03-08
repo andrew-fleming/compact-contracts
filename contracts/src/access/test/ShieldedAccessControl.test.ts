@@ -109,12 +109,12 @@ let shieldedAccessControl: ShieldedAccessControlSimulator;
 
 describe('ShieldedAccessControl', () => {
   describe('when not initialized correctly', () => {
-    const isNotInit = false;
+    const isInit = false;
 
     beforeEach(() => {
       shieldedAccessControl = new ShieldedAccessControlSimulator(
         INSTANCE_SALT,
-        isNotInit,
+        isInit,
       );
     });
     type FailingCircuits = [
@@ -158,6 +158,16 @@ describe('ShieldedAccessControl', () => {
         shieldedAccessControl._computeNullifier(ADMIN.roleCommitment);
       }).not.toThrow();
     });
+
+    it('should fail with 0 instanceSalt', () => {
+      const isInit = true;
+      expect(() => {
+        new ShieldedAccessControlSimulator(
+          new Uint8Array(32),
+          isInit,
+        );
+      }).toThrow('ShieldedAccessControl: Instance salt must not be 0');
+    });
   });
 
   describe('after initialization', () => {
@@ -169,7 +179,7 @@ describe('ShieldedAccessControl', () => {
         ADMIN.roleId,
         ADMIN.secretNonce,
       );
-      // Deploy contract with derived owner commitment and PS
+      // Create contract simulator with PS
       shieldedAccessControl = new ShieldedAccessControlSimulator(
         INSTANCE_SALT,
         isInit,
@@ -288,8 +298,8 @@ describe('ShieldedAccessControl', () => {
       });
 
       type CheckRoleCases = [
-        isValidRoleId: boolean,
-        isValidAccountId: boolean,
+        badRoleId: boolean,
+        badAccountId: boolean,
         args: unknown[],
       ];
       const checkedCircuits: CheckRoleCases[] = [
@@ -300,7 +310,7 @@ describe('ShieldedAccessControl', () => {
 
       it.each(
         checkedCircuits,
-      )('hasRole should be false with isValidRoleId=%s isValidAccountId=%s', (_isValidRoleId, _isValidAccountId, args) => {
+      )('hasRole should be false with badRoleId=%s badAccountId=%s', (_badRoleId, _badAccountId, args) => {
         // Test protected circuit
         expect(
           (
@@ -320,6 +330,15 @@ describe('ShieldedAccessControl', () => {
         ).toBe(false);
       });
 
+      it('isRevoked should return false if role does not exist', () => {
+        expect(
+          shieldedAccessControl._checkRole(
+            UNINITIALIZED.roleId,
+            ADMIN.accountId,
+          ).isRevoked,
+        ).toBe(false);
+      });
+
       it('hasRole should return true for granted role', () => {
         expect(
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
@@ -327,11 +346,17 @@ describe('ShieldedAccessControl', () => {
         ).toBe(true);
       });
 
+      it('isRevoked should return false for un-revoked granted role', () => {
+        expect(
+          shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
+            .isRevoked,
+        ).toBe(false);
+      });
+
       it('hasRole should return true for accountId with multiple roles', () => {
         shieldedAccessControl._grantRole(OPERATOR_1.roleId, ADMIN.accountId);
         shieldedAccessControl._grantRole(OPERATOR_2.roleId, ADMIN.accountId);
         shieldedAccessControl._grantRole(OPERATOR_3.roleId, ADMIN.accountId);
-        shieldedAccessControl.getContractState()
 
         expect(
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
@@ -351,12 +376,20 @@ describe('ShieldedAccessControl', () => {
         ).toBe(true);
       });
 
-      it('hasRole should return false for revoked role', () => {
+      it('hasRole should return false for revoked role, ', () => {
         shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+        const roleCheck = shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId);
         expect(
-          shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-            .hasRole,
+          roleCheck.hasRole
         ).toBe(false);
+      });
+
+      it('isRevoked should return true for revoked role, ', () => {
+        shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+        const roleCheck = shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId);
+        expect(
+          roleCheck.isRevoked
+        ).toBe(true);
       });
 
       it('hasRole should return false when revoked role is re-granted', () => {
@@ -368,6 +401,15 @@ describe('ShieldedAccessControl', () => {
         ).toBe(false);
       });
 
+      it('isRevoked should return true when revoked role is re-granted', () => {
+        shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+        shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+        expect(
+          shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
+            .isRevoked,
+        ).toBe(true);
+      });
+
       it('hasRole should return false for bad path', () => {
         shieldedAccessControl.overrideWitness(
           'wit_getRoleCommitmentPath',
@@ -377,6 +419,21 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
             .hasRole,
         ).toBe(false);
+      });
+
+      it('should fail when wit_getRoleCommitmentPath returns valid path for a different roleId, accountId pairing', () => {
+        shieldedAccessControl._grantRole(OPERATOR_1.roleId, OPERATOR_1.accountId);
+        // Override witness to return valid path for OPERATOR_1 role commitment
+        shieldedAccessControl.overrideWitness(
+          'wit_getRoleCommitmentPath',
+          () => {
+            const privateState = shieldedAccessControl.getPrivateState();
+            const operator1MtPath = shieldedAccessControl.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(OPERATOR_1.roleCommitment);
+            if (operator1MtPath) return [privateState, operator1MtPath]
+            else throw new Error('Merkle tree path should be defined');
+          },
+        );
+        expect(() => { shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId) }).toThrow('ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing')
       });
     });
 

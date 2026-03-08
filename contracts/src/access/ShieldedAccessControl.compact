@@ -431,7 +431,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (hasCommitment) {
       assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain queried role commitment"
+             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
              );
     }
 
@@ -445,7 +445,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (isRevoked) {
       assert(nullifierCommitmentPath.leaf == roleNullifier,
-             "ShieldedAccessControl: Path must contain queried role nullifier"
+             "ShieldedAccessControl: Path must contain leaf matching computed role nullifier for the computed role commitment"
              );
     }
 
@@ -490,7 +490,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (hasCommitment) {
       assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain queried role commitment"
+             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
              );
     }
 
@@ -504,7 +504,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (isRevoked) {
       assert(nullifierCommitmentPath.leaf == roleNullifier,
-             "ShieldedAccessControl: Path must contain queried role nullifier"
+             "ShieldedAccessControl: Path must contain leaf matching computed role nullifier for the computed role commitment"
              );
     }
 
@@ -521,7 +521,7 @@ module ShieldedAccessControl {
    * @description Computes the role commitment and associated role nullifier for a `roleId` | `accountId`
    * pairing. A role commitment is valid for a `roleId` | `accountId` pairing if and only if a valid
    * path exists in the `_operatorRoles` Merkle tree for the role commitment and a role nullifier doesn't
-   * exist for the role commitment in the `_roleCommitmentNullifiers` set.
+   * exist for the role commitment in the `_roleCommitmentNullifiers` Merkle tree.
    *
    * @circuitInfo k=14, rows=16089
    *
@@ -547,7 +547,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (hasCommitment) {
       assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain queried role commitment"
+             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
              );
     }
 
@@ -561,7 +561,7 @@ module ShieldedAccessControl {
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
     if (isRevoked) {
       assert(nullifierCommitmentPath.leaf == roleNullifier,
-             "ShieldedAccessControl: Path must contain queried role nullifier"
+             "ShieldedAccessControl: Path must contain leaf matching computed role nullifier for the computed role commitment"
              );
     }
 
