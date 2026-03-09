@@ -111,7 +111,7 @@ export circuit _checkRole(
   // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
   if (hasCommitment) {
     assert(roleCommitmentPath.leaf == roleCommitment,
-           "ShieldedAccessControl: Path must contain queried role commitment"
+           "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
            );
   }
 
@@ -127,7 +127,7 @@ export circuit _checkRole(
   // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
   if (isRevoked) {
     assert(nullifierCommitmentPath.leaf == roleNullifier,
-           "ShieldedAccessControl: Path must contain queried role nullifier"
+           "ShieldedAccessControl: Path must contain leaf matching role nullifier for the computed role commitment"
            );
   }
 
