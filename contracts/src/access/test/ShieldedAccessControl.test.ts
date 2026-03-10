@@ -123,7 +123,7 @@ describe('ShieldedAccessControl', () => {
     ];
     // Circuit calls should fail before the args are used
     const circuitsToFail: FailingCircuits[] = [
-      ['callerHasRole', [UNINITIALIZED.roleId]],
+      ['unverifiedCallerHasRole', [UNINITIALIZED.roleId]],
       ['assertOnlyRole', [UNINITIALIZED.roleId]],
       ['_checkRole', [UNINITIALIZED.roleId, UNINITIALIZED.accountId]],
       ['getRoleAdmin', [UNINITIALIZED.roleId]],
@@ -294,7 +294,6 @@ describe('ShieldedAccessControl', () => {
         shieldedAccessControl.setPersistentCaller(ADMIN.publicKey);
       });
 
-      // Test skipped due to compiler bug not updating assertion text
       it('should fail when wit_getRoleCommitmentPath returns valid path for a different roleId, accountId pairing', () => {
         shieldedAccessControl._grantRole(
           OPERATOR_1.roleId,
@@ -321,39 +320,7 @@ describe('ShieldedAccessControl', () => {
         );
       });
 
-      // Test skipped due to compiler bug not updating assertion text
-      it('should fail when wit_getCommitmentNullifierPath returns valid path for a different nullifier', () => {
-        shieldedAccessControl._grantRole(
-          OPERATOR_1.roleId,
-          OPERATOR_1.accountId,
-        );
-        shieldedAccessControl._revokeRole(
-          OPERATOR_1.roleId,
-          OPERATOR_1.accountId,
-        );
-
-        // Override witness to return valid path for OPERATOR_1 role nullifier
-        shieldedAccessControl.overrideWitness(
-          'wit_getCommitmentNullifierPath',
-          () => {
-            const privateState = shieldedAccessControl.getPrivateState();
-            const operator1MtPath = shieldedAccessControl
-              .getPublicState()
-              .ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(
-                OPERATOR_1.roleNullifier,
-              );
-            if (operator1MtPath) return [privateState, operator1MtPath];
-            throw new Error('Merkle tree path should be defined');
-          },
-        );
-        expect(() => {
-          shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId);
-        }).toThrow(
-          'ShieldedAccessControl: Path must contain leaf matching role nullifier for the computed role commitment',
-        );
-      });
-
-      describe('hasRole field', () => {
+      describe('observedHasRole field', () => {
         type CheckRoleCases = [
           badRoleId: boolean,
           badAccountId: boolean,
@@ -367,72 +334,72 @@ describe('ShieldedAccessControl', () => {
 
         it.each(
           checkedCircuits,
-        )('hasRole should be false with badRoleId=%s badAccountId=%s', (_badRoleId, _badAccountId, args) => {
+        )('observedHasRole should be false with badRoleId=%s badAccountId=%s', (_badRoleId, _badAccountId, args) => {
           // Test protected circuit
           expect(
             (
               shieldedAccessControl._checkRole as (
                 ...args: unknown[]
               ) => RoleCheck
-            )(...args).hasRole,
+            )(...args).observedHasRole,
           ).toBe(false);
         });
 
-        it('hasRole should return false if role does not exist', () => {
+        it('observedHasRole should return false if role does not exist', () => {
           expect(
             shieldedAccessControl._checkRole(
               UNINITIALIZED.roleId,
               ADMIN.accountId,
-            ).hasRole,
+            ).observedHasRole,
           ).toBe(false);
         });
 
-        it('hasRole should return true for granted role', () => {
+        it('observedHasRole should return true for granted role', () => {
           expect(
             shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(true);
         });
 
-        it('hasRole should return false when revoked role is re-granted', () => {
+        it('observedHasRole should return false when revoked role is re-granted', () => {
           shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
           shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
           expect(
             shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(false);
         });
 
-        it('hasRole should return true for accountId with multiple roles', () => {
+        it('observedHasRole should return true for accountId with multiple roles', () => {
           shieldedAccessControl._grantRole(OPERATOR_1.roleId, ADMIN.accountId);
           shieldedAccessControl._grantRole(OPERATOR_2.roleId, ADMIN.accountId);
           shieldedAccessControl._grantRole(OPERATOR_3.roleId, ADMIN.accountId);
 
           expect(
             shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(true);
           expect(
             shieldedAccessControl._checkRole(OPERATOR_1.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(true);
           expect(
             shieldedAccessControl._checkRole(OPERATOR_2.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(true);
           expect(
             shieldedAccessControl._checkRole(OPERATOR_3.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(true);
         });
 
-        it('hasRole should return false for revoked role, ', () => {
+        it('observedHasRole should return false for revoked role, ', () => {
           shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
           const roleCheck = shieldedAccessControl._checkRole(
             ADMIN.roleId,
             ADMIN.accountId,
           );
-          expect(roleCheck.hasRole).toBe(false);
+          expect(roleCheck.observedHasRole).toBe(false);
         });
 
         it('hasRole should return false for bad _operatorRoles path', () => {
@@ -442,7 +409,7 @@ describe('ShieldedAccessControl', () => {
           );
           expect(
             shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-              .hasRole,
+              .observedHasRole,
           ).toBe(false);
         });
       });
@@ -470,25 +437,6 @@ describe('ShieldedAccessControl', () => {
               ADMIN.accountId,
             ).isRevoked,
           ).toBe(false);
-        });
-
-        it('should appear active (hasRole=true, isRevoked=false) when nullifier path witness returns a bad path', () => {
-          // SIMULATOR LIMITATION: in the simulator, a bad nullifier path causes
-          // _roleCommitmentNullifiers.checkRoot() to return false, so isRevoked=false
-          // and the role appears active even though it was revoked.
-          // In production ZK this cannot happen: an incorrect path produces an
-          // invalid proof that the verifier rejects.
-          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
-          shieldedAccessControl.overrideWitness(
-            'wit_getCommitmentNullifierPath',
-            RETURN_BAD_PATH,
-          );
-          const roleCheck = shieldedAccessControl._checkRole(
-            ADMIN.roleId,
-            ADMIN.accountId,
-          );
-          expect(roleCheck.isRevoked).toBe(false);
-          expect(roleCheck.hasRole).toBe(true);
         });
 
         it('isRevoked should return true when revoked role is re-granted', () => {
@@ -710,16 +658,69 @@ describe('ShieldedAccessControl', () => {
     });
 
     describe('_grantRole', () => {
+      describe('should fail', () => {
+        it('when valid merkle tree path in _operatorRoles does not contain matching leaf', () => {
+          shieldedAccessControl._grantRole(
+            OPERATOR_1.roleId,
+            OPERATOR_1.accountId,
+          );
+          // Override witness to return valid path for OPERATOR_1 role commitment
+          shieldedAccessControl.overrideWitness(
+            'wit_getRoleCommitmentPath',
+            () => {
+              const privateState = shieldedAccessControl.getPrivateState();
+              const operator1MtPath = shieldedAccessControl
+                .getPublicState()
+                .ShieldedAccessControl__operatorRoles.findPathForLeaf(
+                  OPERATOR_1.roleCommitment,
+                );
+              if (operator1MtPath) return [privateState, operator1MtPath];
+              throw new Error('Merkle tree path should be defined');
+            },
+          );
+          expect(() => {
+            shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+          }).toThrow(
+            'ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing',
+          );
+        });
+      });
+
       describe('should return true', () => {
-        it('when granting a new role', () => {
+        it('when authorized user grants a new role', () => {
+          shieldedAccessControl.as(ADMIN.publicKey);
           expect(
             shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
           ).toBe(true);
         });
+
+        it('when unauthorized user grants role', () => {
+          shieldedAccessControl.as(UNAUTHORIZED.publicKey)
+          expect(
+            shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
+          ).toBe(true);
+        });
+
+        it('when witnesses return a bad path', () => {
+          // SIMULATOR LIMITATION: in the simulator, a bad nullifier path causes
+          // _roleCommitmentNullifiers.checkRoot() to return false, so isRevoked=false
+          // and the role appears active even though it was revoked.
+          // In production ZK this cannot happen: an incorrect path produces an
+          // invalid proof that the verifier rejects.
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+          shieldedAccessControl.overrideWitness('wit_getRoleCommitmentPath', RETURN_BAD_PATH);
+
+          const isGranted = shieldedAccessControl._grantRole(
+            ADMIN.roleId,
+            ADMIN.accountId,
+          );
+          expect(isGranted).toBe(true);
+        });
       });
 
       describe('should update _operatorRoles merkle tree', () => {
-        it('when granting a new role', () => {
+        it('when authorized user grants a new role', () => {
           // check merkle tree is empty
           let merkleRoot = shieldedAccessControl
             .getPublicState()
@@ -727,6 +728,28 @@ describe('ShieldedAccessControl', () => {
           expect(merkleRoot.field).toBe(0n);
 
           // check merkle tree is updated
+          shieldedAccessControl.as(ADMIN.publicKey);
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+          merkleRoot = shieldedAccessControl
+            .getPublicState()
+            .ShieldedAccessControl__operatorRoles.root();
+          expect(merkleRoot).not.toBe(0n);
+
+          // check path exists for new role
+          const merkleTreePath = shieldedAccessControl.getPublicState().ShieldedAccessControl__operatorRoles.findPathForLeaf(ADMIN.roleCommitment);
+          expect(merkleTreePath).toBeDefined();
+          expect(merkleTreePath?.leaf).toStrictEqual(ADMIN.roleCommitment);
+        });
+
+        it('when unauthorized user grants a new role', () => {
+          // check merkle tree is empty
+          let merkleRoot = shieldedAccessControl
+            .getPublicState()
+            .ShieldedAccessControl__operatorRoles.root();
+          expect(merkleRoot.field).toBe(0n);
+
+          // check merkle tree is updated
+          shieldedAccessControl.as(UNAUTHORIZED.publicKey);
           shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
           merkleRoot = shieldedAccessControl
             .getPublicState()
@@ -743,57 +766,47 @@ describe('ShieldedAccessControl', () => {
       describe('should return false', () => {
         it('when re-granting a role', () => {
           shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-          const merkleRoot = shieldedAccessControl
-            .getPublicState()
-            .ShieldedAccessControl__operatorRoles.root();
           expect(
             shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
           ).toBe(false);
-          expect(
-            shieldedAccessControl
-              .getPublicState()
-              .ShieldedAccessControl__operatorRoles.root(),
-          ).toEqual(merkleRoot);
         });
 
-        it('should not re-grant revoked role', () => {
+        it('when re-granting revoked role', () => {
           shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
           shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
           expect(
             shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
           ).toBe(false);
+        });
+      });
+
+      describe('should not update _operatorRoles merkle tree', () => {
+        it('when re-granting a role', () => {
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
           const merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(
-            shieldedAccessControl
-              .getPublicState()
-              .ShieldedAccessControl__operatorRoles.root(),
-          ).toEqual(merkleRoot);
+
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId)
+          const newMerkleRoot = shieldedAccessControl
+            .getPublicState()
+            .ShieldedAccessControl__operatorRoles.root();
+          expect(merkleRoot).toEqual(newMerkleRoot);
         });
-      })
 
+        it('when re-granting revoked role', () => {
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+          const merkleRoot = shieldedAccessControl
+            .getPublicState()
+            .ShieldedAccessControl__operatorRoles.root();
 
-
-
-      it('should update Merkle tree root', () => {
-        const initialMtRoot = shieldedAccessControl
-          .getPublicState()
-          .ShieldedAccessControl__operatorRoles.root();
-        shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-        const updatedMtRoot = shieldedAccessControl
-          .getPublicState()
-          .ShieldedAccessControl__operatorRoles.root();
-        expect(initialMtRoot).not.toEqual(updatedMtRoot);
-      });
-
-      it('path for role commitment should exist', () => {
-        shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-        const path =
-          shieldedAccessControl.privateState.getCommitmentPathWithFindForLeaf(
-            ADMIN.roleCommitment,
-          );
-        expect(path).not.toBe(undefined);
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId)
+          const newMerkleRoot = shieldedAccessControl
+            .getPublicState()
+            .ShieldedAccessControl__operatorRoles.root();
+          expect(merkleRoot).toEqual(newMerkleRoot);
+        });
       });
     });
 
@@ -822,56 +835,58 @@ describe('ShieldedAccessControl', () => {
         ).toBe(true);
       });
 
-      it('should update nullifier root on revoke', () => {
-        const initialNullifierRoot = shieldedAccessControl
+      it('should update nullifier set on revoke', () => {
+        const initialSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(initialSetSize).toBe(0n);
+
         shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
         const isRevoked = shieldedAccessControl._revokeRole(
           ADMIN.roleId,
           ADMIN.accountId,
         );
         expect(isRevoked).toBe(true);
-        const updatedNullifierRoot = shieldedAccessControl
+
+        const updatedSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
-        expect(initialNullifierRoot).not.toEqual(updatedNullifierRoot);
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(updatedSetSize).toBe(1n);
+        expect(shieldedAccessControl
+          .getPublicState()
+          .ShieldedAccessControl__roleCommitmentNullifiers.member(ADMIN.roleNullifier)).toBe(true);
       });
 
-      it('should not update nullifier root on failed revoke', () => {
-        const initialNullifierRoot = shieldedAccessControl
+      it('should not update nullifier set on failed revoke', () => {
+        const initialSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(initialSetSize).toBe(0n);
+
         const isRevoked = shieldedAccessControl._revokeRole(
           ADMIN.roleId,
           ADMIN.accountId,
         );
         expect(isRevoked).toBe(false);
-        const updatedNullifierRoot = shieldedAccessControl
-          .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
-        expect(initialNullifierRoot).toEqual(updatedNullifierRoot);
-      });
 
-      it('path for role nullifier should exist after revoke', () => {
-        shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-        shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
-        const path =
-          shieldedAccessControl.privateState.getNullifierPathWithFindForLeaf(
-            ADMIN.roleNullifier,
-          );
-        expect(path).not.toBe(undefined);
+        const updatedSetSize = shieldedAccessControl
+          .getPublicState()
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(updatedSetSize).toEqual(initialSetSize);
+        expect(shieldedAccessControl
+          .getPublicState()
+          .ShieldedAccessControl__roleCommitmentNullifiers.member(ADMIN.roleNullifier)).toBe(false)
       });
     });
 
-    describe('callerHasRole', () => {
+    describe('unverifiedCallerHasRole', () => {
       beforeEach(() => {
         shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
         shieldedAccessControl.setPersistentCaller(ADMIN.publicKey);
       });
 
       it('should return true for caller with granted role', () => {
-        expect(shieldedAccessControl.callerHasRole(ADMIN.roleId)).toBe(true);
+        expect(shieldedAccessControl.unverifiedCallerHasRole(ADMIN.roleId)).toBe(true);
       });
 
       it('should return false for caller without role', () => {
@@ -883,31 +898,29 @@ describe('ShieldedAccessControl', () => {
           OPERATOR_1.roleId,
           OPERATOR_1.secretNonce,
         );
-        expect(shieldedAccessControl.callerHasRole(OPERATOR_1.roleId)).toBe(
+        expect(shieldedAccessControl.unverifiedCallerHasRole(OPERATOR_1.roleId)).toBe(
           false,
         );
       });
 
       it('should return false for caller with revoked role', () => {
         shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
-        expect(shieldedAccessControl.callerHasRole(ADMIN.roleId)).toBe(false);
+        expect(shieldedAccessControl.unverifiedCallerHasRole(ADMIN.roleId)).toBe(false);
       });
 
       it('should return false for revoked role after re-grant attempt', () => {
         shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
         shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-        expect(shieldedAccessControl.callerHasRole(ADMIN.roleId)).toBe(false);
+        expect(shieldedAccessControl.unverifiedCallerHasRole(ADMIN.roleId)).toBe(false);
       });
 
       it('should return false for a different caller sharing the same private state', () => {
         // UNAUTHORIZED uses the same private state (ADMIN.secretNonce for ADMIN.roleId),
         // so their derived accountId won't match the committed one.
         shieldedAccessControl.setPersistentCaller(UNAUTHORIZED.publicKey);
-        expect(shieldedAccessControl.callerHasRole(ADMIN.roleId)).toBe(false);
+        expect(shieldedAccessControl.unverifiedCallerHasRole(ADMIN.roleId)).toBe(false);
       });
     });
-
-
 
     describe('getRoleAdmin', () => {
       it('should return zero bytes (DEFAULT_ADMIN_ROLE) for a role with no admin set', () => {
