@@ -74,8 +74,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeNullifier(roleCommitment);
   }
 
-  public callerHasRole(roleId: Uint8Array): boolean {
-    return this.circuits.impure.callerHasRole(roleId);
+  public unverifiedCallerHasRole(roleId: Uint8Array): boolean {
+    return this.circuits.impure.unverifiedCallerHasRole(roleId);
   }
 
   /**
@@ -199,21 +199,6 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
       return this.witnesses.wit_getRoleCommitmentPath(
         this.getWitnessContext(),
         roleCommitment,
-      )[1];
-    },
-    getNullifierPathWithFindForLeaf: (
-      nullifierCommitment: Uint8Array,
-    ): MerkleTreePath<Uint8Array> | undefined => {
-      return this.getPublicState().ShieldedAccessControl__roleCommitmentNullifiers.findPathForLeaf(
-        nullifierCommitment,
-      );
-    },
-    getNullifierPathWithWitnessImpl: (
-      nullifierCommitment: Uint8Array,
-    ): MerkleTreePath<Uint8Array> => {
-      return this.witnesses.wit_getCommitmentNullifierPath(
-        this.getWitnessContext(),
-        nullifierCommitment,
       )[1];
     },
   };
