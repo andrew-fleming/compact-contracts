@@ -13,7 +13,7 @@ import type {
   ShieldedAccessControl_RoleCheck as RoleCheck,
   ZswapCoinPublicKey,
 } from '../../../artifacts/MockShieldedAccessControl/contract/index.js';
-import { ShieldedAccessControlPrivateState } from '../witnesses/ShieldedAccessControlWitnesses.js';
+import { ShieldedAccessControlPrivateState, ShieldedAccessControlWitnesses } from '../witnesses/ShieldedAccessControlWitnesses.js';
 import { ShieldedAccessControlSimulator } from './simulators/ShieldedAccessControlSimulator.js';
 
 const INSTANCE_SALT = new Uint8Array(32).fill(48473095);
@@ -700,23 +700,6 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
           ).toBe(true);
         });
-
-        it('when witnesses return a bad path', () => {
-          // SIMULATOR LIMITATION: in the simulator, a bad nullifier path causes
-          // _roleCommitmentNullifiers.checkRoot() to return false, so isRevoked=false
-          // and the role appears active even though it was revoked.
-          // In production ZK this cannot happen: an incorrect path produces an
-          // invalid proof that the verifier rejects.
-          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
-          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
-          shieldedAccessControl.overrideWitness('wit_getRoleCommitmentPath', RETURN_BAD_PATH);
-
-          const isGranted = shieldedAccessControl._grantRole(
-            ADMIN.roleId,
-            ADMIN.accountId,
-          );
-          expect(isGranted).toBe(true);
-        });
       });
 
       describe('should update _operatorRoles merkle tree', () => {
@@ -777,6 +760,29 @@ describe('ShieldedAccessControl', () => {
           expect(
             shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId),
           ).toBe(false);
+        });
+
+        it('when witness returns a bad path', () => {
+          // a bad role commitment path causes _operatorRoles.checkRoot() to return false, so observedHasRole=false
+          // isRevoked=false because the role has not been revoked yet so this will allow a duplicate role
+          // commitment to be added to the merkle tree. However, duplicate role commitments do not
+          // violate our security invariant
+          shieldedAccessControl._grantRole(ADMIN.roleId, ADMIN.accountId);
+          shieldedAccessControl.overrideWitness('wit_getRoleCommitmentPath', RETURN_BAD_PATH);
+
+          const isGranted = shieldedAccessControl._grantRole(
+            ADMIN.roleId,
+            ADMIN.accountId,
+          );
+          expect(isGranted).toBe(true);
+
+          // Reset witness back to the default implementation
+          shieldedAccessControl.overrideWitness('wit_getRoleCommitmentPath', ShieldedAccessControlWitnesses().wit_getRoleCommitmentPath);
+          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+          expect(shieldedAccessControl.getPublicState().ShieldedAccessControl__roleCommitmentNullifiers.member(ADMIN.roleNullifier)).toBe(true);
+
+          const roleCheck = shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId);
+          expect(roleCheck.isRevoked).toBe(true);
         });
       });
 
@@ -976,7 +982,7 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._checkRole(
             OPERATOR_1.roleId,
             OPERATOR_1.accountId,
-          ).hasRole,
+          ).observedHasRole,
         ).toBe(true);
       });
 
@@ -1042,7 +1048,7 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._checkRole(
             OPERATOR_2.roleId,
             OPERATOR_2.accountId,
-          ).hasRole,
+          ).observedHasRole,
         ).toBe(true);
       });
     });
@@ -1068,7 +1074,7 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._checkRole(
             OPERATOR_1.roleId,
             OPERATOR_1.accountId,
-          ).hasRole,
+          ).observedHasRole,
         ).toBe(false);
       });
 
@@ -1087,9 +1093,9 @@ describe('ShieldedAccessControl', () => {
           OPERATOR_1.roleId,
           OPERATOR_1.accountId,
         );
-        const nullifierRoot = shieldedAccessControl
+        const nullifierSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
         expect(() =>
           shieldedAccessControl.revokeRole(
             OPERATOR_1.roleId,
@@ -1099,8 +1105,8 @@ describe('ShieldedAccessControl', () => {
         expect(
           shieldedAccessControl
             .getPublicState()
-            .ShieldedAccessControl__roleCommitmentNullifiers.root(),
-        ).toEqual(nullifierRoot);
+            .ShieldedAccessControl__roleCommitmentNullifiers.size(),
+        ).toEqual(nullifierSetSize);
       });
     });
 
@@ -1116,7 +1122,7 @@ describe('ShieldedAccessControl', () => {
         ).not.toThrow();
         expect(
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-            .hasRole,
+            .observedHasRole,
         ).toBe(false);
       });
 
@@ -1138,19 +1144,23 @@ describe('ShieldedAccessControl', () => {
         ).not.toThrow();
         expect(
           shieldedAccessControl._checkRole(ADMIN.roleId, ADMIN.accountId)
-            .hasRole,
+            .observedHasRole,
         ).toBe(false);
       });
 
       it('should update nullifier root on successful renounce', () => {
-        const initialNullifierRoot = shieldedAccessControl
+        const nullifierSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(nullifierSetSize).toBe(0n);
         shieldedAccessControl.renounceRole(ADMIN.roleId, ADMIN.accountId);
-        const updatedNullifierRoot = shieldedAccessControl
+        const updatedSetSize = shieldedAccessControl
           .getPublicState()
-          .ShieldedAccessControl__roleCommitmentNullifiers.root();
-        expect(initialNullifierRoot).not.toEqual(updatedNullifierRoot);
+          .ShieldedAccessControl__roleCommitmentNullifiers.size();
+        expect(updatedSetSize).toEqual(1n);
+        expect(shieldedAccessControl
+          .getPublicState()
+          .ShieldedAccessControl__roleCommitmentNullifiers.member(ADMIN.roleNullifier))
       });
     });
   });
