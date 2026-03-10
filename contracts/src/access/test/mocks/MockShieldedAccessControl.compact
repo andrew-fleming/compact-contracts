@@ -23,11 +23,6 @@ witness wit_getRoleCommitmentPath(
           roleCommitment: ShieldedAccessControl_RoleCommitment
           ): MerkleTreePath<20, ShieldedAccessControl_RoleCommitment>;
 
-// witness is re-implemented in the Mock contract for testing
-witness wit_getCommitmentNullifierPath(
-          roleNullifier: ShieldedAccessControl_RoleNullifier
-          ): MerkleTreePath<20, ShieldedAccessControl_RoleNullifier>;
-
 /**
  * @description `isInit` is a param for testing.
  *
@@ -84,8 +79,10 @@ export pure circuit _computeNullifier(
          as ShieldedAccessControl_RoleNullifier;
 }
 
-export circuit callerHasRole(roleId: ShieldedAccessControl_RoleIdentifier): Boolean {
-  return ShieldedAccessControl_callerHasRole(roleId);
+export circuit unverifiedCallerHasRole(
+                 roleId: ShieldedAccessControl_RoleIdentifier
+                 ): ShieldedAccessControl_HonestPathIndicator {
+  return ShieldedAccessControl_unverifiedCallerHasRole(roleId);
 }
 
 export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] {
@@ -116,28 +113,11 @@ export circuit _checkRole(
   }
 
   const roleNullifier = _computeNullifier(roleCommitment);
-  const nullifierCommitmentPath = wit_getCommitmentNullifierPath(roleNullifier);
-  const isRevoked =
-          ShieldedAccessControl__roleCommitmentNullifiers.checkRoot(
-            merkleTreePathRoot<20, ShieldedAccessControl_RoleNullifier>(
-              disclose(nullifierCommitmentPath)
-              )
-            );
+  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
 
-  // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-  if (isRevoked) {
-    assert(nullifierCommitmentPath.leaf == roleNullifier,
-           "ShieldedAccessControl: Path must contain leaf matching role nullifier for the computed role commitment"
-           );
-  }
+  const observedHasRole = hasCommitment && !isRevoked;
 
-  const hasRole = hasCommitment && !isRevoked;
-
-  if (hasRole) {
-    return ShieldedAccessControl_RoleCheck { hasRole, isRevoked };
-  } else {
-    return ShieldedAccessControl_RoleCheck { hasRole, isRevoked };
-  }
+  return ShieldedAccessControl_RoleCheck { observedHasRole as ShieldedAccessControl_HonestPathIndicator, isRevoked };
 }
 
 export circuit getRoleAdmin(
@@ -177,13 +157,13 @@ export circuit _setRoleAdmin(
 export circuit _grantRole(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): Boolean {
+                 ): ShieldedAccessControl_HonestPathIndicator {
   return ShieldedAccessControl__grantRole(roleId, accountId);
 }
 
 export circuit _revokeRole(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): Boolean {
+                 ): ShieldedAccessControl_HonestPathIndicator {
   return ShieldedAccessControl__revokeRole(roleId, accountId);
 }
