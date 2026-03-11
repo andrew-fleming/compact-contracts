@@ -10,20 +10,39 @@ pragma language_version >= 0.21.0;
  * This module provides a shielded role-based access control (RBAC) mechanism, where roles can be used to
  * represent a set of permissions. Roles are stored as Merkle tree commitments to avoid
  * disclosing information about role holders. Role commitments are created with the following
- * hashing scheme SHA256(roleId | accountId | instanceSalt | commitmentDomain). Where
- *  - `accountId` is a unique SHA256 hash of a user's ZswapCoinPublicKey and a 32 byte secret nonce value
- *     held in a user's local private state
- *  - `roleId` is a unique `Bytes<32>` identifier
+ * hashing scheme, where `‖` denotes concatenation and all values are `Bytes<32>`:
+ *
+ * ```
+ * roleCommitment := SHA256( role ‖ accountId ‖ instanceSalt ‖ commitmentDomain ) where
+ *
+ * accountId := SHA256( zcpk ‖ nonce ‖ instanceSalt ‖ accountIdDomain )
+ *
+ * roleNullifier  := SHA256( roleCommitment ‖ nullifierDomain )
+ *
+ * commitmentDomain := pad(32, "ShieldedAccessControl:commitment")
+ * accountIdDomain  := pad(32, "ShieldedAccessControl:accountId")
+ * nullifierDomain  := pad(32, "ShieldedAccessControl:nullifier")
+ * ```
+ *
+ *  - `roleCommitment` is a Merkle tree leaf committing a `(roleId, accountId)` pairing, inserted
+ *     into `_operatorRoles` on grant. The `instanceSalt` prevents commitment collisions across
+ *     deployments that share the same role identifiers.
+ *  - `accountId` is a privacy-preserving identity commitment. `zcpk` is the user's
+ *     `ZswapCoinPublicKey`; `nonce` is a per-role secret held in local private state
+ *     (supplied by `wit_secretNonce`); `instanceSalt` ensures the same key and nonce
+ *     cannot be correlated across contracts.
+ *  - `roleNullifier` is a one-time burn token inserted into `_roleCommitmentNullifiers` on
+ *     revocation. Its presence permanently invalidates the corresponding role commitment,
+ *     making re-grant under the same `accountId` impossible without generating a new identity.
  *  - `instanceSalt` is an immutable, cryptographically strong random value provided on deployment
  *  - `commitmentDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:commitment"
+ *  - `accountIdDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:accountId"
+ *  - `commitmentDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:nullifier"
  *
  * In this RBAC model, role commitments behave like private bearer tokens. Possession of a valid, non-revoked role
  * commitment grants authorization. Revocation permanently burns the role instance, requiring explicit new issuance
  * under a new account identifier. Users must rotate their identity (new nonce) to be re-authorized. This creates
  * stronger security invariants over traditional RBAC systems and enables privacy-preserving identity rotation.
- *
- * @notice Using the SHA256 hashing function comes at a significant performance cost. In the future, we
- * plan on migrating to a ZK-friendly hashing function when an implementation is available.
  *
  * Roles are referred to by their `Bytes<32>` identifier. These should be exposed
  * in the top-level contract and be unique. One way to achieve this is by
@@ -68,30 +87,27 @@ pragma language_version >= 0.21.0;
  * - Outside observers will know which role identifiers are admin identifiers.
  * - Outside observers will have knowledge of all role identifiers.
  * - Outside observers will have knowledge of all role nullifiers and can link every nullifier to its corresponding commitment.
- * - Outside observers will have knowledge of role additions and revocations.
+ * - Outside observers will know when roles are a granted and revoked.
  * - Outside observers can infer the total number of role grants made across all roles — not per-role counts, but the cumulative total.
  * - Outside observers can link calls made by the same role instance across time.
- * - If a user ever reveals their nonce or reuses it poorly, they can be deanonymized retroactively.
+ * - Users can be retroactively deanonymized if their nonce is exposed or reused poorly.
  * - Outside observers will NOT be able to identify the public address of any role holder
  *   so long as secret nonce values are kept private and generated using cryptographically
  *   secure random values.
  *
  * @dev Security Considerations:
  * - The `secretNonce` must be kept private. Loss of the nonce prevents role holders
- *   and admins from proving access or transferring it. Public exposure, poor nonce selection or nonce
+ *   and admins from proving access or transferring it. Nonce exposure, poor nonce selection and nonce
  *   reuse may weaken privacy guarantees and allow retroactive deanonymization.
- * - Role authorization depends on two mechanisms with different trust levels:
- *   commitment presence is verified via witness-supplied Merkle paths and is
- *   subject to honest-path limitations; revocation status is verified via direct
- *   Set membership and provides a cryptographic guarantee regardless of witness behavior.
  * - It's strongly recommended to use cryptographically secure random values for the `_instanceSalt`.
- *   Failure to do so could lead to the exposure of public keys.
+ *   Failure to do so may weaken privacy guarantees.
  * - The `_instanceSalt` is immutable and used to differentiate deployments.
  * - The `_operatorRoles` Merkle tree has a fixed capacity of 2^20 leaf slots.
- *   Deployers should monitor slot consumption off-chain. A malicious or
- *   careless admin can exhaust capacity through repeated grants of the same
- *   roleId | accountId pairing, as the commitment existence check provides
- *   no cryptographic guarantee against duplicate insertions.
+ *   Deployers should monitor slot consumption off-chain. A careless admin can exhaust
+ *   capacity through repeated grants of the same active (role, accountId) pairing.
+ *
+ * @notice Using the SHA256 hashing function comes at a significant performance cost. In the future, we
+ * plan on migrating to a ZK-friendly hashing function when an implementation is available.
  *
  * @notice Missing Features and Improvements:
  * - Role events
@@ -103,20 +119,19 @@ module ShieldedAccessControl {
   import "../utils/Utils" prefix Utils_;
   import "../security/Initializable" prefix Initializable_;
 
+  // TODO: Standardize types across contracts https://github.com/OpenZeppelin/compact-contracts/issues/368
   export new type RoleCommitment = Bytes<32>;
   export new type RoleIdentifier = Bytes<32>;
   export new type AccountIdentifier = Bytes<32>;
   export new type AdminIdentifier = Bytes<32>;
   export new type RoleNullifier = Bytes<32>;
-  export new type HonestPathIndicator = Boolean;
-  type ZcpkOrContractAddress = Either<ZswapCoinPublicKey, ContractAddress>;
 
   /**
    * @ledger _operatorRoles
-   * @description A Merkle tree of role commitments stored as SHA256(roleId | accountId | instanceSalt | commitmentDomain)
+   * @description A Merkle tree of role commitments stored as SHA256(role | accountId | instanceSalt | commitmentDomain)
    * Role commitments are derived from a public role identifier (e.g., `persistentHash<Bytes<32>>(pad(32, "MY_ROLE")`),
    * an account identifier (e.g., `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`), the `instanceSalt`, and a domain separator.
-   * @type {Bytes<32>} RoleCommitment - A role commitment created by the following hash: SHA256( roleId | accountId | instanceSalt | commitmentDomain).
+   * @type {Bytes<32>} RoleCommitment - A role commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
    */
   export ledger _operatorRoles: MerkleTree<20, RoleCommitment>;
 
@@ -155,7 +170,8 @@ module ShieldedAccessControl {
    * @witness wit_getRoleCommitmentPath
    * @description Returns a path to a role commitment in the `_operatorRoles` Merkle tree if one exists. Otherwise, returns an invalid path.
    *
-   * @param {Bytes<32>} RoleCommitment - A commitment created by the following hash: SHA256( roleId | accountId | instanceSalt | commitmentDomain).
+   * @param {Bytes<32>} roleCommitment - A commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
+   *
    * @return {MerkleTreePath<20, Bytes<32>>} - The Merkle tree path to `roleCommitment` in the `_operatorRoles` Merkle tree
    */
   witness wit_getRoleCommitmentPath(
@@ -164,30 +180,16 @@ module ShieldedAccessControl {
 
   /**
    * @witness wit_secretNonce
-   * @description A private per-accountId nonce used in deriving the shielded account identifier.
+   * @description Returns a private per-role nonce used in deriving the shielded account identifier for a role.
    *
    * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)` to produce an obfuscated,
    * unlinkable identity commitment. Nonce MUST be unique per role to avoid cross-role linking.
    *
-   * @param {Bytes<32>} roleId - The unique identifier of a role.
-   */
-  witness wit_secretNonce(roleId: RoleIdentifier): Bytes<32>;
-
-  /**
-   * @description A struct containing auth information for a particular `roleId` | `accountId` pairing.
+   * @param {Bytes<32>} role - The unique identifier of a role.
    *
-   * @type {Boolean} observedHasRole - Honest-path indicator derived from a witness-supplied Merkle path and can be spoofed by a
-   * malicious prover supplying a garbage path, producing a false negative (observedHasRole = false for a legitimately credentialed holder).
-   * It MUST NOT be used as a security gate in calling circuits. Its failure mode is a liveness concern only — a spoofed absence
-   * cannot grant access, it can only deny it.
-   *
-   * @type {Boolean} isRevoked - A boolean flag indicating if a nullifier exists for `roleCommitment`. It is derived from a direct
-   * Set membership lookup requiring no witness. It cannot be spoofed by a malicious prover and MAY be used as a security gate in calling circuits.
+   * @returns {Bytes<32>} secretNonce - A private per-role nonce used in deriving the shielded account identifier.
    */
-  export struct RoleCheck {
-    observedHasRole: HonestPathIndicator;
-    isRevoked: Boolean;
-  }
+  witness wit_secretNonce(role: RoleIdentifier): Bytes<32>;
 
   /**
    * @description Initializes the contract by storing the `instanceSalt` that acts as a privacy additive
@@ -204,6 +206,7 @@ module ShieldedAccessControl {
    *
    * @param {Bytes<32>} instanceSalt - Contract salt to prevent duplicate commitments if
    * users reuse their PK and secretNonce witness across different contracts (not recommended). Must not be zero.
+   *
    * @returns {[]} Empty tuple.
    */
   export circuit initialize(instanceSalt: Bytes<32>): [] {
@@ -214,66 +217,63 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Returns `true` if a caller is authorized for `roleId`.
-   *
-   * @notice Completeness is not guaranteed — this circuit may fail for a
-   *         legitimately credentialed caller if the proving environment supplies
-   *         an invalid Merkle path. Soundness is guaranteed — this circuit will
-   *         never return true for an unauthorized caller.
+   * @description Returns `true` if a caller proves ownership of `role` and is not revoked. MAY return false for a legitimately credentialed
+   * caller if the proving environment supplies an invalid Merkle path. This circuit will never return true for an
+   * unauthorized caller.
    *
    * @circuitInfo k=15, rows=22128
    *
+   * Requirements:
+   *
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   *
    * Disclosures:
    *
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The nullifier commitment stored in the `_roleCommitmentNullifiers` set.
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
-   * @return {Boolean} - An honest-path indicator determining if a caller has the specified role.
+   * @param {Bytes<32>} role - The role identifier.
+   *
+   * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
    */
-  export circuit unverifiedCallerHasRole(roleId: RoleIdentifier): HonestPathIndicator {
+  export circuit proveCallerRole(role: RoleIdentifier): Boolean {
     Initializable_assertInitialized();
 
-    const callerAsEither =
-            ZcpkOrContractAddress { is_left: true,
-                                    left: ownPublicKey(),
-                                    right: ContractAddress { bytes: pad(32, "") } };
-    const nonce = wit_secretNonce(roleId);
-    const accountId = _computeAccountId(callerAsEither, nonce);
-    return _checkRole(roleId, accountId).observedHasRole;
+    const nonce = wit_secretNonce(role);
+    const accountId = _computeAccountId(ownPublicKey(), nonce);
+    return _validateRole(role, accountId);
   }
 
   /**
-   * @description Reverts if caller is not authorized for `roleId`.
-   *
-   * @notice Completeness is not guaranteed — this circuit may fail for a
-   *         legitimately credentialed caller if the proving environment supplies
-   *         an invalid Merkle path. Soundness is guaranteed — this circuit will
-   *         never return true for an unauthorized caller.
+   * @description Reverts if caller cannot provide a valid proof of ownership for `role`.
    *
    * @circuitInfo k=15, rows=22130
    *
    * Requirements:
    *
-   * - caller must have authorization for `roleId`.
+   * - caller must prove ownership of `role`.
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
    *
    * Disclosures:
    *
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The nullifier commitment stored in the `_roleCommitmentNullifiers` set.
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Bytes<32>} role - The role identifier.
+   *
    * @return {[]} - Empty tuple.
    */
-  export circuit assertOnlyRole(roleId: RoleIdentifier): [] {
+  export circuit assertOnlyRole(role: RoleIdentifier): [] {
     Initializable_assertInitialized();
 
-    assert(unverifiedCallerHasRole(roleId), "ShieldedAccessControl: unauthorized account");
+    assert(proveCallerRole(role), "ShieldedAccessControl: unauthorized account");
   }
 
   /**
-   * @description Returns the admin role that controls `roleId` or a zero
-   * byte array if `roleId` doesn't exist. See {grantRole} and {revokeRole}.
+   * @description Returns the admin role that controls `role` or a zero
+   * byte array if `role` doesn't exist. See {grantRole} and {revokeRole}.
    *
    * To change a role’s admin use {_setRoleAdmin}.
    *
@@ -281,190 +281,74 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role identifier
+   * - A role identifier.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
-   * @return {Bytes<32>} roleAdmin - The admin role that controls `roleId`.
+   * @param {Bytes<32>} role - The role identifier.
+   *
+   * @return {Bytes<32>} roleAdmin - The admin role that controls `role`.
    */
-  export circuit getRoleAdmin(roleId: RoleIdentifier): AdminIdentifier {
+  export circuit getRoleAdmin(role: RoleIdentifier): AdminIdentifier {
     Initializable_assertInitialized();
 
-    if (_adminRoles.member(disclose(roleId))) {
-      return _adminRoles.lookup(disclose(roleId));
+    if (_adminRoles.member(disclose(role))) {
+      return _adminRoles.lookup(disclose(role));
     }
     return default<Bytes<32>> as AdminIdentifier;
   }
 
   /**
-   * @description Grants `roleId` to `accountId` by inserting a role commitment unique to the
-   * `roleId` | `accountId` pairing into the `_operatorRoles` Merkle tree. A valid `roleId` can only be
-   * issued to `accountId` once. Once revoked, a new `accountId` must be generated to be re-authorized for
-   * `roleId`
-   *
-   * @notice Completeness is not guaranteed — this circuit may fail for a
-   *         legitimately credentialed admin if the proving environment supplies
-   *         an invalid Merkle path. Soundness is guaranteed — this circuit will never grant a role to an
-   *         `accountId` unless the caller is authorized as admin for `roleId`.
+   * @description Grants `role` to `accountId` by inserting a role commitment unique to the
+   * `(role, accountId)` pairing into the `_operatorRoles` Merkle tree. Duplicate role commitments can be issued
+   * so long as they remain unrevoked. This does not yield any additional authority and simply wastes
+   * limited Merkle tree storage slots. Once revoked, a role cannot be re-granted. A new `accountId` must be
+   * generated to be re-authorized for a revoked `role`.
    *
    * Requirements:
    *
-   * - caller must be admin for `roleId`
+   * - caller must prove they're an admin for `role`.
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
    *
    * @circuitInfo k=16, rows=39993
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role identifier
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The nullifier commitment stored in the `_roleCommitmentNullifiers` set.
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   * - A role identifier.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Bytes<32>} role - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
+   *
    * @return {[]} - Empty tuple.
    */
-  export circuit grantRole(roleId: RoleIdentifier, accountId: AccountIdentifier): [] {
+  export circuit grantRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    assertOnlyRole(getRoleAdmin(roleId) as RoleIdentifier);
-    _grantRole(roleId, accountId);
+    assertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _grantRole(role, accountId);
   }
 
   /**
-   * @description Revokes `roleId` from `accountId` by inserting a role nullifier into the
-   * `_roleNullifiers` set. Once revoked, a new `accountId` must be generated to be re-authorized for
-   * `roleId`
-   *
-   * @notice Completeness is not guaranteed — this circuit may fail for a
-   *         legitimately credentialed admin if the proving environment supplies
-   *         an invalid Merkle path. Soundness is guaranteed — this circuit will never revoke a role from an
-   *         `accountId` unless the caller is authorized as admin for `roleId`.
-   *
-   * @circuitInfo k=18, rows=138517
-   *
-   * Requirements:
-   *
-   * - caller must be admin for `roleId`
-   *
-   * @circuitInfo k=18, rows=138761
-   *
-   * Disclosures:
-   *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain ).
-   * - The role identifier
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The nullifier commitment stored in the `_roleCommitmentNullifiers` set.
-   *
-   * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Bytes<32>} accountId - The unique identifier of the account.
-   * @return {[]} - Empty tuple.
-   */
-  export circuit revokeRole(roleId: RoleIdentifier, accountId: AccountIdentifier): [] {
-    Initializable_assertInitialized();
-
-    assertOnlyRole(getRoleAdmin(roleId) as RoleIdentifier);
-    _revokeRole(roleId, accountId);
-  }
-
-  /**
-   * @description Revokes `roleId` from the calling account.
-   *
-   * @notice Roles are often managed via {grantRole} and {revokeRole}: this circuit's
-   * purpose is to provide a mechanism for accounts to lose their privileges
-   * if they are compromised (such as when a trusted device is misplaced).
-   *
-   * @warning Outside observers may be able to use timing and pattern analysis to weaken pseudonymity
-   *          guarantees if renounceRole is used in tandem with other on-chain actions.
-   *
-   * @notice Completeness is not guaranteed — this circuit may fail to renounce
-   *         a legitimately held role if the proving environment supplies an invalid
-   *         Merkle path. Soundness is guaranteed — this circuit will never revoke
-   *         a role the caller does not hold.
-   *
-   * @circuitInfo k=17, rows=108992
-   *
-   * Requirements:
-   *
-   * - The caller must provide a valid `accountId` for a `roleId`
-   *
-   * Disclosures:
-   *
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The computed role nullifier for a role commitment
-   *
-   * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Bytes<32>} accountId - The unique identifier of the account.
-   * @return {[]} - Empty tuple.
-   */
-  export circuit renounceRole(roleId: RoleIdentifier, accountIdConfirmation: AccountIdentifier): [] {
-    Initializable_assertInitialized();
-
-    const nonce = wit_secretNonce(roleId);
-    const callerAsEither =
-            ZcpkOrContractAddress { is_left: true,
-                                    left: ownPublicKey(),
-                                    right: ContractAddress { bytes: pad(32, "") } };
-    assert(accountIdConfirmation == _computeAccountId(callerAsEither, nonce),
-           "ShieldedAccessControl: bad confirmation"
-           );
-
-    _revokeRole(roleId, accountIdConfirmation);
-  }
-
-  /**
-   * @description Sets `adminId` as `roleId`'s admin identifier. Internal circuit without access restriction.
-   *
-   * @circuitInfo k=10, rows=583
-   *
-   * Disclosures:
-   *
-   * - The role identifier
-   * - The account identifier
-   *
-   * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Bytes<32>} adminId - The admin role identifier.
-   * @return {[]} - Empty tuple.
-   */
-  export circuit _setRoleAdmin(roleId: RoleIdentifier, adminId: AdminIdentifier): [] {
-    Initializable_assertInitialized();
-
-    _adminRoles.insert(disclose(roleId), disclose(adminId));
-  }
-
-  /**
-   * @description Grants `roleId` to `accountId` by inserting a role commitment unique to the
-   * `roleId` | `accountId` pairing into the `_operatorRoles` Merkle tree. A valid `roleId` can only be
-   * issued to `accountId` once. Once revoked, a new `accountId` must be generated to be re-authorized for
-   * `roleId`. Revoked roles cannot be re-granted.
+   * @description Grants `role` to `accountId` by inserting a role commitment unique to the
+   * `(role, accountId)` pairing into the `_operatorRoles` Merkle tree. Duplicate role commitments can be issued
+   * so long as they remain unrevoked. This does not yield any additional authority and simply wastes
+   * limited Merkle tree storage slots. Once revoked, a role cannot be re-granted to the same `accountId`. A new `accountId` must be
+   * generated to be re-authorized for a revoked `role`.
    *
    * Internal circuit without access restriction.
-   *
-   * @notice Completeness is not guaranteed — this circuit MAY insert duplicate
-   *         commitments if the proving environment supplies an invalid Merkle path.
-   *         Soundness is guaranteed — this circuit will never insert a commitment
-   *         for a `roleId` | `accountId` pairing whose nullifier exists in
-   *         `_roleCommitmentNullifiers`.
    *
    * ## Storage Caveat
    *
    * `_operatorRoles` is a fixed-depth Merkle tree with a maximum capacity of
-   * 2^20 = 1,048,576 leaf slots. Without the commitment existence check,
-   * repeated calls to `_grantRole` for the same `roleId` | `accountId` pairing
-   * will consume a new slot on each call, granting no additional authority but
-   * permanently exhausting tree capacity. This creates two risks:
+   * 2^20 = 1,048,576 leaf slots. At the time of writing, it's not possible to check non-membership of a value
+   * without using un-trusted witness inputs. This creates two risks:
    *
    *   1. Accidental duplicate grants through administrative error.
    *   2. A deliberate griefing attack by a malicious admin exhausting the tree.
    *
-   * The commitment existence check cannot provide a hard security guarantee
-   * against either risk — a prover supplying a garbage path will always receive
-   * hasCommitment = false and bypass the check. It therefore functions only as
-   * a best-effort, honest-path guard that prevents duplicate insertions when
-   * the admin and proving environment are both operating correctly.
-   *
    * Tree capacity should be treated as an operational concern and slot consumption
-   * should be monitored off-chain. The TypeScript witness layer should additionally
+   * should be monitored off-chain. The TypeScript layer should additionally
    * validate commitment absence before submitting a grant transaction as a
    * defence-in-depth measure against accidental exhaustion.
    *
@@ -474,172 +358,218 @@ module ShieldedAccessControl {
    *
    * Disclosures:
    *
-   * - The role commitment produced by SHA256(roleId | accountId | instanceSalt | commitmentDomain).
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The computed role nullifier for a role commitment
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Bytes<32>} role - The role identifier.
    * @param {Bytes<32>} accountId - The account identifier.
-   * @return {Boolean} observedIsGranted - Honest-path indicator only. Returns true if the operation was observed to succeed by
-   * the proving environment. This value MUST NOT be used as a security gate in calling circuits — it can be spoofed by
-   * a malicious prover and carries no on-chain guarantee.
+   *
+   * @return {Boolean} isGranted - Returns true if a role was granted successfully.
    */
   export circuit _grantRole(
-                   roleId: RoleIdentifier,
+                   role: RoleIdentifier,
                    accountId: AccountIdentifier
-                   ): HonestPathIndicator {
+                   ): Boolean {
     Initializable_assertInitialized();
 
-    const roleCommitment = _computeRoleCommitment(roleId, accountId);
-
-    // Best-effort honest-path guard against duplicate insertions.
-    // This check is NOT a security guarantee — a prover supplying a garbage
-    // path will always receive hasCommitment = false and bypass it. Its sole
-    // purpose is to conserve _operatorRoles tree capacity under normal
-    // operation. See the Storage Caveat in the circuit documentation above.
-    const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    const hasCommitment =
-            _operatorRoles.checkRoot(
-              merkleTreePathRoot<20, RoleCommitment>(disclose(roleCommitmentPath))
-              );
-
-    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-    if (hasCommitment) {
-      assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
-             );
-    }
-
+    const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
 
-    const hasRole = hasCommitment && !isRevoked;
-    if (hasRole || isRevoked) {
-      return false as HonestPathIndicator;
+    if (isRevoked) {
+      return false;
     }
 
     _operatorRoles.insert(disclose(roleCommitment));
-    return true as HonestPathIndicator;
+    return true;
   }
 
   /**
-   * @description Revokes `roleId` from `accountId` by inserting a role nullifier into `_roleCommitmentNullifiers`.
-   * Internal circuit without access restriction. A nullifier cannot be inserted for a commitment that doesn't exist.
+   * @description Permanently revokes `role` from `accountId` by inserting a role nullifier into the
+   * `_roleCommitmentNullifiers` set. Once revoked, a new `accountId` must be generated to be re-authorized for
+   * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
+   * so a `(role, accountId)` pairing that does not exist can still be revoked.
    *
-   * @notice Completeness is not guaranteed — this circuit MAY return false negative values and fail to revoke an active role
-   *         if the proving environment supplies an invalid Merkle path.  Soundness is guaranteed — this circuit will
-   *         never revoke a role that does not exist or is already inactive.
+   * @circuitInfo k=18, rows=138517
    *
-   * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
+   * Requirements:
+   *
+   * - caller must prove they're an admin for `role`.
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   *
+   * @circuitInfo k=18, rows=138761
+   *
+   * Disclosures:
+   *
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   * - A role identifier.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   * @param {Bytes<32>} accountId - The unique identifier of the account.
+   *
+   * @return {[]} - Empty tuple.
+   */
+  export circuit revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
+    Initializable_assertInitialized();
+
+    assertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _revokeRole(role, accountId);
+  }
+
+    /**
+   * @description Permanently revokes `role` from `accountId` by inserting a role nullifier into the
+   * `_roleCommitmentNullifiers` set. Once revoked, a new `accountId` must be generated to be re-authorized for
+   * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
+   * so a `(role, accountId)` pairing that does not exist can still be revoked. Returns false if a role is already
+   * revoked. Internal circuit without access restriction.
    *
    * @circuitInfo k=15, rows=18115
    *
    * Disclosures:
    *
-   * - The role nullifier produced by SHA256(roleCommitment | nullifierDomain).
-   * - The Merkle tree path for the role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The computed role nullifier for a role commitment
+   * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Bytes<32>} role - The role identifier.
    * @param {Bytes<32>} accountId - The account identifier.
-   * @return {Boolean} observedIsRevoked - Honest-path indicator only. Returns true if the operation was observed to succeed by
-   * the proving environment. This value MUST NOT be used as a security gate in calling circuits — it can be spoofed by
-   * a malicious prover and carries no on-chain guarantee.
+   *
+   * @return {Boolean} isRevoked - Returns true if operation completes successfully.
    */
   export circuit _revokeRole(
-                   roleId: RoleIdentifier,
+                   role: RoleIdentifier,
                    accountId: AccountIdentifier
-                   ): HonestPathIndicator {
+                   ): Boolean {
     Initializable_assertInitialized();
 
-    const roleCommitment = _computeRoleCommitment(roleId, accountId);
-    const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    const hasCommitment =
-            _operatorRoles.checkRoot(
-              merkleTreePathRoot<20, RoleCommitment>(disclose(roleCommitmentPath))
-              );
-
-    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-    if (hasCommitment) {
-      assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
-             );
-    }
-
+    const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
 
-    const hasRole = hasCommitment && !isRevoked;
-    if (!hasRole || isRevoked) {
-      return false as HonestPathIndicator;
+    if (isRevoked) {
+      return false;
     }
 
     _roleCommitmentNullifiers.insert(disclose(roleNullifier));
-    return true as HonestPathIndicator;
+    return true;
   }
 
   /**
-   * @description Checks whether `accountId` holds `roleId` by verifying the role commitment exists in
-   * `_operatorRoles` and its nullifier is absent from `_roleCommitmentNullifiers`.
+   * @description Revokes `role` from the calling account.
    *
-   * @notice Completeness is not guaranteed for `observedHasRole` — a legitimately
-   *         credentialed account may observe hasRole = false if the proving
-   *         environment supplies an invalid Merkle path. Soundness is guaranteed
-   *         for `isRevoked` — it is derived from a direct Set membership lookup
-   *         and cannot be forged.
+   * @notice Roles are often managed via {grantRole} and {revokeRole}: this circuit's
+   * purpose is to provide a mechanism for accounts to lose their privileges
+   * if they are compromised (such as when a trusted device is misplaced).
    *
-   * @circuitInfo k=14, rows=16089
+   * @warning Outside observers may be able to use timing and pattern analysis to weaken pseudonymity
+   *          guarantees if renounceRole is used in tandem with other on-chain actions.
+   *
+   * @circuitInfo k=17, rows=108992
+   *
+   * Requirements:
+   *
+   * - The caller must provide a valid `accountId` for a `role`.
    *
    * Disclosures:
    *
-   * - A Merkle tree path to a role commitment stored in the `_operatorRoles` Merkle tree.
-   * - The computed role nullifier for a role commitment
+   * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Bytes<32>} role - The role identifier.
    * @param {Bytes<32>} accountId - The unique identifier of the account.
-   * @return {{observedHasRole: Boolean, isRevoked: Boolean}} roleCheck - A struct containing authorization information for a
-   * `roleId` | `accountId` pairing.
+   *
+   * @return {[]} - Empty tuple.
    */
-  circuit _checkRole(roleId: RoleIdentifier, accountId: AccountIdentifier): RoleCheck {
+  export circuit renounceRole(role: RoleIdentifier, accountIdConfirmation: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    const roleCommitment = _computeRoleCommitment(roleId, accountId);
+    const nonce = wit_secretNonce(role);
+    assert(accountIdConfirmation == _computeAccountId(ownPublicKey(), nonce),
+           "ShieldedAccessControl: bad confirmation"
+           );
+
+    _revokeRole(role, accountIdConfirmation);
+  }
+
+  /**
+   * @description Sets `adminId` as `role`'s admin identifier. Internal circuit without access restriction.
+   *
+   * @circuitInfo k=10, rows=583
+   *
+   * Disclosures:
+   *
+   * - The role identifier
+   * - The admin identifier
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   * @param {Bytes<32>} adminId - The admin role identifier.
+   *
+   * @return {[]} - Empty tuple.
+   */
+  export circuit _setRoleAdmin(role: RoleIdentifier, adminId: AdminIdentifier): [] {
+    Initializable_assertInitialized();
+
+    _adminRoles.insert(disclose(role), disclose(adminId));
+  }
+
+  /**
+   * @description Verifies whether `accountId` holds `role`. This circuit MAY return false for a
+   * legitimately credentialed account if the proving environment supplies an invalid Merkle path.
+   *
+   * @circuitInfo k=14, rows=16089
+   *
+   * Requirements:
+   *
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   *
+   * Disclosures:
+   *
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   * @param {Bytes<32>} accountId - The unique identifier of the account.
+   *
+   * @return {Boolean} isValidRole - A boolean indicating whether `accountId` has a valid role
+   */
+  circuit _validateRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+    Initializable_assertInitialized();
+
+    const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    const hasCommitment =
+    const isValidPath =
             _operatorRoles.checkRoot(
               merkleTreePathRoot<20, RoleCommitment>(disclose(roleCommitmentPath))
               );
 
     // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-    if (hasCommitment) {
+    if (isValidPath) {
       assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
+             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing"
              );
     }
 
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
 
-    const observedHasRole = hasCommitment && !isRevoked;
-
-    return RoleCheck { observedHasRole as HonestPathIndicator, isRevoked };
+    return isValidPath && !isRevoked;
   }
 
   /**
-   * @description Computes the role commitment from the given `accountId` and `roleId`.
+   * @description Computes the role commitment from the given `accountId` and `role`.
    *
    * ## Account ID (`accountId`)
    * The `accountId` is expected to be computed off-chain as:
-   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountDomain)`
+   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`
    *
    * - `zcpk`: The account's ZswapCoinPublicKey.
    * - `nonce`: A secret nonce scoped to the role.
    *
    * ## Role Commitment Derivation
-   * `roleCommitment = SHA256(roleId, accountId, instanceSalt, commitmentDomain)`
+   * `roleCommitment = SHA256(role, accountId, instanceSalt, commitmentDomain)`
    *
    * - `accountId`: See above.
-   * - `roleId`: A unique role identifier.
+   * - `role`: A unique role identifier.
    * - `instanceSalt`: A unique per-deployment salt, stored during initialization.
    * This prevents commitment collisions across deployments.
    * - `commitmentDomain`: Domain separator `"ShieldedAccessControl:commitment"` (padded to 32 bytes) to prevent
@@ -651,18 +581,19 @@ module ShieldedAccessControl {
    *
    * - Contract is initialized.
    *
-   * @param {Bytes<32>} roleId - The unique identifier of a role.
-   * @param {Bytes<32>} accountId - The unique identifier of the account calculated by `SHA256(zcpk, nonce, instanceSalt, accountDomain)`.
-   * @returns {Bytes<32>} The commitment derived from `accountId` and `roleId`.
+   * @param {Bytes<32>} role - The unique identifier of a role.
+   * @param {Bytes<32>} accountId - The unique identifier of the account calculated by `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`.
+   *
+   * @returns {Bytes<32>} The commitment derived from `accountId` and `role`.
    */
   circuit _computeRoleCommitment(
-            roleId: RoleIdentifier,
+            role: RoleIdentifier,
             accountId: AccountIdentifier,
             ): RoleCommitment {
     Initializable_assertInitialized();
 
     return persistentHash<Vector<4, Bytes<32>>>(
-             [roleId as Bytes<32>,
+             [role as Bytes<32>,
               accountId as Bytes<32>,
               _instanceSalt,
               pad(32, "ShieldedAccessControl:commitment")]
@@ -680,7 +611,8 @@ module ShieldedAccessControl {
    * - `nullifierDomain`: Domain separator `"ShieldedAccessControl:nullifier"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
    *
-   * @param {<Bytes<32>} roleCommitment - The role commitment for a particular `roleId` | `accountId` pairing.
+   * @param {<Bytes<32>} roleCommitment - The role commitment for a particular `(role, accountId)` pairing.
+   *
    * @returns {Bytes<32>} roleNullifier - The associated nullifier for `roleCommitment`.
    */
   pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
@@ -695,7 +627,7 @@ module ShieldedAccessControl {
    * ZswapCoinPublicKey and a secret nonce.
    *
    * ## ID Derivation
-   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountDomain)`
+   * `accountId = SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`
    *
    * - `zcpk`: The ZswapCoinPublicKey of the caller. This is passed explicitly to allow
    * for off-chain derivation, testing, or scenarios where the caller is
@@ -711,28 +643,18 @@ module ShieldedAccessControl {
    * This value is later used in role commitment hashing,
    * and acts as a privacy-preserving alternative to a raw public key.
    *
-   * @notice This module allows access to be tied to an identity commitment derived
-   * from a public key and secret nonce.
-   * While typically used with user public keys, this mechanism may also
-   * support contract addresses as identifiers in future contract-to-contract
-   * interactions. Both are treated as 32-byte values (`Bytes<32>`).
-   *
    * @circuitInfo k=13, rows=6705
    *
-   * Requirements:
-   *
-   * - `zcpk` is not a ContractAddress.
-   *
-   * @param {Either<ZswapCoinPublicKey, ContractAddress>} zcpk - The public key of the identity being committed.
+   * @param {ZswapCoinPublicKey} zcpk - The public key of the identity being committed.
    * @param {Bytes<32>} nonce - A private nonce to scope the commitment.
+   *
    * @returns {Bytes<32>} accountId - The computed account ID.
    */
-  circuit _computeAccountId(pk: ZcpkOrContractAddress, nonce: Bytes<32>): AccountIdentifier {
+  circuit _computeAccountId(zcpk: ZswapCoinPublicKey, nonce: Bytes<32>): AccountIdentifier {
     Initializable_assertInitialized();
-    assert(pk.is_left, "ShieldedAccessControl: contract address roles are not yet supported");
 
     return persistentHash<Vector<4, Bytes<32>>>(
-             [pk.left.bytes, nonce, _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
+             [zcpk.bytes, nonce, _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
              )
            as AccountIdentifier;
   }

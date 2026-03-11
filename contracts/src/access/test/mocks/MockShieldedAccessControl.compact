@@ -16,7 +16,7 @@ export { ZswapCoinPublicKey,
          ShieldedAccessControl_DEFAULT_ADMIN_ROLE,
          ShieldedAccessControl__operatorRoles,
          ShieldedAccessControl__roleCommitmentNullifiers,
-         ShieldedAccessControl_RoleCheck, };
+         };
 
 // witness is re-implemented in the Mock contract for testing
 witness wit_getRoleCommitmentPath(
@@ -54,14 +54,13 @@ export circuit _computeRoleCommitment(
 
 // circuit is reimplemented in the Mock contract for testing
 export circuit _computeAccountId(
-                 pk: Either<ZswapCoinPublicKey, ContractAddress>,
+                 zcpk: ZswapCoinPublicKey,
                  nonce: Bytes<32>
                  ): ShieldedAccessControl_AccountIdentifier {
   Initializable_assertInitialized();
-  assert(pk.is_left, "ShieldedAccessControl: contract address roles are not yet supported");
 
   return persistentHash<Vector<4, Bytes<32>>>(
-           [pk.left.bytes,
+           [zcpk.bytes,
             nonce,
             ShieldedAccessControl__instanceSalt,
             pad(32, "ShieldedAccessControl:accountId")]
@@ -79,46 +78,39 @@ export pure circuit _computeNullifier(
          as ShieldedAccessControl_RoleNullifier;
 }
 
-export circuit unverifiedCallerHasRole(
+export circuit proveCallerRole(
                  roleId: ShieldedAccessControl_RoleIdentifier
-                 ): ShieldedAccessControl_HonestPathIndicator {
-  return ShieldedAccessControl_unverifiedCallerHasRole(roleId);
+                 ): Boolean {
+  return ShieldedAccessControl_proveCallerRole(roleId);
 }
 
 export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] {
   ShieldedAccessControl_assertOnlyRole(roleId);
 }
 
-// checkRole is re-implemented in the Mock contract for testing
-export circuit _checkRole(
-                 roleId: ShieldedAccessControl_RoleIdentifier,
-                 accountId: ShieldedAccessControl_AccountIdentifier
-                 ): ShieldedAccessControl_RoleCheck {
-  Initializable_assertInitialized();
+// _validateRole is re-implemented in the Mock contract for testing
+export circuit _validateRole(role: ShieldedAccessControl_RoleIdentifier, accountId: ShieldedAccessControl_AccountIdentifier): Boolean {
+    Initializable_assertInitialized();
 
-  const roleCommitment = _computeRoleCommitment(roleId, accountId);
-  const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-  const hasCommitment =
-          ShieldedAccessControl__operatorRoles.checkRoot(
-            merkleTreePathRoot<20, ShieldedAccessControl_RoleCommitment>(
-              disclose(roleCommitmentPath)
-              )
-            );
+    const roleCommitment = _computeRoleCommitment(role, accountId);
+    const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
+    const isValidPath =
+            ShieldedAccessControl__operatorRoles.checkRoot(
+              merkleTreePathRoot<20, ShieldedAccessControl_RoleCommitment>(disclose(roleCommitmentPath))
+              );
 
-  // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-  if (hasCommitment) {
-    assert(roleCommitmentPath.leaf == roleCommitment,
-           "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided roleId, accountId pairing"
-           );
+    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
+    if (isValidPath) {
+      assert(roleCommitmentPath.leaf == roleCommitment,
+             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing"
+             );
+    }
+
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+    return isValidPath && !isRevoked;
   }
-
-  const roleNullifier = _computeNullifier(roleCommitment);
-  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-  const observedHasRole = hasCommitment && !isRevoked;
-
-  return ShieldedAccessControl_RoleCheck { observedHasRole as ShieldedAccessControl_HonestPathIndicator, isRevoked };
-}
 
 export circuit getRoleAdmin(
                  roleId: ShieldedAccessControl_RoleIdentifier
@@ -157,13 +149,13 @@ export circuit _setRoleAdmin(
 export circuit _grantRole(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): ShieldedAccessControl_HonestPathIndicator {
+                 ): Boolean {
   return ShieldedAccessControl__grantRole(roleId, accountId);
 }
 
 export circuit _revokeRole(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): ShieldedAccessControl_HonestPathIndicator {
+                 ): Boolean {
   return ShieldedAccessControl__revokeRole(roleId, accountId);
 }
