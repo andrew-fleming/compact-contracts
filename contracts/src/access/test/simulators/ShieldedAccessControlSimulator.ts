@@ -4,8 +4,6 @@ import {
   createSimulator,
 } from '@openzeppelin-compact/contracts-simulator';
 import {
-  type ContractAddress,
-  type Either,
   ledger,
   Contract as MockShieldedAccessControl,
   type ZswapCoinPublicKey,
