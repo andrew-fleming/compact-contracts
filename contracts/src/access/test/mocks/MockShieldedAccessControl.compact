@@ -16,7 +16,7 @@ export { ZswapCoinPublicKey,
          ShieldedAccessControl_DEFAULT_ADMIN_ROLE,
          ShieldedAccessControl__operatorRoles,
          ShieldedAccessControl__roleCommitmentNullifiers,
-         };
+         ShieldedAccessControl__adminRoles };
 
 // witness is re-implemented in the Mock contract for testing
 witness wit_getRoleCommitmentPath(
@@ -78,9 +78,7 @@ export pure circuit _computeNullifier(
          as ShieldedAccessControl_RoleNullifier;
 }
 
-export circuit proveCallerRole(
-                 roleId: ShieldedAccessControl_RoleIdentifier
-                 ): Boolean {
+export circuit proveCallerRole(roleId: ShieldedAccessControl_RoleIdentifier): Boolean {
   return ShieldedAccessControl_proveCallerRole(roleId);
 }
 
@@ -89,28 +87,33 @@ export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] 
 }
 
 // _validateRole is re-implemented in the Mock contract for testing
-export circuit _validateRole(role: ShieldedAccessControl_RoleIdentifier, accountId: ShieldedAccessControl_AccountIdentifier): Boolean {
-    Initializable_assertInitialized();
+export circuit _validateRole(
+                 role: ShieldedAccessControl_RoleIdentifier,
+                 accountId: ShieldedAccessControl_AccountIdentifier
+                 ): Boolean {
+  Initializable_assertInitialized();
 
-    const roleCommitment = _computeRoleCommitment(role, accountId);
-    const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
-    const isValidPath =
-            ShieldedAccessControl__operatorRoles.checkRoot(
-              merkleTreePathRoot<20, ShieldedAccessControl_RoleCommitment>(disclose(roleCommitmentPath))
-              );
+  const roleCommitment = _computeRoleCommitment(role, accountId);
+  const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
+  const isValidPath =
+          ShieldedAccessControl__operatorRoles.checkRoot(
+            merkleTreePathRoot<20, ShieldedAccessControl_RoleCommitment>(
+              disclose(roleCommitmentPath)
+              )
+            );
 
-    // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
-    if (isValidPath) {
-      assert(roleCommitmentPath.leaf == roleCommitment,
-             "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing"
-             );
-    }
-
-    const roleNullifier = _computeNullifier(roleCommitment);
-    const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-    return isValidPath && !isRevoked;
+  // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
+  if (isValidPath) {
+    assert(roleCommitmentPath.leaf == roleCommitment,
+           "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing"
+           );
   }
+
+  const roleNullifier = _computeNullifier(roleCommitment);
+  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+  return isValidPath && !isRevoked;
+}
 
 export circuit getRoleAdmin(
                  roleId: ShieldedAccessControl_RoleIdentifier
