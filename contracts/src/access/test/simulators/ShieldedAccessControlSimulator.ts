@@ -8,7 +8,6 @@ import {
   type Either,
   ledger,
   Contract as MockShieldedAccessControl,
-  type ShieldedAccessControl_RoleCheck as RoleCheck,
   type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
@@ -64,18 +63,18 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
   }
 
   public _computeAccountId(
-    pk: Either<ZswapCoinPublicKey, ContractAddress>,
+    zcpk: ZswapCoinPublicKey,
     nonce: Uint8Array,
   ): Uint8Array {
-    return this.circuits.impure._computeAccountId(pk, nonce);
+    return this.circuits.impure._computeAccountId(zcpk, nonce);
   }
 
   public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {
     return this.circuits.pure._computeNullifier(roleCommitment);
   }
 
-  public unverifiedCallerHasRole(roleId: Uint8Array): boolean {
-    return this.circuits.impure.unverifiedCallerHasRole(roleId);
+  public proveCallerRole(roleId: Uint8Array): boolean {
+    return this.circuits.impure.proveCallerRole(roleId);
   }
 
   /**
@@ -87,8 +86,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.assertOnlyRole(roleId);
   }
 
-  public _checkRole(roleId: Uint8Array, accountId: Uint8Array): RoleCheck {
-    return this.circuits.impure._checkRole(roleId, accountId);
+  public _validateRole(roleId: Uint8Array, accountId: Uint8Array): boolean {
+    return this.circuits.impure._validateRole(roleId, accountId);
   }
 
   /**
