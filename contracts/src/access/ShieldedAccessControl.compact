@@ -508,6 +508,11 @@ module ShieldedAccessControl {
    * @description Verifies whether `accountId` holds `role`. This circuit MAY return false for a
    * legitimately credentialed account if the proving environment supplies an invalid Merkle path.
    *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
+   *
+   *
    * @circuitInfo k=14, rows=16089
    *
    * Requirements:
@@ -526,8 +531,6 @@ module ShieldedAccessControl {
    * @return {Boolean} isValidRole - A boolean indicating whether `accountId` has a valid role
    */
   circuit _validateRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
-    Initializable_assertInitialized();
-
     const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
     const isValidPath =
@@ -550,6 +553,10 @@ module ShieldedAccessControl {
 
   /**
    * @description Computes the role commitment from the given `accountId` and `role`.
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
    *
    * ## Account ID (`accountId`)
    * The `accountId` is expected to be computed off-chain as:
@@ -583,7 +590,6 @@ module ShieldedAccessControl {
             role: RoleIdentifier,
             accountId: AccountIdentifier,
             ): RoleCommitment {
-    Initializable_assertInitialized();
 
     return persistentHash<Vector<4, Bytes<32>>>(
              [role as Bytes<32>,
@@ -596,6 +602,10 @@ module ShieldedAccessControl {
 
   /**
    * @description Computes the role nullifier for a given `roleCommitment`.
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
    *
    * ## Role Nullifier Derivation
    * `roleNullifier = SHA256(roleCommitment, nullifierDomain)`
@@ -618,6 +628,10 @@ module ShieldedAccessControl {
   /**
    * @description Computes the unique identifier (`accountId`) of a caller from their
    * ZswapCoinPublicKey and a secret nonce.
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
    *
    * ## ID Derivation
    * `accountId = SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`
@@ -642,10 +656,11 @@ module ShieldedAccessControl {
    * @returns {Bytes<32>} accountId - The computed account ID.
    */
   circuit _computeAccountId(role: RoleIdentifier): AccountIdentifier {
-    Initializable_assertInitialized();
-
-     return persistentHash<Vector<4, Bytes<32>>>(
-             [ownPublicKey().bytes,  wit_secretNonce(role), _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
+    return persistentHash<Vector<4, Bytes<32>>>(
+             [ownPublicKey().bytes,
+              wit_secretNonce(role),
+              _instanceSalt,
+              pad(32, "ShieldedAccessControl:accountId")]
              )
            as AccountIdentifier;
   }
