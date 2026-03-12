@@ -746,6 +746,29 @@ describe('ShieldedAccessControl', () => {
           ).not.toThrow();
         });
 
+        it('when role is revoked and re-issued with a different accountId', () => {
+          shieldedAccessControl._revokeRole(ADMIN.roleId, ADMIN.accountId);
+
+          shieldedAccessControl.privateState.injectSecretNonce(
+            ADMIN.roleId,
+            Buffer.alloc(32, 'NEW_ADMIN_NONCE'),
+          );
+          const newAdminAccountId = buildAccountIdHash(
+            ADMIN.zPublicKey,
+            shieldedAccessControl.privateState.getCurrentSecretNonce(
+              ADMIN.roleId,
+            ),
+          );
+          expect(newAdminAccountId).not.toEqual(ADMIN.accountId);
+
+          shieldedAccessControl._grantRole(ADMIN.roleId, newAdminAccountId);
+          expect(() =>
+            shieldedAccessControl.assertOnlyRole(
+              ADMIN.roleId,
+            )
+          ).not.toThrow();
+        });
+
         it('when multiple users have the same role', () => {
           // All users will use OPERATOR_1.secretNonce as their nonce value
           // when generating their accountId for simplicity
