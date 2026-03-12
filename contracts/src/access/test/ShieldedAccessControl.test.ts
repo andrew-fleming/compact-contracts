@@ -124,7 +124,6 @@ describe('ShieldedAccessControl', () => {
     const circuitsToFail: FailingCircuits[] = [
       ['proveCallerRole', [UNINITIALIZED.role]],
       ['assertOnlyRole', [UNINITIALIZED.role]],
-      ['_validateRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['getRoleAdmin', [UNINITIALIZED.role]],
       ['grantRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['revokeRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
@@ -132,14 +131,6 @@ describe('ShieldedAccessControl', () => {
       ['_setRoleAdmin', [UNINITIALIZED.role, UNINITIALIZED.role]],
       ['_grantRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['_revokeRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
-      [
-        '_computeRoleCommitment',
-        [UNINITIALIZED.role, UNINITIALIZED.accountId],
-      ],
-      [
-        '_computeAccountId',
-        [UNINITIALIZED.role],
-      ],
     ];
     it.each(circuitsToFail)('%s should fail', (circuitName, args) => {
       expect(() => {
@@ -154,6 +145,24 @@ describe('ShieldedAccessControl', () => {
         shieldedAccessControl._computeNullifier(ADMIN.roleCommitment);
       }).not.toThrow();
     });
+
+    it('should allow unchecked _computeAccountId', () => {
+      expect(() => {
+        shieldedAccessControl._computeAccountId(ADMIN.role);
+      }).not.toThrow();
+    })
+
+    it('should allow unchecked _computeRoleCommitment', () => {
+      expect(() => {
+        shieldedAccessControl._computeRoleCommitment(ADMIN.role, ADMIN.accountId);
+      }).not.toThrow();
+    });
+
+    it('should allow unchecked _validateRole', () => {
+      expect(() => {
+        shieldedAccessControl._validateRole(ADMIN.role, ADMIN.accountId);
+      }).not.toThrow();
+    })
 
     it('should fail with 0 instanceSalt', () => {
       const isInit = true;
