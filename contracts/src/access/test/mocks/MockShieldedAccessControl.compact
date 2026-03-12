@@ -43,6 +43,7 @@ export circuit _computeRoleCommitment(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
                  ): ShieldedAccessControl_RoleCommitment {
+  Initializable_assertInitialized();
 
   return persistentHash<Vector<4, Bytes<32>>>(
            [roleId as Bytes<32>,
@@ -54,17 +55,16 @@ export circuit _computeRoleCommitment(
 }
 
 // circuit is reimplemented in the Mock contract for testing
-export circuit _computeAccountId(
-                 role: ShieldedAccessControl_RoleIdentifier
-                 ): ShieldedAccessControl_AccountIdentifier {
+export circuit _computeAccountId(role: ShieldedAccessControl_RoleIdentifier): ShieldedAccessControl_AccountIdentifier {
+  Initializable_assertInitialized();
 
   // disclosure required here for testing
   return disclose(persistentHash<Vector<4, Bytes<32>>>(
-                    [ownPublicKey().bytes,
-                     wit_secretNonce(role),
-                     ShieldedAccessControl__instanceSalt,
-                     pad(32, "ShieldedAccessControl:accountId")]
-                    ))
+           [ownPublicKey().bytes,
+            wit_secretNonce(role),
+            ShieldedAccessControl__instanceSalt,
+            pad(32, "ShieldedAccessControl:accountId")]
+           ))
          as ShieldedAccessControl_AccountIdentifier;
 }
 
@@ -91,6 +91,8 @@ export circuit _validateRole(
                  role: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
                  ): Boolean {
+  Initializable_assertInitialized();
+
   const roleCommitment = _computeRoleCommitment(role, accountId);
   const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
   const isValidPath =
