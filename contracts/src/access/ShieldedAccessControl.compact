@@ -240,8 +240,7 @@ module ShieldedAccessControl {
   export circuit proveCallerRole(role: RoleIdentifier): Boolean {
     Initializable_assertInitialized();
 
-    const nonce = wit_secretNonce(role);
-    const accountId = _computeAccountId(ownPublicKey(), nonce);
+    const accountId = _computeAccountId(role);
     return _validateRole(role, accountId);
   }
 
@@ -477,8 +476,7 @@ module ShieldedAccessControl {
   export circuit renounceRole(role: RoleIdentifier, accountIdConfirmation: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    const nonce = wit_secretNonce(role);
-    assert(accountIdConfirmation == _computeAccountId(ownPublicKey(), nonce),
+    assert(accountIdConfirmation == _computeAccountId(role),
            "ShieldedAccessControl: bad confirmation"
            );
 
@@ -618,15 +616,13 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Computes the unique identifier (`accountId`) of an account from their
+   * @description Computes the unique identifier (`accountId`) of a caller from their
    * ZswapCoinPublicKey and a secret nonce.
    *
    * ## ID Derivation
    * `accountId = SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`
    *
-   * - `zcpk`: The ZswapCoinPublicKey of the caller. This is passed explicitly to allow
-   * for off-chain derivation, testing, or scenarios where the caller is
-   * different from the subject of the computation. We recommend using an Air-Gapped Public Key.
+   * - `zcpk`: The ZswapCoinPublicKey of the caller. We recommend using an Air-Gapped Public Key.
    * - `nonce`: A secret nonce tied to the identity. The generation strategy is
    * left to the user, offering different security/convenience trade-offs.
    * - `instanceSalt`: A unique per-deployment salt, stored during initialization.
@@ -645,11 +641,11 @@ module ShieldedAccessControl {
    *
    * @returns {Bytes<32>} accountId - The computed account ID.
    */
-  circuit _computeAccountId(zcpk: ZswapCoinPublicKey, nonce: Bytes<32>): AccountIdentifier {
+  circuit _computeAccountId(role: RoleIdentifier): AccountIdentifier {
     Initializable_assertInitialized();
 
-    return persistentHash<Vector<4, Bytes<32>>>(
-             [zcpk.bytes, nonce, _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
+     return persistentHash<Vector<4, Bytes<32>>>(
+             [ownPublicKey().bytes,  wit_secretNonce(role), _instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
              )
            as AccountIdentifier;
   }

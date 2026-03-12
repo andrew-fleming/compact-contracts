@@ -18,10 +18,12 @@ export { ZswapCoinPublicKey,
          ShieldedAccessControl__roleCommitmentNullifiers,
          ShieldedAccessControl__adminRoles };
 
-// witness is re-implemented in the Mock contract for testing
+// witnesses are re-implemented in the Mock contract for testing
 witness wit_getRoleCommitmentPath(
           roleCommitment: ShieldedAccessControl_RoleCommitment
           ): MerkleTreePath<20, ShieldedAccessControl_RoleCommitment>;
+
+witness wit_secretNonce(role: ShieldedAccessControl_RoleIdentifier): Bytes<32>;
 
 /**
  * @description `isInit` is a param for testing.
@@ -53,18 +55,16 @@ export circuit _computeRoleCommitment(
 }
 
 // circuit is reimplemented in the Mock contract for testing
-export circuit _computeAccountId(
-                 zcpk: ZswapCoinPublicKey,
-                 nonce: Bytes<32>
-                 ): ShieldedAccessControl_AccountIdentifier {
+export circuit _computeAccountId(role: ShieldedAccessControl_RoleIdentifier): ShieldedAccessControl_AccountIdentifier {
   Initializable_assertInitialized();
 
-  return persistentHash<Vector<4, Bytes<32>>>(
-           [zcpk.bytes,
-            nonce,
+  // disclosure required here for testing
+  return disclose(persistentHash<Vector<4, Bytes<32>>>(
+           [ownPublicKey().bytes,
+            wit_secretNonce(role),
             ShieldedAccessControl__instanceSalt,
             pad(32, "ShieldedAccessControl:accountId")]
-           )
+           ))
          as ShieldedAccessControl_AccountIdentifier;
 }
 

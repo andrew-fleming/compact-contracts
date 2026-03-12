@@ -61,10 +61,9 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
   }
 
   public _computeAccountId(
-    zcpk: ZswapCoinPublicKey,
-    nonce: Uint8Array,
+    role: Uint8Array,
   ): Uint8Array {
-    return this.circuits.impure._computeAccountId(zcpk, nonce);
+    return this.circuits.impure._computeAccountId(role);
   }
 
   public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {

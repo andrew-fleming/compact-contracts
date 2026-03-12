@@ -138,7 +138,7 @@ describe('ShieldedAccessControl', () => {
       ],
       [
         '_computeAccountId',
-        [UNINITIALIZED.zPublicKey, UNINITIALIZED.accountId],
+        [UNINITIALIZED.role],
       ],
     ];
     it.each(circuitsToFail)('%s should fail', (circuitName, args) => {
@@ -233,38 +233,30 @@ describe('ShieldedAccessControl', () => {
     });
 
     describe('_computeAccountId', () => {
-      it('should match account id', () => {
+      beforeEach(() => {
+        shieldedAccessControl.setPersistentCaller(ADMIN.publicKey);
+      });
+
+      it('should match when authorized caller with correct nonce', () => {
         expect(
           shieldedAccessControl._computeAccountId(
-            ADMIN.zPublicKey,
-            ADMIN.secretNonce,
+            ADMIN.role,
           ),
         ).toEqual(ADMIN.accountId);
       });
 
-      type ComputeAccountIdCases = [
-        isValidAccount: boolean,
-        isValidNonce: boolean,
-        args: unknown[],
-      ];
+      it('should not match when authorized caller with bad nonce', () => {
+        shieldedAccessControl.privateState.injectSecretNonce(ADMIN.role, BAD_INPUT.secretNonce)
+        const computedAccountId = shieldedAccessControl._computeAccountId(ADMIN.role)
+        expect(computedAccountId).not.toEqual(ADMIN.accountId);
+        expect(computedAccountId).toEqual(buildAccountIdHash(ADMIN.zPublicKey, BAD_INPUT.secretNonce));
+      });
 
-      const checkedCircuits: ComputeAccountIdCases[] = [
-        [true, false, [ADMIN.zPublicKey, UNAUTHORIZED.secretNonce]],
-        [false, true, [UNAUTHORIZED.zPublicKey, ADMIN.secretNonce]],
-        [false, false, [UNAUTHORIZED.zPublicKey, UNAUTHORIZED.secretNonce]],
-      ];
-
-      it.each(
-        checkedCircuits,
-      )('should not match account id with isValidAccount=%s or isValidNonce=%s', (_isValidAccount, _isValidNonce, args) => {
-        // Test circuit
-        expect(() => {
-          (
-            shieldedAccessControl._computeAccountId as (
-              ...args: unknown[]
-            ) => Uint8Array
-          )(...args);
-        }).not.toEqual(ADMIN.accountId);
+      it('should not match when unauthorized caller with correct nonce', () => {
+        shieldedAccessControl.as(UNAUTHORIZED.publicKey);
+        const computedAccountId = shieldedAccessControl._computeAccountId(ADMIN.role);
+        expect(computedAccountId).not.toEqual(ADMIN.accountId);
+        expect(computedAccountId).toEqual(buildAccountIdHash(UNAUTHORIZED.zPublicKey, ADMIN.secretNonce));
       });
     });
 
