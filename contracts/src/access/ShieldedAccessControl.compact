@@ -263,7 +263,7 @@ module ShieldedAccessControl {
    * @return {[]} - Empty tuple.
    */
   circuit _uncheckedAssertOnlyRole(role: RoleIdentifier): [] {
-    assert(_proveCallerRole(role), "ShieldedAccessControl: unauthorized account");
+    assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
   }
 
   /**
@@ -576,7 +576,7 @@ module ShieldedAccessControl {
    *
    * @return {Boolean} isRevoked - Returns true if operation completes successfully.
    */
-  export circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+  circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
