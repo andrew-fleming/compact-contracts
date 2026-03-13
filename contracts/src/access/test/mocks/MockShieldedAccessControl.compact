@@ -82,8 +82,17 @@ export circuit proveCallerRole(roleId: ShieldedAccessControl_RoleIdentifier): Bo
   return ShieldedAccessControl_proveCallerRole(roleId);
 }
 
+export circuit _uncheckedProveCallerRole(role: RoleIdentifier): Boolean {
+  const accountId = _computeAccountId(role);
+  return _validateRole(role, accountId);
+}
+
 export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] {
   ShieldedAccessControl_assertOnlyRole(roleId);
+}
+
+export circuit _uncheckedAssertOnlyRole(role: RoleIdentifier): [] {
+  assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
 }
 
 // _validateRole is re-implemented in the Mock contract for testing
@@ -126,11 +135,37 @@ export circuit grantRole(
   ShieldedAccessControl_grantRole(roleId, accountId);
 }
 
+circuit _uncheckedGrantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+  const roleCommitment = _computeRoleCommitment(role, accountId);
+  const roleNullifier = _computeNullifier(roleCommitment);
+  const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+  if (isRevoked) {
+    return false;
+  }
+
+  _operatorRoles.insert(disclose(roleCommitment));
+  return true;
+}
+
 export circuit revokeRole(
                  roleId: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
                  ): [] {
   ShieldedAccessControl_revokeRole(roleId, accountId);
+}
+
+circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+  const roleCommitment = _computeRoleCommitment(role, accountId);
+  const roleNullifier = _computeNullifier(roleCommitment);
+  const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+  if (isRevoked) {
+    return false;
+  }
+
+  _roleCommitmentNullifiers.insert(disclose(roleNullifier));
+  return true;
 }
 
 export circuit renounceRole(
