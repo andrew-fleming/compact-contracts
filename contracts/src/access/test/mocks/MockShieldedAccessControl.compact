@@ -135,7 +135,7 @@ export circuit grantRole(
   ShieldedAccessControl_grantRole(roleId, accountId);
 }
 
-circuit _uncheckedGrantRole(
+export circuit _uncheckedGrantRole(
           role: ShieldedAccessControl_RoleIdentifier,
           accountId: ShieldedAccessControl_AccountIdentifier
           ): Boolean {
@@ -158,7 +158,7 @@ export circuit revokeRole(
   ShieldedAccessControl_revokeRole(roleId, accountId);
 }
 
-circuit _uncheckedRevokeRole(
+export circuit _uncheckedRevokeRole(
           role: ShieldedAccessControl_RoleIdentifier,
           accountId: ShieldedAccessControl_AccountIdentifier
           ): Boolean {

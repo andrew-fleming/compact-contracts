@@ -74,82 +74,54 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.impure.proveCallerRole(role);
   }
 
-  /**
-   * @description Transfers ownership to `newOwnerId`.
-   * `newOwnerId` must be precalculated and given to the current owner off chain.
-   * @param newOwnerId The new owner's unique identifier (`SHA256(pk, nonce)`).
-   */
+  public _uncheckedProveCallerRole(role: Uint8Array): boolean {
+    return this.circuits.impure._uncheckedProveCallerRole(role);
+  }
+
   public assertOnlyRole(role: Uint8Array) {
     this.circuits.impure.assertOnlyRole(role);
+  }
+
+  public _uncheckedAssertOnlyRole(role: Uint8Array) {
+    this.circuits.impure._uncheckedAssertOnlyRole(role);
   }
 
   public _validateRole(role: Uint8Array, accountId: Uint8Array): boolean {
     return this.circuits.impure._validateRole(role, accountId);
   }
 
-  /**
-   * @description Computes the RoleCheck commitment from the given `id` and `counter`.
-   * @param id - The unique identifier of the owner calculated by `SHA256(pk, nonce)`.
-   * @param counter - The current counter or round. This increments by `1`
-   * after every transfer to prevent duplicate commitments given the same `id`.
-   * @returns The commitment derived from `id` and `counter`.
-   */
   public getRoleAdmin(role: Uint8Array): Uint8Array {
     return this.circuits.impure.getRoleAdmin(role);
   }
 
-  /**
-   * @description Computes the unique identifier (`id`) of the owner from their
-   * public key and a secret nonce.
-   * @param pk - The public key of the identity being committed.
-   * @param nonce - A private nonce to scope the commitment.
-   * @returns The computed owner ID.
-   */
   public grantRole(role: Uint8Array, accountId: Uint8Array) {
     this.circuits.impure.grantRole(role, accountId);
   }
 
-  /**
-   * @description Transfers ownership to owner id `newOwnerId` without
-   * enforcing permission checks on the caller.
-   * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
-   */
+  public _uncheckedGrantRole(role: Uint8Array, accountId: Uint8Array) {
+    this.circuits.impure._uncheckedGrantRole(role, accountId);
+  }
+
   public revokeRole(role: Uint8Array, accountId: Uint8Array) {
     this.circuits.impure.revokeRole(role, accountId);
   }
 
-  /**
-   * @description Transfers ownership to owner id `newOwnerId` without
-   * enforcing permission checks on the caller.
-   * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
-   */
+  public _uncheckedRevokeRole(role: Uint8Array, accountId: Uint8Array) {
+    this.circuits.impure._uncheckedRevokeRole(role, accountId);
+  }
+
   public renounceRole(role: Uint8Array, callerConfirmation: Uint8Array) {
     this.circuits.impure.renounceRole(role, callerConfirmation);
   }
 
-  /**
-   * @description Transfers ownership to owner id `newOwnerId` without
-   * enforcing permission checks on the caller.
-   * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
-   */
   public _setRoleAdmin(role: Uint8Array, adminRole: Uint8Array) {
     this.circuits.impure._setRoleAdmin(role, adminRole);
   }
 
-  /**
-   * @description Transfers ownership to owner id `newOwnerId` without
-   * enforcing permission checks on the caller.
-   * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
-   */
   public _grantRole(role: Uint8Array, accountId: Uint8Array): boolean {
     return this.circuits.impure._grantRole(role, accountId);
   }
 
-  /**
-   * @description Transfers ownership to owner id `newOwnerId` without
-   * enforcing permission checks on the caller.
-   * @param newOwnerId - The unique identifier of the new owner calculated by `SHA256(pk, nonce)`.
-   */
   public _revokeRole(role: Uint8Array, accountId: Uint8Array): boolean {
     return this.circuits.impure._revokeRole(role, accountId);
   }
