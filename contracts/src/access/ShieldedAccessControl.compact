@@ -34,7 +34,7 @@ pragma language_version >= 0.21.0;
  *  - `roleNullifier` is a one-time burn token inserted into `_roleCommitmentNullifiers` on
  *     revocation. Its presence permanently invalidates the corresponding role commitment,
  *     making re-grant under the same `accountId` impossible without generating a new identity.
- *  - `instanceSalt` is an immutable, cryptographically strong random value provided on deployment
+ *  - `instanceSalt` should be an immutable, cryptographically strong random value provided on deployment
  *  - `commitmentDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:commitment"
  *  - `accountIdDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:accountId"
  *  - `nullifierDomain` is the following zero padded 32 byte string: "ShieldedAccessControl:nullifier"
@@ -63,7 +63,7 @@ pragma language_version >= 0.21.0;
  *
  * ```compact
  * circuit foo(): [] {
- *  ShieldedAccessControl_assertOnlyRole(MY_ROLE);
+ *  ShieldedAccessControl_assertOnlyRole(MY_ROLE as ShieldedAccessControl_RoleIdentifier);
  *  // ... rest of circuit logic
  * }
  * ```
@@ -123,7 +123,6 @@ module ShieldedAccessControl {
   export new type RoleCommitment = Bytes<32>;
   export new type RoleIdentifier = Bytes<32>;
   export new type AccountIdentifier = Bytes<32>;
-  export new type AdminIdentifier = Bytes<32>;
   export new type RoleNullifier = Bytes<32>;
 
   /**
@@ -131,7 +130,7 @@ module ShieldedAccessControl {
    * @description A Merkle tree of role commitments stored as SHA256(role | accountId | instanceSalt | commitmentDomain)
    * Role commitments are derived from a public role identifier (e.g., `persistentHash<Bytes<32>>(pad(32, "MY_ROLE")`),
    * an account identifier (e.g., `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`), the `instanceSalt`, and a domain separator.
-   * @type {Bytes<32>} RoleCommitment - A role commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
+   * @type {RoleCommitment} roleCommitment - A role commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
    */
   export ledger _operatorRoles: MerkleTree<20, RoleCommitment>;
 
@@ -139,12 +138,12 @@ module ShieldedAccessControl {
    * @ledger _adminRoles
    * @description Mapping from a role identifier to an admin role identifier.
    */
-  export ledger _adminRoles: Map<RoleIdentifier, AdminIdentifier>;
+  export ledger _adminRoles: Map<RoleIdentifier, RoleIdentifier>;
 
   /**
    * @description A set of nullifiers used to prove a role has been revoked
-   * @type {Bytes<32>} RoleNullifier - A role nullifier created by the following hash: SHA256(roleCommitment | nullifierDomain).
-   * @type {Set<Bytes<32>} _roleCommitmentNullifiers
+   * @type {RoleNullifier} roleNullifier - A role nullifier created by the following hash: SHA256(roleCommitment | nullifierDomain).
+   * @type {Set<RoleNullifier>} _roleCommitmentNullifiers
    */
   export ledger _roleCommitmentNullifiers: Set<RoleNullifier>;
 
@@ -162,7 +161,8 @@ module ShieldedAccessControl {
    * commitments for this contract instance.
    *
    * This salt prevents commitment collisions across contracts that might otherwise use
-   * the same identifiers or domain parameters. It is immutable after initialization.
+   * the same identifiers or domain parameters. It should be should be a cryptographically strong random value
+   * It is immutable after initialization.
    */
   export sealed ledger _instanceSalt: Bytes<32>;
 
@@ -170,9 +170,9 @@ module ShieldedAccessControl {
    * @witness wit_getRoleCommitmentPath
    * @description Returns a path to a role commitment in the `_operatorRoles` Merkle tree if one exists. Otherwise, returns an invalid path.
    *
-   * @param {Bytes<32>} roleCommitment - A commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
+   * @param {RoleCommitment} roleCommitment - A commitment created by the following hash: SHA256( role | accountId | instanceSalt | commitmentDomain).
    *
-   * @return {MerkleTreePath<20, Bytes<32>>} - The Merkle tree path to `roleCommitment` in the `_operatorRoles` Merkle tree
+   * @return {MerkleTreePath<20, RoleCommitment>} - The Merkle tree path to `roleCommitment` in the `_operatorRoles` Merkle tree
    */
   witness wit_getRoleCommitmentPath(
             roleCommitment: RoleCommitment
@@ -185,7 +185,7 @@ module ShieldedAccessControl {
    * Combined with the user's ZswapCoinPublicKey as `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)` to produce an obfuscated,
    * unlinkable identity commitment. Nonce MUST be unique per role to avoid cross-role linking.
    *
-   * @param {Bytes<32>} role - The unique identifier of a role.
+   * @param {RoleIdentifier} role - The unique identifier of a role.
    *
    * @returns {Bytes<32>} secretNonce - A private per-role nonce used in deriving the shielded account identifier.
    */
@@ -232,7 +232,7 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
    *
    * @return {[]} - Empty tuple.
    */
@@ -258,7 +258,7 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
    *
    * @return {[]} - Empty tuple.
    */
@@ -283,7 +283,7 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
    *
    * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
    */
@@ -315,7 +315,7 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
    *
    * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
    */
@@ -345,15 +345,15 @@ module ShieldedAccessControl {
    * - A nullifier for the respective role commitment.
    * - A role identifier.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The unique identifier of the account.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {[]} - Empty tuple.
    */
   export circuit grantRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    _uncheckedAssertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _uncheckedAssertOnlyRole(getRoleAdmin(role));
     _uncheckedGrantRole(role, accountId);
   }
 
@@ -389,8 +389,8 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The account identifier.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isGranted - Returns true if a role was granted successfully.
    */
@@ -433,8 +433,8 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The account identifier.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isGranted - Returns true if a role was granted successfully.
    */
@@ -472,8 +472,8 @@ module ShieldedAccessControl {
    *
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountIdConfirmation - The caller's account identifier, must match the internally computed value.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountIdConfirmation - The caller's account identifier, must match the internally computed value.
    *
    * @return {[]} - Empty tuple.
    */
@@ -509,15 +509,15 @@ module ShieldedAccessControl {
    * - A nullifier for the respective role commitment.
    * - A role identifier.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The unique identifier of the account.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {[]} - Empty tuple.
    */
   export circuit revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    _uncheckedAssertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _uncheckedAssertOnlyRole(getRoleAdmin(role));
     _uncheckedRevokeRole(role, accountId);
   }
 
@@ -534,8 +534,8 @@ module ShieldedAccessControl {
    *
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The account identifier.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isRevoked - Returns true if operation completes successfully.
    */
@@ -571,8 +571,8 @@ module ShieldedAccessControl {
    *
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The account identifier.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isRevoked - Returns true if operation completes successfully.
    */
@@ -601,15 +601,15 @@ module ShieldedAccessControl {
    *
    * - A role identifier.
    *
-   * @param {Bytes<32>} role - The role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
    *
-   * @return {Bytes<32>} roleAdmin - The admin role that controls `role`.
+   * @return {RoleIdentifier} roleAdmin - The admin role that controls `role`.
    */
-  export circuit getRoleAdmin(role: RoleIdentifier): AdminIdentifier {
+  export circuit getRoleAdmin(role: RoleIdentifier): RoleIdentifier {
     if (_adminRoles.member(disclose(role))) {
       return _adminRoles.lookup(disclose(role));
     }
-    return default<Bytes<32>> as AdminIdentifier;
+    return default<Bytes<32>> as RoleIdentifier;
   }
 
   /**
@@ -622,12 +622,12 @@ module ShieldedAccessControl {
    * - The role identifier
    * - The admin identifier
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} adminId - The admin role identifier.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {[]} - Empty tuple.
    */
-  export circuit _setRoleAdmin(role: RoleIdentifier, adminId: AdminIdentifier): [] {
+  export circuit _setRoleAdmin(role: RoleIdentifier, adminId: RoleIdentifier): [] {
     _adminRoles.insert(disclose(role), disclose(adminId));
   }
 
@@ -651,8 +651,8 @@ module ShieldedAccessControl {
    * - A role commitment corresponding to a `(role, accountId)` pairing.
    * - A nullifier for the respective role commitment.
    *
-   * @param {Bytes<32>} role - The role identifier.
-   * @param {Bytes<32>} accountId - The unique identifier of the account.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isValidRole - A boolean indicating whether `accountId` has a valid role
    */
@@ -707,10 +707,10 @@ module ShieldedAccessControl {
    *
    * - Contract is initialized.
    *
-   * @param {Bytes<32>} role - The unique identifier of a role.
-   * @param {Bytes<32>} accountId - The unique identifier of the account calculated by `SHA256(zcpk, nonce, instanceSalt, accountIdDomain)`.
+   * @param {RoleIdentifier} role - The role identifier.
+   * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
-   * @returns {Bytes<32>} The commitment derived from `accountId` and `role`.
+   * @returns {RoleCommitment} The commitment derived from `accountId` and `role`.
    */
   circuit _computeRoleCommitment(
             role: RoleIdentifier,
@@ -740,9 +740,9 @@ module ShieldedAccessControl {
    * - `nullifierDomain`: Domain separator `"ShieldedAccessControl:nullifier"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
    *
-   * @param {<Bytes<32>} roleCommitment - The role commitment for a particular `(role, accountId)` pairing.
+   * @param {RoleCommitment} roleCommitment - The role commitment for a particular `(role, accountId)` pairing.
    *
-   * @returns {Bytes<32>} roleNullifier - The associated nullifier for `roleCommitment`.
+   * @returns {RoleNullifier} roleNullifier - The associated nullifier for `roleCommitment`.
    */
   pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
     return persistentHash<Vector<2, Bytes<32>>>(
@@ -776,10 +776,9 @@ module ShieldedAccessControl {
    *
    * @circuitInfo k=13, rows=6705
    *
-   * @param {ZswapCoinPublicKey} zcpk - The public key of the identity being committed.
-   * @param {Bytes<32>} nonce - A private nonce to scope the commitment.
+   * @param {RoleIdentifier} role - A private nonce to scope the commitment.
    *
-   * @returns {Bytes<32>} accountId - The computed account ID.
+   * @returns {AccountIdentifier} accountId - The computed account ID.
    */
   circuit _computeAccountId(role: RoleIdentifier): AccountIdentifier {
     return persistentHash<Vector<4, Bytes<32>>>(

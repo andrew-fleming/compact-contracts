@@ -124,7 +124,7 @@ export circuit _validateRole(
 
 export circuit getRoleAdmin(
                  roleId: ShieldedAccessControl_RoleIdentifier
-                 ): ShieldedAccessControl_AdminIdentifier {
+                 ): ShieldedAccessControl_RoleIdentifier {
   return ShieldedAccessControl_getRoleAdmin(roleId);
 }
 
@@ -136,9 +136,9 @@ export circuit grantRole(
 }
 
 export circuit _uncheckedGrantRole(
-          role: ShieldedAccessControl_RoleIdentifier,
-          accountId: ShieldedAccessControl_AccountIdentifier
-          ): Boolean {
+                 role: ShieldedAccessControl_RoleIdentifier,
+                 accountId: ShieldedAccessControl_AccountIdentifier
+                 ): Boolean {
   const roleCommitment = _computeRoleCommitment(role, accountId);
   const roleNullifier = _computeNullifier(roleCommitment);
   const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
@@ -159,9 +159,9 @@ export circuit revokeRole(
 }
 
 export circuit _uncheckedRevokeRole(
-          role: ShieldedAccessControl_RoleIdentifier,
-          accountId: ShieldedAccessControl_AccountIdentifier
-          ): Boolean {
+                 role: ShieldedAccessControl_RoleIdentifier,
+                 accountId: ShieldedAccessControl_AccountIdentifier
+                 ): Boolean {
   const roleCommitment = _computeRoleCommitment(role, accountId);
   const roleNullifier = _computeNullifier(roleCommitment);
   const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
@@ -183,7 +183,7 @@ export circuit renounceRole(
 
 export circuit _setRoleAdmin(
                  roleId: ShieldedAccessControl_RoleIdentifier,
-                 adminRole: ShieldedAccessControl_AdminIdentifier
+                 adminRole: ShieldedAccessControl_RoleIdentifier
                  ): [] {
   ShieldedAccessControl__setRoleAdmin(roleId, adminRole);
 }
