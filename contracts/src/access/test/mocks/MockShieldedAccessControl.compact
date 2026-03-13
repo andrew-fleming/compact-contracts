@@ -82,7 +82,7 @@ export circuit proveCallerRole(roleId: ShieldedAccessControl_RoleIdentifier): Bo
   return ShieldedAccessControl_proveCallerRole(roleId);
 }
 
-export circuit _uncheckedProveCallerRole(role: RoleIdentifier): Boolean {
+export circuit _uncheckedProveCallerRole(role: ShieldedAccessControl_RoleIdentifier): Boolean {
   const accountId = _computeAccountId(role);
   return _validateRole(role, accountId);
 }
@@ -91,7 +91,7 @@ export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] 
   ShieldedAccessControl_assertOnlyRole(roleId);
 }
 
-export circuit _uncheckedAssertOnlyRole(role: RoleIdentifier): [] {
+export circuit _uncheckedAssertOnlyRole(role: ShieldedAccessControl_RoleIdentifier): [] {
   assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
 }
 
@@ -135,16 +135,19 @@ export circuit grantRole(
   ShieldedAccessControl_grantRole(roleId, accountId);
 }
 
-circuit _uncheckedGrantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+circuit _uncheckedGrantRole(
+          role: ShieldedAccessControl_RoleIdentifier,
+          accountId: ShieldedAccessControl_AccountIdentifier
+          ): Boolean {
   const roleCommitment = _computeRoleCommitment(role, accountId);
   const roleNullifier = _computeNullifier(roleCommitment);
-  const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
 
   if (isRevoked) {
     return false;
   }
 
-  _operatorRoles.insert(disclose(roleCommitment));
+  ShieldedAccessControl__operatorRoles.insert(disclose(roleCommitment));
   return true;
 }
 
@@ -155,16 +158,19 @@ export circuit revokeRole(
   ShieldedAccessControl_revokeRole(roleId, accountId);
 }
 
-circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+circuit _uncheckedRevokeRole(
+          role: ShieldedAccessControl_RoleIdentifier,
+          accountId: ShieldedAccessControl_AccountIdentifier
+          ): Boolean {
   const roleCommitment = _computeRoleCommitment(role, accountId);
   const roleNullifier = _computeNullifier(roleCommitment);
-  const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
 
   if (isRevoked) {
     return false;
   }
 
-  _roleCommitmentNullifiers.insert(disclose(roleNullifier));
+  ShieldedAccessControl__roleCommitmentNullifiers.insert(disclose(roleNullifier));
   return true;
 }
 
