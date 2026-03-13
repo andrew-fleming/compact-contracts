@@ -151,6 +151,9 @@ module ShieldedAccessControl {
    * @description The default admin role for all roles. Only accounts with this role will be able to grant or revoke other roles
    * unless custom admin roles are created.
    *
+   * @remarks Treat as a constant — this value should never be written to. The Compact language does not support constant declarations,
+   * so this is implemented as a ledger variable by necessity.
+   *
    * @default 0x0000000000000000000000000000000000000000000000000000000000000000
    */
   export ledger DEFAULT_ADMIN_ROLE: Bytes<32>;
