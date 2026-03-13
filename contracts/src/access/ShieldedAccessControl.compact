@@ -239,7 +239,31 @@ module ShieldedAccessControl {
   export circuit assertOnlyRole(role: RoleIdentifier): [] {
     Initializable_assertInitialized();
 
-    assert(proveCallerRole(role), "ShieldedAccessControl: unauthorized account");
+    assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
+  }
+
+  /**
+   * @description Reverts if caller cannot provide a valid proof of ownership for `role`.
+   *
+   * @circuitInfo k=15, rows=22130
+   *
+   * Requirements:
+   *
+   * - caller must prove ownership of `role`.
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   *
+   * Disclosures:
+   *
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   *
+   * @return {[]} - Empty tuple.
+   */
+  circuit _uncheckedAssertOnlyRole(role: RoleIdentifier): [] {
+    assert(_proveCallerRole(role), "ShieldedAccessControl: unauthorized account");
   }
 
   /**
@@ -266,6 +290,36 @@ module ShieldedAccessControl {
   export circuit proveCallerRole(role: RoleIdentifier): Boolean {
     Initializable_assertInitialized();
 
+    const accountId = _computeAccountId(role);
+    return _validateRole(role, accountId);
+  }
+
+  /**
+   * @description Returns `true` if a caller proves ownership of `role` and is not revoked. MAY return false for a legitimately credentialed
+   * caller if the proving environment supplies an invalid Merkle path. This circuit will never return true for an
+   * unauthorized caller.
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
+   *
+   * @circuitInfo k=15, rows=22128
+   *
+   * Requirements:
+   *
+   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   *
+   * Disclosures:
+   *
+   * - A Merkle tree path to a role commitment.
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   *
+   * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
+   */
+  circuit _uncheckedProveCallerRole(role: RoleIdentifier): Boolean {
     const accountId = _computeAccountId(role);
     return _validateRole(role, accountId);
   }
@@ -299,8 +353,8 @@ module ShieldedAccessControl {
   export circuit grantRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    assertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
-    _grantRole(role, accountId);
+    _uncheckedAssertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _uncheckedGrantRole(role, accountId);
   }
 
   /**
@@ -356,6 +410,48 @@ module ShieldedAccessControl {
   }
 
   /**
+   * @description Grants `role` to `accountId` by inserting a role commitment unique to the
+   * `(role, accountId)` pairing into the `_operatorRoles` Merkle tree. Duplicate role commitments can be issued
+   * so long as they remain unrevoked. This does not yield any additional authority and simply wastes
+   * limited Merkle tree storage slots. Once revoked, a role cannot be re-granted to the same `accountId`. A new `accountId` must be
+   * generated to be re-authorized for a revoked `role`.
+   *
+   * Internal circuit without access restriction.
+   *
+   * See Storage Caveat in {_grantRole}
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
+   *
+   * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
+   *
+   * @circuitInfo k=15, rows=18115
+   *
+   * Disclosures:
+   *
+   * - A role commitment corresponding to a `(role, accountId)` pairing.
+   * - A nullifier for the respective role commitment.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   * @param {Bytes<32>} accountId - The account identifier.
+   *
+   * @return {Boolean} isGranted - Returns true if a role was granted successfully.
+   */
+  circuit _uncheckedGrantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+    const roleCommitment = _computeRoleCommitment(role, accountId);
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+    if (isRevoked) {
+      return false;
+    }
+
+    _operatorRoles.insert(disclose(roleCommitment));
+    return true;
+  }
+
+  /**
    * @description Revokes `role` from the calling account. Fails silently if role is already revoked.
    * `role` existence is not checked, so a caller can renounce roles they don't own or don't exist.
    *
@@ -388,7 +484,7 @@ module ShieldedAccessControl {
            "ShieldedAccessControl: bad confirmation"
            );
 
-    _revokeRole(role, accountIdConfirmation);
+    _uncheckedRevokeRole(role, accountIdConfirmation);
   }
 
   /**
@@ -421,8 +517,8 @@ module ShieldedAccessControl {
   export circuit revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     Initializable_assertInitialized();
 
-    assertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
-    _revokeRole(role, accountId);
+    _uncheckedAssertOnlyRole(getRoleAdmin(role) as RoleIdentifier);
+    _uncheckedRevokeRole(role, accountId);
   }
 
   /**
@@ -446,6 +542,41 @@ module ShieldedAccessControl {
   export circuit _revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
 
+    const roleCommitment = _computeRoleCommitment(role, accountId);
+    const roleNullifier = _computeNullifier(roleCommitment);
+    const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
+
+    if (isRevoked) {
+      return false;
+    }
+
+    _roleCommitmentNullifiers.insert(disclose(roleNullifier));
+    return true;
+  }
+
+  /**
+   * @description Permanently revokes `role` from `accountId` by inserting a role nullifier into the
+   * `_roleCommitmentNullifiers` set. Once revoked, a new `accountId` must be generated to be re-authorized for
+   * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
+   * so a `(role, accountId)` pairing that does not exist can still be revoked. Returns false if a role is already
+   * revoked. Internal circuit without access restriction.
+   *
+   * @warning This circuit does not perform an initialization check. It's only meant to be used as
+   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
+   * module may cause undefined behavior and break security guarantees.
+   *
+   * @circuitInfo k=15, rows=18115
+   *
+   * Disclosures:
+   *
+   * - A nullifier for the respective role commitment.
+   *
+   * @param {Bytes<32>} role - The role identifier.
+   * @param {Bytes<32>} accountId - The account identifier.
+   *
+   * @return {Boolean} isRevoked - Returns true if operation completes successfully.
+   */
+  export circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
@@ -511,7 +642,6 @@ module ShieldedAccessControl {
    * @warning This circuit does not perform an initialization check. It's only meant to be used as
    * an internal helper in the Shielded Access Control module. Using this circuit outside of the
    * module may cause undefined behavior and break security guarantees.
-   *
    *
    * @circuitInfo k=14, rows=16089
    *
