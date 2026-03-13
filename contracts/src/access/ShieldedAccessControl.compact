@@ -606,8 +606,6 @@ module ShieldedAccessControl {
    * @return {Bytes<32>} roleAdmin - The admin role that controls `role`.
    */
   export circuit getRoleAdmin(role: RoleIdentifier): AdminIdentifier {
-    Initializable_assertInitialized();
-
     if (_adminRoles.member(disclose(role))) {
       return _adminRoles.lookup(disclose(role));
     }
@@ -630,8 +628,6 @@ module ShieldedAccessControl {
    * @return {[]} - Empty tuple.
    */
   export circuit _setRoleAdmin(role: RoleIdentifier, adminId: AdminIdentifier): [] {
-    Initializable_assertInitialized();
-
     _adminRoles.insert(disclose(role), disclose(adminId));
   }
 
