@@ -3,12 +3,13 @@ import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 
 /**
  * @description Interface defining the witness methods for SampleZOwnable operations.
+ * @template L - The ledger type.
  * @template P - The private state type.
  */
 export interface ISampleZOwnableWitnesses<L, P> {
   /**
    * Retrieves the secret nonce from the private state.
-   * @param context - The witness context containing the private state.
+   * @param context - The witness context containing the ledger and private state.
    * @returns A tuple of the private state and the secret nonce as a Uint8Array.
    */
   secretNonce(context: WitnessContext<L, P>): [P, Uint8Array];
@@ -55,6 +56,7 @@ export const SampleZOwnablePrivateState = {
 
 /**
  * @description Factory function creating witness implementations for Ownable operations.
+ * @template L - The ledger type, supplied by the simulator.
  * @returns An object implementing the Witnesses interface for SampleZOwnablePrivateState.
  */
 export const SampleZOwnableWitnesses = <L>(): ISampleZOwnableWitnesses<
