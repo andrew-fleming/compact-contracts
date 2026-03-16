@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 
-- Add defensive Buffer copy to ZOwnablePKWitness (#397)
+- Add defensive Buffer copy to ZOwnablePKWitnesses (#397)
 - Disclose commitment instead of raw owner id in `_transferOwnership` in ZOwnablePK (#397)
 - Bump compact compiler to v0.29.0 (#366)
 
