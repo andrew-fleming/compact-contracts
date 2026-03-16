@@ -154,6 +154,7 @@ describe('ShieldedAccessControl', () => {
       ['_computeAccountId', [UNINITIALIZED.role]],
       ['_computeRoleCommitment', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['_computeNullifier', [UNINITIALIZED.roleCommitment]],
+      ['DEFAULT_ADMIN_ROLE', []],
       ['_validateRole', [UNINITIALIZED.roleCommitment]],
     ];
     it.each(circuitsToSucceed)('%s should succeed', (circuitName, args) => {
@@ -189,6 +190,12 @@ describe('ShieldedAccessControl', () => {
           privateState: PS,
         },
       );
+    });
+
+    describe('DEFAULT_ADMIN_ROLE', () => {
+      it('should return 0', () => {
+        expect(shieldedAccessControl.DEFAULT_ADMIN_ROLE()).toStrictEqual(new Uint8Array(32));
+      });
     });
 
     describe('_computeRoleCommitment', () => {
@@ -3448,8 +3455,11 @@ describe('ShieldedAccessControl', () => {
 
     describe('getRoleAdmin', () => {
       it('should return zero bytes (DEFAULT_ADMIN_ROLE) for a role with no admin set', () => {
-        expect(shieldedAccessControl.getRoleAdmin(OPERATOR_1.role)).toEqual(
+        expect(shieldedAccessControl.getRoleAdmin(OPERATOR_1.role)).toStrictEqual(
           new Uint8Array(32),
+        );
+        expect(shieldedAccessControl.getRoleAdmin(OPERATOR_1.role)).toStrictEqual(
+          shieldedAccessControl.DEFAULT_ADMIN_ROLE(),
         );
       });
 

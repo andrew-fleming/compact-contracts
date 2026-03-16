@@ -70,6 +70,10 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeNullifier(roleCommitment);
   }
 
+  public DEFAULT_ADMIN_ROLE(): Uint8Array {
+    return this.circuits.pure.DEFAULT_ADMIN_ROLE();
+  }
+
   public proveCallerRole(role: Uint8Array): boolean {
     return this.circuits.impure.proveCallerRole(role);
   }

@@ -53,6 +53,10 @@ export circuit _computeRoleCommitment(
          as ShieldedAccessControl_RoleCommitment;
 }
 
+export pure circuit DEFAULT_ADMIN_ROLE(): Bytes<32> {
+  return ShieldedAccessControl_DEFAULT_ADMIN_ROLE();
+}
+
 // circuit is reimplemented in the Mock contract for testing
 export circuit _computeAccountId(
                  role: ShieldedAccessControl_RoleIdentifier
