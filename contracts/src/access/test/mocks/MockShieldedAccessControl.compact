@@ -53,7 +53,7 @@ export circuit _computeRoleCommitment(
          as ShieldedAccessControl_RoleCommitment;
 }
 
-export pure circuit DEFAULT_ADMIN_ROLE(): Bytes<32> {
+export pure circuit DEFAULT_ADMIN_ROLE(): ShieldedAccessControl_RoleIdentifier {
   return ShieldedAccessControl_DEFAULT_ADMIN_ROLE();
 }
 

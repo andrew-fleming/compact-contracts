@@ -75,8 +75,7 @@ pragma language_version >= 0.21.0;
  * By default, the admin role for all roles is `DEFAULT_ADMIN_ROLE`, which means
  * that only accounts with this role will be able to grant or revoke other
  * roles. More complex role relationships can be created by using
- * {_setRoleAdmin}. To set a custom `DEFAULT_ADMIN_ROLE` set `DEFAULT_ADMIN_ROLE`
- * in the `initialize()` circuit.
+ * {_setRoleAdmin}.
  *
  * WARNING: The `DEFAULT_ADMIN_ROLE` is also its own admin: it has permission to
  * grant and revoke this role. Extra precautions should be taken to secure
@@ -215,8 +214,8 @@ module ShieldedAccessControl {
    * @remarks The Compact language does not support constant declarations,
    * so DEFAULT_ADMIN_ROLE is implemented as a circuit that returns a constant value by necessity.
    */
-  export pure circuit DEFAULT_ADMIN_ROLE(): Bytes<32> {
-    return default<Bytes<32>>;
+  export pure circuit DEFAULT_ADMIN_ROLE(): RoleIdentifier {
+    return default<Bytes<32>> as RoleIdentifier;
   }
 
   /**
@@ -612,7 +611,7 @@ module ShieldedAccessControl {
     if (_adminRoles.member(disclose(role))) {
       return _adminRoles.lookup(disclose(role));
     }
-    return default<Bytes<32>> as RoleIdentifier;
+    return DEFAULT_ADMIN_ROLE();
   }
 
   /**
