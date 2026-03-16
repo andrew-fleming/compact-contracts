@@ -3652,7 +3652,7 @@ describe('ShieldedAccessControl', () => {
         ).toBe(false);
       });
 
-      it('should update nullifier root on successful renounce', () => {
+      it('should update nullifier set on successful renounce', () => {
         const nullifierSetSize = shieldedAccessControl
           .getPublicState()
           .ShieldedAccessControl__roleCommitmentNullifiers.size();
@@ -3669,7 +3669,7 @@ describe('ShieldedAccessControl', () => {
             .ShieldedAccessControl__roleCommitmentNullifiers.member(
               ADMIN.roleNullifier,
             ),
-        );
+        ).toBe(true);
       });
     });
   });
