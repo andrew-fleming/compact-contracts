@@ -1512,7 +1512,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1554,7 +1554,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1581,7 +1581,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1607,7 +1607,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const adminRoleBadAccountCommitment = buildRoleCommitmentHash(
@@ -1718,7 +1718,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1760,7 +1760,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1787,7 +1787,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const merkleTreePath = shieldedAccessControl
@@ -1813,7 +1813,7 @@ describe('ShieldedAccessControl', () => {
           merkleRoot = shieldedAccessControl
             .getPublicState()
             .ShieldedAccessControl__operatorRoles.root();
-          expect(merkleRoot).not.toBe(0n);
+          expect(merkleRoot.field).not.toBe(0n);
 
           // check path exists for new role
           const adminRoleBadAccountCommitment = buildRoleCommitmentHash(
