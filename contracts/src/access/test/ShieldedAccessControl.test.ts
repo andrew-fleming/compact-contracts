@@ -217,13 +217,13 @@ describe('ShieldedAccessControl', () => {
         checkedCircuits,
       )('should not compute commitment with isValidRoleId=%s, isValidAccountId=%s', (_isValidRoleId, _isValidAccountId, args) => {
         // Test protected circuit
-        expect(() => {
+        expect(
           (
             shieldedAccessControl._computeRoleCommitment as (
               ...args: unknown[]
             ) => Uint8Array
-          )(...args);
-        }).not.toEqual(ADMIN.roleCommitment);
+          )(...args)
+        ).not.toEqual(ADMIN.roleCommitment);
       });
     });
 
