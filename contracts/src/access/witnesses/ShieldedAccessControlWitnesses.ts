@@ -80,8 +80,14 @@ export const ShieldedAccessControlPrivateState = {
     nonce: Buffer,
   ): ShieldedAccessControlPrivateState => {
     const roleString = role.toString('hex');
-    privateState.roles[roleString] = nonce;
-    return privateState;
+    const roles: Record<string, Uint8Array> = {};
+
+    for (const [k, v] of Object.entries(privateState.roles)) {
+      roles[k] = new Uint8Array(v);
+    }
+
+    roles[roleString] = new Uint8Array(nonce);
+    return { roles }
   },
 
   getRoleCommitmentPath: (
