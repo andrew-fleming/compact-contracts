@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
+import { describe, expect, it } from 'vitest';
+import type { Ledger } from '../../../../artifacts/MockZOwnablePK/contract/index.js';
 import {
   ZOwnablePKPrivateState,
   ZOwnablePKWitnesses,
 } from '../ZOwnablePKWitnesses.js';
-import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
-import type { Ledger } from '../../../../artifacts/MockZOwnablePK/contract/index.js';
 
 const NONCE = Buffer.alloc(32, 0x34);
 
@@ -52,9 +52,9 @@ describe('ZOwnablePKPrivateState', () => {
     });
 
     it('should throw for an empty buffer', () => {
-      expect(() => ZOwnablePKPrivateState.withNonce(Buffer.alloc(0))).toThrowError(
-        'withNonce: expected 32-byte nonce, received 0 bytes',
-      );
+      expect(() =>
+        ZOwnablePKPrivateState.withNonce(Buffer.alloc(0)),
+      ).toThrowError('withNonce: expected 32-byte nonce, received 0 bytes');
     });
   });
 });
@@ -119,7 +119,10 @@ describe('ZOwnablePKWitnesses factory', () => {
     const a = ZOwnablePKWitnesses();
     const b = ZOwnablePKWitnesses();
     const state = ZOwnablePKPrivateState.generate();
-    const ctx = { privateState: state } as WitnessContext<Ledger, ZOwnablePKPrivateState>;
+    const ctx = { privateState: state } as WitnessContext<
+      Ledger,
+      ZOwnablePKPrivateState
+    >;
 
     const [stateA, nonceA] = a.wit_secretNonce(ctx);
     const [stateB, nonceB] = b.wit_secretNonce(ctx);
