@@ -146,7 +146,6 @@ describe('ShieldedAccessControl', () => {
     // Circuit calls should succeed
     const circuitsToSucceed: UncheckedCircuits[] = [
       ['_uncheckedProveCallerRole', [UNINITIALIZED.role]],
-      ['_uncheckedAssertOnlyRole', [UNINITIALIZED.role]],
       ['getRoleAdmin', [UNINITIALIZED.role]],
       ['_uncheckedGrantRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['_uncheckedRevokeRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
