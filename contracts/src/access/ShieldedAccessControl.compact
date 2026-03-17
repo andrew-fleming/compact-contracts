@@ -691,10 +691,6 @@ module ShieldedAccessControl {
   /**
    * @description Computes the role nullifier for a given `roleCommitment`.
    *
-   * @warning This circuit does not perform an initialization check. It's only meant to be used as
-   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
-   * module may cause undefined behavior and break security guarantees.
-   *
    * ## Role Nullifier Derivation
    * `roleNullifier = SHA256(roleCommitment, nullifierDomain)`
    *
