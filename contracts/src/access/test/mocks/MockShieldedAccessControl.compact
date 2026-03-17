@@ -100,10 +100,6 @@ export circuit assertOnlyRole(roleId: ShieldedAccessControl_RoleIdentifier): [] 
   ShieldedAccessControl_assertOnlyRole(roleId);
 }
 
-export circuit _uncheckedAssertOnlyRole(role: ShieldedAccessControl_RoleIdentifier): [] {
-  assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
-}
-
 // _validateRole is re-implemented in the Mock contract for testing
 export circuit _validateRole(
                  role: ShieldedAccessControl_RoleIdentifier,

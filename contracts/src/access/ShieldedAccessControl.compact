@@ -241,7 +241,6 @@ module ShieldedAccessControl {
    */
   export circuit assertOnlyRole(role: RoleIdentifier): [] {
     Initializable_assertInitialized();
-
     assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
   }
 
@@ -378,17 +377,7 @@ module ShieldedAccessControl {
    */
   export circuit _grantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
-
-    const roleCommitment = _computeRoleCommitment(role, accountId);
-    const roleNullifier = _computeNullifier(roleCommitment);
-    const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-    if (isRevoked) {
-      return false;
-    }
-
-    _operatorRoles.insert(disclose(roleCommitment));
-    return true;
+    return _uncheckedGrantRole(role, accountId);
   }
 
   /**
@@ -528,17 +517,7 @@ module ShieldedAccessControl {
    */
   export circuit _revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
-
-    const roleCommitment = _computeRoleCommitment(role, accountId);
-    const roleNullifier = _computeNullifier(roleCommitment);
-    const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-    if (isRevoked) {
-      return false;
-    }
-
-    _roleCommitmentNullifiers.insert(disclose(roleNullifier));
-    return true;
+    return _uncheckedRevokeRole(role, accountId);
   }
 
   /**
