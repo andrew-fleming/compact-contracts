@@ -118,6 +118,11 @@ module ShieldedAccessControl {
   import "../utils/Utils" prefix Utils_;
   import "../security/Initializable" prefix Initializable_;
 
+  export enum UpdateType {
+    Grant,
+    Revoke
+  };
+
   // TODO: Standardize types across contracts https://github.com/OpenZeppelin/compact-contracts/issues/368
   export new type RoleCommitment = Bytes<32>;
   export new type RoleIdentifier = Bytes<32>;
@@ -331,7 +336,7 @@ module ShieldedAccessControl {
   export circuit grantRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     // Initialization check performed in assertOnlyRole
     assertOnlyRole(getRoleAdmin(role));
-    _uncheckedGrantRole(role, accountId);
+    _updateRole(role, accountId, UpdateType.Grant);
   }
 
   /**
@@ -377,49 +382,7 @@ module ShieldedAccessControl {
    */
   export circuit _grantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
-    return _uncheckedGrantRole(role, accountId);
-  }
-
-  /**
-   * @description Grants `role` to `accountId` by inserting a role commitment unique to the
-   * `(role, accountId)` pairing into the `_operatorRoles` Merkle tree. Duplicate role commitments can be issued
-   * so long as they remain unrevoked. This does not yield any additional authority and simply wastes
-   * limited Merkle tree storage slots. Once revoked, a role cannot be re-granted to the same `accountId`. A new `accountId` must be
-   * generated to be re-authorized for a revoked `role`.
-   *
-   * Internal circuit without access restriction.
-   *
-   * See Storage Caveat in {_grantRole}
-   *
-   * @warning This circuit does not perform an initialization check. It's only meant to be used as
-   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
-   * module may cause undefined behavior and break security guarantees.
-   *
-   * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
-   *
-   * @circuitInfo k=14, rows=12331
-   *
-   * Disclosures:
-   *
-   * - A role commitment corresponding to a `(role, accountId)` pairing.
-   * - A nullifier for the respective role commitment.
-   *
-   * @param {RoleIdentifier} role - The role identifier.
-   * @param {AccountIdentifier} accountId - The unique identifier of the account.
-   *
-   * @return {Boolean} isGranted - Returns true if a role was granted successfully.
-   */
-  circuit _uncheckedGrantRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
-    const roleCommitment = _computeRoleCommitment(role, accountId);
-    const roleNullifier = _computeNullifier(roleCommitment);
-    const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-    if (isRevoked) {
-      return false;
-    }
-
-    _operatorRoles.insert(disclose(roleCommitment));
-    return true;
+    return _updateRole(role, accountId, UpdateType.Grant);
   }
 
   /**
@@ -456,7 +419,7 @@ module ShieldedAccessControl {
            "ShieldedAccessControl: bad confirmation"
            );
 
-    _uncheckedRevokeRole(role, accountIdConfirmation);
+    _updateRole(role, accountIdConfirmation, UpdateType.Revoke);
   }
 
   /**
@@ -488,7 +451,7 @@ module ShieldedAccessControl {
   export circuit revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
     // Initialization check performed in assertOnlyRole
     assertOnlyRole(getRoleAdmin(role));
-    _uncheckedRevokeRole(role, accountId);
+    _updateRole(role, accountId, UpdateType.Revoke);
   }
 
   /**
@@ -515,32 +478,31 @@ module ShieldedAccessControl {
    */
   export circuit _revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
     Initializable_assertInitialized();
-    return _uncheckedRevokeRole(role, accountId);
+    return _updateRole(role, accountId, UpdateType.Revoke);
   }
 
   /**
-   * @description Permanently revokes `role` from `accountId` by inserting a role nullifier into the
-   * `_roleCommitmentNullifiers` set. Once revoked, a new `accountId` must be generated to be re-authorized for
-   * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
-   * so a `(role, accountId)` pairing that does not exist can still be revoked. Returns false if a role is already
-   * revoked. Internal circuit without access restriction.
+   * @description Core business logic for the grant/revoke role circuits. Returns false if a role is revoked.
+   * Otherwise, dispatches on `updateType`: a `Grant` inserts the role commitment into `_operatorRoles`, and
+   * a `Revoke` inserts the nullifier into `_roleCommitmentNullifiers`. Returns true on success.
    *
-   * @warning This circuit does not perform an initialization check. It's only meant to be used as
-   * an internal helper in the Shielded Access Control module. Using this circuit outside of the
-   * module may cause undefined behavior and break security guarantees.
-   *
-   * @circuitInfo k=14, rows=10320
+   * @circuitInfo k=14, rows=12391
    *
    * Disclosures:
    *
    * - A nullifier for the respective role commitment.
+   * - A role commitment on success
    *
    * @param {RoleIdentifier} role - The role identifier.
    * @param {AccountIdentifier} accountId - The unique identifier of the account.
    *
    * @return {Boolean} isRevoked - Returns true if operation completes successfully.
    */
-  circuit _uncheckedRevokeRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
+  circuit _updateRole(
+            role: RoleIdentifier,
+            accountId: AccountIdentifier,
+            updateType: UpdateType
+            ): Boolean {
     const roleCommitment = _computeRoleCommitment(role, accountId);
     const roleNullifier = _computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
@@ -549,7 +511,12 @@ module ShieldedAccessControl {
       return false;
     }
 
-    _roleCommitmentNullifiers.insert(disclose(roleNullifier));
+    if (updateType == UpdateType.Grant) {
+      _operatorRoles.insert(disclose(roleCommitment));
+    } else {
+      _roleCommitmentNullifiers.insert(disclose(roleNullifier));
+    }
+
     return true;
   }
 

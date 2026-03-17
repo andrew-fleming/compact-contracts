@@ -6,6 +6,7 @@ import {
 import {
   ledger,
   Contract as MockShieldedAccessControl,
+  type ShieldedAccessControl_UpdateType as UpdateType,
   type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
@@ -98,16 +99,12 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.grantRole(role, accountId);
   }
 
-  public _uncheckedGrantRole(role: Uint8Array, accountId: Uint8Array) {
-    this.circuits.impure._uncheckedGrantRole(role, accountId);
-  }
-
   public revokeRole(role: Uint8Array, accountId: Uint8Array) {
     this.circuits.impure.revokeRole(role, accountId);
   }
 
-  public _uncheckedRevokeRole(role: Uint8Array, accountId: Uint8Array) {
-    this.circuits.impure._uncheckedRevokeRole(role, accountId);
+  public _updateRole(role: Uint8Array, accountId: Uint8Array, updateType: UpdateType) {
+    return this.circuits.impure._updateRole(role, accountId, updateType);
   }
 
   public renounceRole(role: Uint8Array, callerConfirmation: Uint8Array) {
