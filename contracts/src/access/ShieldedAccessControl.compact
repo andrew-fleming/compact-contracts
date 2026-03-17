@@ -221,7 +221,7 @@ module ShieldedAccessControl {
   /**
    * @description Reverts if caller cannot provide a valid proof of ownership for `role`.
    *
-   * @circuitInfo k=15, rows=22130
+   * @circuitInfo k=15, rows=19237
    *
    * Requirements:
    *
@@ -249,7 +249,7 @@ module ShieldedAccessControl {
    * caller if the proving environment supplies an invalid Merkle path. This circuit will never return true for an
    * unauthorized caller.
    *
-   * @circuitInfo k=15, rows=22128
+   * @circuitInfo k=15, rows=19237
    *
    * Requirements:
    *
@@ -280,7 +280,7 @@ module ShieldedAccessControl {
    * an internal helper in the Shielded Access Control module. Using this circuit outside of the
    * module may cause undefined behavior and break security guarantees.
    *
-   * @circuitInfo k=15, rows=22128
+   * @circuitInfo k=15, rows=19235
    *
    * Requirements:
    *
@@ -314,7 +314,7 @@ module ShieldedAccessControl {
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
    * - Contract is initialized.
    *
-   * @circuitInfo k=16, rows=39993
+   * @circuitInfo k=15, rows=31312
    *
    * Disclosures:
    *
@@ -363,7 +363,7 @@ module ShieldedAccessControl {
    *
    * - Contract is initialized.
    *
-   * @circuitInfo k=15, rows=18115
+   * @circuitInfo k=14, rows=12333
    *
    * Disclosures:
    *
@@ -397,7 +397,7 @@ module ShieldedAccessControl {
    *
    * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
    *
-   * @circuitInfo k=15, rows=18115
+   * @circuitInfo k=14, rows=12331
    *
    * Disclosures:
    *
@@ -433,7 +433,7 @@ module ShieldedAccessControl {
    * @warning Outside observers may be able to use timing and pattern analysis to weaken pseudonymity
    *          guarantees if renounceRole is used in tandem with other on-chain actions.
    *
-   * @circuitInfo k=17, rows=108992
+   * @circuitInfo k=15, rows=16663
    *
    * Requirements:
    *
@@ -465,15 +465,13 @@ module ShieldedAccessControl {
    * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
    * so a `(role, accountId)` pairing that does not exist can still be revoked.
    *
-   * @circuitInfo k=18, rows=138517
+   * @circuitInfo k=15, rows=29301
    *
    * Requirements:
    *
    * - caller must prove they're an admin for `role`.
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
    * - Contract is initialized.
-   *
-   * @circuitInfo k=18, rows=138761
    *
    * Disclosures:
    *
@@ -504,7 +502,7 @@ module ShieldedAccessControl {
    *
    * - Contract is initialized.
    *
-   * @circuitInfo k=15, rows=18115
+   * @circuitInfo k=14, rows=10322
    *
    * Disclosures:
    *
@@ -531,7 +529,7 @@ module ShieldedAccessControl {
    * an internal helper in the Shielded Access Control module. Using this circuit outside of the
    * module may cause undefined behavior and break security guarantees.
    *
-   * @circuitInfo k=15, rows=18115
+   * @circuitInfo k=14, rows=10320
    *
    * Disclosures:
    *
@@ -561,7 +559,7 @@ module ShieldedAccessControl {
    *
    * To change a role’s admin use {_setRoleAdmin}.
    *
-   * @circuitInfo k=9, rows=375
+   * @circuitInfo k=9, rows=373
    *
    * Disclosures:
    *
@@ -581,7 +579,7 @@ module ShieldedAccessControl {
   /**
    * @description Sets `adminId` as `role`'s admin identifier. Internal circuit without access restriction.
    *
-   * @circuitInfo k=10, rows=583
+   * @circuitInfo k=10, rows=581
    *
    * Disclosures:
    *
@@ -605,7 +603,7 @@ module ShieldedAccessControl {
    * an internal helper in the Shielded Access Control module. Using this circuit outside of the
    * module may cause undefined behavior and break security guarantees.
    *
-   * @circuitInfo k=14, rows=16089
+   * @circuitInfo k=14, rows=13179
    *
    * Requirements:
    *
@@ -667,7 +665,7 @@ module ShieldedAccessControl {
    * - `commitmentDomain`: Domain separator `"ShieldedAccessControl:commitment"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
    *
-   * @circuitInfo k=13, rows=6423
+   * @circuitInfo k=13, rows=6421
    *
    * @param {RoleIdentifier} role - The role identifier.
    * @param {AccountIdentifier} accountId - The unique identifier of the account.
@@ -732,7 +730,7 @@ module ShieldedAccessControl {
    * This value is later used in role commitment hashing,
    * and acts as a privacy-preserving alternative to a raw public key.
    *
-   * @circuitInfo k=13, rows=6705
+   * @circuitInfo k=13, rows=6659
    *
    * @param {RoleIdentifier} role - A private nonce to scope the commitment.
    *
