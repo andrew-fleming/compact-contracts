@@ -227,6 +227,7 @@ module ShieldedAccessControl {
    *
    * - caller must prove ownership of `role`.
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   * - Contract is initialized.
    *
    * Disclosures:
    *
@@ -245,30 +246,6 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Reverts if caller cannot provide a valid proof of ownership for `role`.
-   *
-   * @circuitInfo k=15, rows=22130
-   *
-   * Requirements:
-   *
-   * - caller must prove ownership of `role`.
-   * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
-   *
-   * Disclosures:
-   *
-   * - A Merkle tree path to a role commitment.
-   * - A role commitment corresponding to a `(role, accountId)` pairing.
-   * - A nullifier for the respective role commitment.
-   *
-   * @param {RoleIdentifier} role - The role identifier.
-   *
-   * @return {[]} - Empty tuple.
-   */
-  circuit _uncheckedAssertOnlyRole(role: RoleIdentifier): [] {
-    assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
-  }
-
-  /**
    * @description Returns `true` if a caller proves ownership of `role` and is not revoked. MAY return false for a legitimately credentialed
    * caller if the proving environment supplies an invalid Merkle path. This circuit will never return true for an
    * unauthorized caller.
@@ -278,6 +255,7 @@ module ShieldedAccessControl {
    * Requirements:
    *
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   * - Contract is initialized.
    *
    * Disclosures:
    *
@@ -335,6 +313,7 @@ module ShieldedAccessControl {
    *
    * - caller must prove they're an admin for `role`.
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   * - Contract is initialized.
    *
    * @circuitInfo k=16, rows=39993
    *
@@ -351,9 +330,8 @@ module ShieldedAccessControl {
    * @return {[]} - Empty tuple.
    */
   export circuit grantRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
-    Initializable_assertInitialized();
-
-    _uncheckedAssertOnlyRole(getRoleAdmin(role));
+    // Initialization check performed in assertOnlyRole
+    assertOnlyRole(getRoleAdmin(role));
     _uncheckedGrantRole(role, accountId);
   }
 
@@ -381,6 +359,10 @@ module ShieldedAccessControl {
    * defence-in-depth measure against accidental exhaustion.
    *
    * @dev Commitment and nullifier checks are inlined in this circuit to avoid an expensive re-computation of the role commitment and nullifier
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
    *
    * @circuitInfo k=15, rows=18115
    *
@@ -467,6 +449,7 @@ module ShieldedAccessControl {
    * Requirements:
    *
    * - The caller must provide a valid `accountId` for a `role`.
+   * - Contract is initialized.
    *
    * Disclosures:
    *
@@ -499,6 +482,7 @@ module ShieldedAccessControl {
    *
    * - caller must prove they're an admin for `role`.
    * - caller must not provide valid Merkle tree path for a different `(role, accountId)` pairing.
+   * - Contract is initialized.
    *
    * @circuitInfo k=18, rows=138761
    *
@@ -515,9 +499,8 @@ module ShieldedAccessControl {
    * @return {[]} - Empty tuple.
    */
   export circuit revokeRole(role: RoleIdentifier, accountId: AccountIdentifier): [] {
-    Initializable_assertInitialized();
-
-    _uncheckedAssertOnlyRole(getRoleAdmin(role));
+    // Initialization check performed in assertOnlyRole
+    assertOnlyRole(getRoleAdmin(role));
     _uncheckedRevokeRole(role, accountId);
   }
 
@@ -527,6 +510,10 @@ module ShieldedAccessControl {
    * `role`. At this time, proofs of non-membership on values in the Merkle tree LDT are not possible
    * so a `(role, accountId)` pairing that does not exist can still be revoked. Returns false if a role is already
    * revoked. Internal circuit without access restriction.
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
    *
    * @circuitInfo k=15, rows=18115
    *
@@ -702,10 +689,6 @@ module ShieldedAccessControl {
    * hash collisions when extending the module or using similar commitment schemes.
    *
    * @circuitInfo k=13, rows=6423
-   *
-   * Requirements:
-   *
-   * - Contract is initialized.
    *
    * @param {RoleIdentifier} role - The role identifier.
    * @param {AccountIdentifier} accountId - The unique identifier of the account.
