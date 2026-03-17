@@ -25,7 +25,7 @@ export interface IShieldedAccessControlWitnesses<P> {
   ): [P, MerkleTreePath<Uint8Array>];
 }
 
-type role = string;
+type Role = string;
 type SecretNonce = Uint8Array;
 
 /**
@@ -34,7 +34,7 @@ type SecretNonce = Uint8Array;
  */
 export type ShieldedAccessControlPrivateState = {
   /** @description A 32-byte secret nonce used as a privacy additive. */
-  roles: Record<role, SecretNonce>;
+  roles: Record<Role, SecretNonce | undefined>;
 };
 
 /**
@@ -83,6 +83,9 @@ export const ShieldedAccessControlPrivateState = {
     const roles: Record<string, Uint8Array> = {};
 
     for (const [k, v] of Object.entries(privateState.roles)) {
+      if (typeof v === "undefined") {
+        throw new Error(`Missing secret nonce for role ${k}`);
+      }
       roles[k] = new Uint8Array(v);
     }
 
@@ -120,7 +123,11 @@ export const ShieldedAccessControlWitnesses =
       role: Uint8Array,
     ): [ShieldedAccessControlPrivateState, Uint8Array] {
       const roleString = Buffer.from(role).toString('hex');
-      return [context.privateState, context.privateState.roles[roleString]];
+      const roleNonce = context.privateState.roles[roleString];
+      if (typeof roleNonce === "undefined") {
+        throw new Error(`Missing secret nonce for role ${roleString}`);
+      }
+      return [context.privateState, roleNonce];
     },
     wit_getRoleCommitmentPath(
       context: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,

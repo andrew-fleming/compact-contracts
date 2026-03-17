@@ -156,7 +156,11 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
      */
     getCurrentSecretNonce: (role: Uint8Array): Uint8Array => {
       const roleString = Buffer.from(role).toString('hex');
-      return this.getPrivateState().roles[roleString];
+      const roleNonce = this.getPrivateState().roles[roleString];
+      if (typeof roleNonce === "undefined") {
+        throw new Error(`Missing secret nonce for role ${roleNonce}`)
+      }
+      return roleNonce;
     },
     getCommitmentPathWithFindForLeaf: (
       roleCommitment: Uint8Array,
