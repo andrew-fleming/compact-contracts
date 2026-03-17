@@ -1,26 +1,24 @@
 import { getRandomValues } from 'node:crypto';
-import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
-import type {
-  Ledger,
-  MerkleTreePath,
-} from '../../../artifacts/MockShieldedAccessControl/contract/index.js';
+import type { WitnessContext, MerkleTreePath } from '@midnight-ntwrk/compact-runtime';
+
 
 /**
- * @description Interface defining the witness methods for ShieldedAccessControl operations.
+ * @description Interface defining the witness methods for ShieldedAccessControl operations
+ * @template L - The ledger type.
  * @template P - The private state type.
  */
-export interface IShieldedAccessControlWitnesses<P> {
+export interface IShieldedAccessControlWitnesses<L, P> {
   /**
    * Retrieves the secret nonce from the private state.
    * @param context - The witness context containing the private state.
    * @returns A tuple of the private state and the secret nonce as a Uint8Array.
    */
   wit_secretNonce(
-    context: WitnessContext<Ledger, P>,
+    context: WitnessContext<L, P>,
     role: Uint8Array,
   ): [P, Uint8Array];
   wit_getRoleCommitmentPath(
-    context: WitnessContext<Ledger, P>,
+    context: WitnessContext<L, P>,
     roleCommitment: Uint8Array,
   ): [P, MerkleTreePath<Uint8Array>];
 }
@@ -93,15 +91,16 @@ export const ShieldedAccessControlPrivateState = {
     return { roles }
   },
 
-  getRoleCommitmentPath: (
-    ledger: Ledger,
+  getRoleCommitmentPath: <L>(
+    ledger: L,
     roleCommitment: Uint8Array,
   ): MerkleTreePath<Uint8Array> => {
     const path =
-      ledger.ShieldedAccessControl__operatorRoles.findPathForLeaf(
+      // cast ledger as any to avoid type gymnastics
+      (ledger as any).ShieldedAccessControl__operatorRoles.findPathForLeaf(
         roleCommitment,
       );
-    const defaultPath: MerkleTreePath<Uint8Array> = {
+    const defaultPath = {
       leaf: new Uint8Array(32),
       path: Array.from({ length: 20 }, () => ({
         sibling: { field: 0n },
@@ -117,9 +116,9 @@ export const ShieldedAccessControlPrivateState = {
  * @returns An object implementing the Witnesses interface for ShieldedAccessControlPrivateState.
  */
 export const ShieldedAccessControlWitnesses =
-  (): IShieldedAccessControlWitnesses<ShieldedAccessControlPrivateState> => ({
+  <L>(): IShieldedAccessControlWitnesses<L, ShieldedAccessControlPrivateState> => ({
     wit_secretNonce(
-      context: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,
+      context: WitnessContext<L, ShieldedAccessControlPrivateState>,
       role: Uint8Array,
     ): [ShieldedAccessControlPrivateState, Uint8Array] {
       const roleString = Buffer.from(role).toString('hex');
@@ -130,12 +129,12 @@ export const ShieldedAccessControlWitnesses =
       return [context.privateState, roleNonce];
     },
     wit_getRoleCommitmentPath(
-      context: WitnessContext<Ledger, ShieldedAccessControlPrivateState>,
+      context: WitnessContext<L, ShieldedAccessControlPrivateState>,
       roleCommitment: Uint8Array,
     ): [ShieldedAccessControlPrivateState, MerkleTreePath<Uint8Array>] {
       return [
         context.privateState,
-        ShieldedAccessControlPrivateState.getRoleCommitmentPath(
+        ShieldedAccessControlPrivateState.getRoleCommitmentPath<L>(
           context.ledger,
           roleCommitment,
         ),

@@ -7,12 +7,13 @@ import {
   ledger,
   Contract as MockShieldedAccessControl,
   type ShieldedAccessControl_UpdateType as UpdateType,
-  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
   ShieldedAccessControlPrivateState,
   ShieldedAccessControlWitnesses,
 } from '../../witnesses/ShieldedAccessControlWitnesses.js';
+
+type ShieldedAccessControlLedger = ReturnType<typeof ledger>;
 
 /**
  * Type constructor args
@@ -36,7 +37,7 @@ const ShieldedAccessControlSimulatorBase = createSimulator<
     return [instanceSalt, isInit];
   },
   ledgerExtractor: (state) => ledger(state),
-  witnessesFactory: () => ShieldedAccessControlWitnesses(),
+  witnessesFactory: () => ShieldedAccessControlWitnesses<ShieldedAccessControlLedger>(),
 });
 
 /**
