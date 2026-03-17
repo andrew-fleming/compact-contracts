@@ -291,9 +291,7 @@ module ShieldedAccessControl {
    */
   export circuit proveCallerRole(role: RoleIdentifier): Boolean {
     Initializable_assertInitialized();
-
-    const accountId = _computeAccountId(role);
-    return _validateRole(role, accountId);
+    return _uncheckedProveCallerRole(role);
   }
 
   /**
