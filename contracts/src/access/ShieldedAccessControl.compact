@@ -241,7 +241,7 @@ module ShieldedAccessControl {
    */
   export circuit assertOnlyRole(role: RoleIdentifier): [] {
     Initializable_assertInitialized();
-    assert(_uncheckedProveCallerRole(role), "ShieldedAccessControl: unauthorized account");
+    assert(_uncheckedCanProveRole(role), "ShieldedAccessControl: unauthorized account");
   }
 
   /**
@@ -266,9 +266,9 @@ module ShieldedAccessControl {
    *
    * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
    */
-  export circuit proveCallerRole(role: RoleIdentifier): Boolean {
+  export circuit canProveRole(role: RoleIdentifier): Boolean {
     Initializable_assertInitialized();
-    return _uncheckedProveCallerRole(role);
+    return _uncheckedCanProveRole(role);
   }
 
   /**
@@ -296,7 +296,7 @@ module ShieldedAccessControl {
    *
    * @return {Boolean} - A boolean determining if a caller successfully proved ownership of `role`
    */
-  circuit _uncheckedProveCallerRole(role: RoleIdentifier): Boolean {
+  circuit _uncheckedCanProveRole(role: RoleIdentifier): Boolean {
     const accountId = _computeAccountId(role);
     return _validateRole(role, accountId);
   }

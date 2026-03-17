@@ -74,12 +74,12 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure.DEFAULT_ADMIN_ROLE();
   }
 
-  public proveCallerRole(role: Uint8Array): boolean {
-    return this.circuits.impure.proveCallerRole(role);
+  public canProveRole(role: Uint8Array): boolean {
+    return this.circuits.impure.canProveRole(role);
   }
 
-  public _uncheckedProveCallerRole(role: Uint8Array): boolean {
-    return this.circuits.impure._uncheckedProveCallerRole(role);
+  public _uncheckedCanProveRole(role: Uint8Array): boolean {
+    return this.circuits.impure._uncheckedCanProveRole(role);
   }
 
   public assertOnlyRole(role: Uint8Array) {

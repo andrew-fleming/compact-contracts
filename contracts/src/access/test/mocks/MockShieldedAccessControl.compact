@@ -87,11 +87,11 @@ export pure circuit _computeNullifier(
          as ShieldedAccessControl_RoleNullifier;
 }
 
-export circuit proveCallerRole(roleId: ShieldedAccessControl_RoleIdentifier): Boolean {
-  return ShieldedAccessControl_proveCallerRole(roleId);
+export circuit canProveRole(roleId: ShieldedAccessControl_RoleIdentifier): Boolean {
+  return ShieldedAccessControl_canProveRole(roleId);
 }
 
-export circuit _uncheckedProveCallerRole(role: ShieldedAccessControl_RoleIdentifier): Boolean {
+export circuit _uncheckedCanProveRole(role: ShieldedAccessControl_RoleIdentifier): Boolean {
   const accountId = _computeAccountId(role);
   return _validateRole(role, accountId);
 }

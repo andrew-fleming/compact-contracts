@@ -123,7 +123,7 @@ describe('ShieldedAccessControl', () => {
     ];
     // Circuit calls should fail before the args are used
     const circuitsToFail: FailingCircuits[] = [
-      ['proveCallerRole', [UNINITIALIZED.role]],
+      ['canProveRole', [UNINITIALIZED.role]],
       ['assertOnlyRole', [UNINITIALIZED.role]],
       ['grantRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['revokeRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
@@ -145,7 +145,7 @@ describe('ShieldedAccessControl', () => {
     ];
     // Circuit calls should succeed
     const circuitsToSucceed: UncheckedCircuits[] = [
-      ['_uncheckedProveCallerRole', [UNINITIALIZED.role]],
+      ['_uncheckedCanProveRole', [UNINITIALIZED.role]],
       ['getRoleAdmin', [UNINITIALIZED.role]],
       ['_uncheckedGrantRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
       ['_uncheckedRevokeRole', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
@@ -2919,7 +2919,7 @@ describe('ShieldedAccessControl', () => {
       });
     });
 
-    describe('proveCallerRole', () => {
+    describe('canProveRole', () => {
       beforeEach(() => {
         shieldedAccessControl._grantRole(ADMIN.role, ADMIN.accountId);
         shieldedAccessControl.setPersistentCaller(ADMIN.publicKey);
@@ -2945,7 +2945,7 @@ describe('ShieldedAccessControl', () => {
           },
         );
         expect(() => {
-          shieldedAccessControl.proveCallerRole(ADMIN.role);
+          shieldedAccessControl.canProveRole(ADMIN.role);
         }).toThrow(
           'ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing',
         );
@@ -2962,7 +2962,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(ADMIN.role, ADMIN.accountId),
           ).toBe(true);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
         });
@@ -2997,16 +2997,16 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._grantRole(OPERATOR_2.role, account2);
           shieldedAccessControl._grantRole(OPERATOR_3.role, account3);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_2.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_2.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_3.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_3.role)).toBe(
             true,
           );
         });
@@ -3027,7 +3027,7 @@ describe('ShieldedAccessControl', () => {
           expect(newAdminAccountId).not.toEqual(ADMIN.accountId);
 
           shieldedAccessControl._grantRole(ADMIN.role, newAdminAccountId);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
         });
@@ -3049,7 +3049,7 @@ describe('ShieldedAccessControl', () => {
             operator1AdminAccountId,
           );
           shieldedAccessControl.as(ADMIN.publicKey); // prove ADMIN has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
 
@@ -3062,7 +3062,7 @@ describe('ShieldedAccessControl', () => {
             operator1Op2AccountId,
           );
           shieldedAccessControl.as(OPERATOR_2.publicKey); // prove OP_2 has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
 
@@ -3075,7 +3075,7 @@ describe('ShieldedAccessControl', () => {
             operator1Op3AccountId,
           );
           shieldedAccessControl.as(OPERATOR_3.publicKey); // prove OP_3 has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
         });
@@ -3098,7 +3098,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(OPERATOR_1.role, accountId),
           ).toBe(false);
 
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             false,
           );
         });
@@ -3111,7 +3111,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(ADMIN.role, ADMIN.accountId),
           ).toBe(false);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3124,7 +3124,7 @@ describe('ShieldedAccessControl', () => {
           ).toBe(false);
 
           shieldedAccessControl._grantRole(ADMIN.role, ADMIN.accountId);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3133,7 +3133,7 @@ describe('ShieldedAccessControl', () => {
           // UNAUTHORIZED uses the same private state (ADMIN.secretNonce for ADMIN.role),
           // so their derived accountId won't match the committed one.
           shieldedAccessControl.as(UNAUTHORIZED.publicKey);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3159,7 +3159,7 @@ describe('ShieldedAccessControl', () => {
             ),
           );
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3178,15 +3178,15 @@ describe('ShieldedAccessControl', () => {
             'wit_getRoleCommitmentPath',
             RETURN_BAD_PATH,
           );
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
       });
     });
 
-    // TODO refactor to test _uncheckedProveCallerRole
-    describe.skip('_uncheckedProveCallerRole', () => {
+    // TODO refactor to test _uncheckedCanProveRole
+    describe.skip('_uncheckedCanProveRole', () => {
       beforeEach(() => {
         shieldedAccessControl._grantRole(ADMIN.role, ADMIN.accountId);
         shieldedAccessControl.setPersistentCaller(ADMIN.publicKey);
@@ -3212,7 +3212,7 @@ describe('ShieldedAccessControl', () => {
           },
         );
         expect(() => {
-          shieldedAccessControl.proveCallerRole(ADMIN.role);
+          shieldedAccessControl.canProveRole(ADMIN.role);
         }).toThrow(
           'ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing',
         );
@@ -3229,7 +3229,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(ADMIN.role, ADMIN.accountId),
           ).toBe(true);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
         });
@@ -3264,16 +3264,16 @@ describe('ShieldedAccessControl', () => {
           shieldedAccessControl._grantRole(OPERATOR_2.role, account2);
           shieldedAccessControl._grantRole(OPERATOR_3.role, account3);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_2.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_2.role)).toBe(
             true,
           );
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_3.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_3.role)).toBe(
             true,
           );
         });
@@ -3294,7 +3294,7 @@ describe('ShieldedAccessControl', () => {
           expect(newAdminAccountId).not.toEqual(ADMIN.accountId);
 
           shieldedAccessControl._grantRole(ADMIN.role, newAdminAccountId);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             true,
           );
         });
@@ -3316,7 +3316,7 @@ describe('ShieldedAccessControl', () => {
             operator1AdminAccountId,
           );
           shieldedAccessControl.as(ADMIN.publicKey); // prove ADMIN has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
 
@@ -3329,7 +3329,7 @@ describe('ShieldedAccessControl', () => {
             operator1Op2AccountId,
           );
           shieldedAccessControl.as(OPERATOR_2.publicKey); // prove OP_2 has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
 
@@ -3342,7 +3342,7 @@ describe('ShieldedAccessControl', () => {
             operator1Op3AccountId,
           );
           shieldedAccessControl.as(OPERATOR_3.publicKey); // prove OP_3 has OP_1 role
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             true,
           );
         });
@@ -3365,7 +3365,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(OPERATOR_1.role, accountId),
           ).toBe(false);
 
-          expect(shieldedAccessControl.proveCallerRole(OPERATOR_1.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(OPERATOR_1.role)).toBe(
             false,
           );
         });
@@ -3378,7 +3378,7 @@ describe('ShieldedAccessControl', () => {
             shieldedAccessControl._validateRole(ADMIN.role, ADMIN.accountId),
           ).toBe(false);
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3391,7 +3391,7 @@ describe('ShieldedAccessControl', () => {
           ).toBe(false);
 
           shieldedAccessControl._grantRole(ADMIN.role, ADMIN.accountId);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3400,7 +3400,7 @@ describe('ShieldedAccessControl', () => {
           // UNAUTHORIZED uses the same private state (ADMIN.secretNonce for ADMIN.role),
           // so their derived accountId won't match the committed one.
           shieldedAccessControl.as(UNAUTHORIZED.publicKey);
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3426,7 +3426,7 @@ describe('ShieldedAccessControl', () => {
             ),
           );
 
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
@@ -3445,7 +3445,7 @@ describe('ShieldedAccessControl', () => {
             'wit_getRoleCommitmentPath',
             RETURN_BAD_PATH,
           );
-          expect(shieldedAccessControl.proveCallerRole(ADMIN.role)).toBe(
+          expect(shieldedAccessControl.canProveRole(ADMIN.role)).toBe(
             false,
           );
         });
