@@ -503,8 +503,8 @@ module ShieldedAccessControl {
             accountId: AccountIdentifier,
             updateType: UpdateType
             ): Boolean {
-    const roleCommitment = _computeRoleCommitment(role, accountId);
-    const roleNullifier = _computeNullifier(roleCommitment);
+    const roleCommitment = computeRoleCommitment(role, accountId);
+    const roleNullifier = computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
 
     if (isRevoked) {
@@ -589,7 +589,7 @@ module ShieldedAccessControl {
    * @return {Boolean} isValidRole - A boolean indicating whether `accountId` has a valid role
    */
   circuit _validateRole(role: RoleIdentifier, accountId: AccountIdentifier): Boolean {
-    const roleCommitment = _computeRoleCommitment(role, accountId);
+    const roleCommitment = computeRoleCommitment(role, accountId);
     const roleCommitmentPath = wit_getRoleCommitmentPath(roleCommitment);
     const isValidPath =
             _operatorRoles.checkRoot(
@@ -603,7 +603,7 @@ module ShieldedAccessControl {
              );
     }
 
-    const roleNullifier = _computeNullifier(roleCommitment);
+    const roleNullifier = computeNullifier(roleCommitment);
     const isRevoked = _roleCommitmentNullifiers.member(disclose(roleNullifier));
 
     return isValidPath && !isRevoked;
@@ -641,9 +641,9 @@ module ShieldedAccessControl {
    * @returns {RoleCommitment} The commitment derived from `accountId` and `role`.
    */
   export circuit computeRoleCommitment(
-            role: RoleIdentifier,
-            accountId: AccountIdentifier,
-            ): RoleCommitment {
+                   role: RoleIdentifier,
+                   accountId: AccountIdentifier,
+                   ): RoleCommitment {
 
     return persistentHash<Vector<4, Bytes<32>>>(
              [role as Bytes<32>,
@@ -660,7 +660,7 @@ module ShieldedAccessControl {
    * ## Role Nullifier Derivation
    * `roleNullifier = SHA256(roleCommitment, nullifierDomain)`
    *
-   * - `roleCommitment`: See `_computeRoleCommitment`.
+   * - `roleCommitment`: See `computeRoleCommitment`.
    * - `nullifierDomain`: Domain separator `"ShieldedAccessControl:nullifier"` (padded to 32 bytes) to prevent
    * hash collisions when extending the module or using similar commitment schemes.
    *
@@ -746,12 +746,13 @@ module ShieldedAccessControl {
    *
    * @returns {AccountIdentifier} accountId - The computed account ID.
    */
-  export pure circuit computeAccountIdLocally(account: ZswapCoinPublicKey, secretNonce: Bytes<32>, instanceSalt: Bytes<32>): AccountIdentifier {
+  export pure circuit computeAccountIdLocally(
+                        account: ZswapCoinPublicKey,
+                        secretNonce: Bytes<32>,
+                        instanceSalt: Bytes<32>
+                        ): AccountIdentifier {
     return persistentHash<Vector<4, Bytes<32>>>(
-             [account.bytes,
-              secretNonce,
-              instanceSalt,
-              pad(32, "ShieldedAccessControl:accountId")]
+             [account.bytes, secretNonce, instanceSalt, pad(32, "ShieldedAccessControl:accountId")]
              )
            as AccountIdentifier;
   }
