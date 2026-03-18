@@ -157,7 +157,7 @@ module ShieldedAccessControl {
    * commitments for this contract instance.
    *
    * This salt prevents commitment collisions across contracts that might otherwise use
-   * the same identifiers or domain parameters. It should be should be a cryptographically strong random value
+   * the same identifiers or domain parameters. It should be a cryptographically strong random value
    * It is immutable after initialization.
    */
   export sealed ledger _instanceSalt: Bytes<32>;
@@ -640,7 +640,7 @@ module ShieldedAccessControl {
    *
    * @returns {RoleCommitment} The commitment derived from `accountId` and `role`.
    */
-  export circuit _computeRoleCommitment(
+  export circuit computeRoleCommitment(
             role: RoleIdentifier,
             accountId: AccountIdentifier,
             ): RoleCommitment {
@@ -668,7 +668,7 @@ module ShieldedAccessControl {
    *
    * @returns {RoleNullifier} roleNullifier - The associated nullifier for `roleCommitment`.
    */
-  export pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
+  export pure circuit computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
     return persistentHash<Vector<2, Bytes<32>>>(
              [roleCommitment as Bytes<32>, pad(32, "ShieldedAccessControl:nullifier")]
              )
@@ -746,7 +746,7 @@ module ShieldedAccessControl {
    *
    * @returns {AccountIdentifier} accountId - The computed account ID.
    */
-  export pure circuit _computeAccountIdLocally(account: ZswapCoinPublicKey, secretNonce: Bytes<32>, instanceSalt: Bytes<32>): AccountIdentifier {
+  export pure circuit computeAccountIdLocally(account: ZswapCoinPublicKey, secretNonce: Bytes<32>, instanceSalt: Bytes<32>): AccountIdentifier {
     return persistentHash<Vector<4, Bytes<32>>>(
              [account.bytes,
               secretNonce,
