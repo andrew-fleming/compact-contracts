@@ -157,7 +157,7 @@ module ShieldedAccessControl {
    * commitments for this contract instance.
    *
    * This salt prevents commitment collisions across contracts that might otherwise use
-   * the same identifiers or domain parameters. It should be should be a cryptographically strong random value
+   * the same identifiers or domain parameters. It should be a cryptographically strong random value
    * It is immutable after initialization.
    */
   export sealed ledger _instanceSalt: Bytes<32>;
