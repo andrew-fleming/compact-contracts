@@ -639,7 +639,7 @@ module ShieldedAccessControl {
    *
    * @returns {RoleCommitment} The commitment derived from `accountId` and `role`.
    */
-  export circuit _computeRoleCommitment(
+  export circuit computeRoleCommitment(
             role: RoleIdentifier,
             accountId: AccountIdentifier,
             ): RoleCommitment {
