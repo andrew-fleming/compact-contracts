@@ -150,8 +150,8 @@ describe('ShieldedAccessControl', () => {
       ['getRoleAdmin', [UNINITIALIZED.role]],
       ['_setRoleAdmin', [UNINITIALIZED.role, UNINITIALIZED.role]],
       ['_computeAccountId', [UNINITIALIZED.role]],
-      ['_computeRoleCommitment', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
-      ['_computeNullifier', [UNINITIALIZED.roleCommitment]],
+      ['computeRoleCommitment', [UNINITIALIZED.role, UNINITIALIZED.accountId]],
+      ['computeNullifier', [UNINITIALIZED.roleCommitment]],
       ['DEFAULT_ADMIN_ROLE', []],
       ['_validateRole', [UNINITIALIZED.roleCommitment]],
       ['_updateRole', [UNINITIALIZED.roleCommitment, UNINITIALIZED.accountId, UpdateType.Grant]],
@@ -198,10 +198,10 @@ describe('ShieldedAccessControl', () => {
       });
     });
 
-    describe('_computeRoleCommitment', () => {
+    describe('computeRoleCommitment', () => {
       it('should match computed commitment', () => {
         expect(
-          shieldedAccessControl._computeRoleCommitment(
+          shieldedAccessControl.computeRoleCommitment(
             ADMIN.role,
             ADMIN.accountId,
           ),
@@ -226,7 +226,7 @@ describe('ShieldedAccessControl', () => {
         // Test protected circuit
         expect(
           (
-            shieldedAccessControl._computeRoleCommitment as (
+            shieldedAccessControl.computeRoleCommitment as (
               ...args: unknown[]
             ) => Uint8Array
           )(...args)
@@ -234,16 +234,16 @@ describe('ShieldedAccessControl', () => {
       });
     });
 
-    describe('_computeNullifier', () => {
+    describe('computeNullifier', () => {
       it('should match nullifier', () => {
         expect(
-          shieldedAccessControl._computeNullifier(ADMIN.roleCommitment),
+          shieldedAccessControl.computeNullifier(ADMIN.roleCommitment),
         ).toEqual(ADMIN.roleNullifier);
       });
 
       it('should not match bad commitment inputs', () => {
         expect(
-          shieldedAccessControl._computeNullifier(BAD_INPUT.roleCommitment),
+          shieldedAccessControl.computeNullifier(BAD_INPUT.roleCommitment),
         ).not.toEqual(ADMIN.roleNullifier);
       });
     });

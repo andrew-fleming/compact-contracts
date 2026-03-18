@@ -56,11 +56,11 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     super([instanceSalt, isInit], options);
   }
 
-  public _computeRoleCommitment(
+  public computeRoleCommitment(
     role: Uint8Array,
     accountId: Uint8Array,
   ): Uint8Array {
-    return this.circuits.impure._computeRoleCommitment(role, accountId);
+    return this.circuits.impure.computeRoleCommitment(role, accountId);
   }
 
   public _computeAccountId(
@@ -77,8 +77,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure._computeAccountIdLocally(account, secretNonce, instanceSalt);
   }
 
-  public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {
-    return this.circuits.pure._computeNullifier(roleCommitment);
+  public computeNullifier(roleCommitment: Uint8Array): Uint8Array {
+    return this.circuits.pure.computeNullifier(roleCommitment);
   }
 
   public DEFAULT_ADMIN_ROLE(): Uint8Array {
