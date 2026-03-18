@@ -544,7 +544,8 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Sets `adminId` as `role`'s admin identifier. Internal circuit without access restriction.
+   * @description Sets `adminId` as `role`'s admin identifier. Users with valid admin identifiers
+   * may grant and revoke access to the specified `role`.Internal circuit without access restriction.
    *
    * @circuitInfo k=10, rows=581
    *
@@ -554,7 +555,7 @@ module ShieldedAccessControl {
    * - The admin identifier
    *
    * @param {RoleIdentifier} role - The role identifier.
-   * @param {AccountIdentifier} accountId - The unique identifier of the account.
+   * @param {RoleIdentifier} adminId - The admin identifier for `role`.
    *
    * @return {[]} - Empty tuple.
    */
