@@ -639,7 +639,7 @@ module ShieldedAccessControl {
    *
    * @returns {RoleCommitment} The commitment derived from `accountId` and `role`.
    */
-  circuit _computeRoleCommitment(
+  export circuit _computeRoleCommitment(
             role: RoleIdentifier,
             accountId: AccountIdentifier,
             ): RoleCommitment {
@@ -667,7 +667,7 @@ module ShieldedAccessControl {
    *
    * @returns {RoleNullifier} roleNullifier - The associated nullifier for `roleCommitment`.
    */
-  pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
+  export pure circuit _computeNullifier(roleCommitment: RoleCommitment): RoleNullifier {
     return persistentHash<Vector<2, Bytes<32>>>(
              [roleCommitment as Bytes<32>, pad(32, "ShieldedAccessControl:nullifier")]
              )
@@ -708,6 +708,48 @@ module ShieldedAccessControl {
              [ownPublicKey().bytes,
               wit_secretNonce(role),
               _instanceSalt,
+              pad(32, "ShieldedAccessControl:accountId")]
+             )
+           as AccountIdentifier;
+  }
+
+  /**
+   * @description Computes an `accountId` locally without on-chain state, allowing a user to derive
+   * their shielded identity commitment before submitting it in a grant or revoke operation.
+   * This is the off-chain counterpart to {_computeAccountId} and produces an identical result
+   * given the same inputs.
+   *
+   * @warning OpSec: The `secretNonce` parameter is a sensitive secret. Mishandling it can
+   * permanently compromise the privacy guarantees of this system:
+   *
+   * - **Never log or persist** the `secretNonce` in plaintext — avoid browser devtools,
+   *   application logs, analytics pipelines, or any observable side-channel.
+   * - **Store offline or in secure enclaves** — hardware security modules (HSMs),
+   *   air-gapped devices, or encrypted vaults are strongly preferred over hot storage.
+   * - **Never reuse a nonce across roles** — reuse may allow an observer to correlate your
+   *   identity across different role commitments, weakening privacy.
+   * - **Use cryptographically secure randomness** — generate nonces with `crypto.getRandomValues()`
+   *   or equivalent; weak or predictable nonces can be brute-forced to reveal your identity.
+   * - **Treat nonce loss as identity loss** — a lost nonce cannot be recovered. Back up
+   *   nonces securely before using them in role commitments.
+   * - **Avoid calling this circuit in untrusted environments** — executing this in an
+   *   unverified browser extension, compromised runtime, or shared machine may expose
+   *   the nonce to a malicious observer.
+   *
+   * ## ID Derivation
+   * See {_computeAccountId} for further details.
+   *
+   * @param {ZswapCoinPublicKey} account - The user's ZswapCoinPublicKey
+   * @param {Bytes<32>} secretNonce - A private nonce scoped to a particular role.
+   * @param {Bytes<32>} instanceSalt - The unique per-deployment salt for the contract instance.
+   *
+   * @returns {AccountIdentifier} accountId - The computed account ID.
+   */
+  export pure circuit _computeAccountIdLocally(account: ZswapCoinPublicKey, secretNonce: Bytes<32>, instanceSalt: Bytes<32>): AccountIdentifier {
+    return persistentHash<Vector<4, Bytes<32>>>(
+             [account.bytes,
+              secretNonce,
+              instanceSalt,
               pad(32, "ShieldedAccessControl:accountId")]
              )
            as AccountIdentifier;

@@ -44,19 +44,12 @@ constructor(instanceSalt: Bytes<32>, isInit: Boolean) {
   }
 }
 
-// circuit is reimplemented in the Mock contract for testing
 export circuit _computeRoleCommitment(
                  role: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
                  ): ShieldedAccessControl_RoleCommitment {
 
-  return persistentHash<Vector<4, Bytes<32>>>(
-           [role as Bytes<32>,
-            accountId as Bytes<32>,
-            ShieldedAccessControl__instanceSalt,
-            pad(32, "ShieldedAccessControl:commitment")]
-           )
-         as ShieldedAccessControl_RoleCommitment;
+  return ShieldedAccessControl__computeRoleCommitment(role, accountId);
 }
 
 export pure circuit DEFAULT_ADMIN_ROLE(): ShieldedAccessControl_RoleIdentifier {
@@ -68,24 +61,29 @@ export circuit _computeAccountId(
                  role: ShieldedAccessControl_RoleIdentifier
                  ): ShieldedAccessControl_AccountIdentifier {
 
-  // disclosure required here for testing
-  return disclose(persistentHash<Vector<4, Bytes<32>>>(
-                    [ownPublicKey().bytes,
-                     wit_secretNonce(role),
-                     ShieldedAccessControl__instanceSalt,
-                     pad(32, "ShieldedAccessControl:accountId")]
-                    ))
-         as ShieldedAccessControl_AccountIdentifier;
+    // value must be disclosed for testing
+    return disclose(persistentHash<Vector<4, Bytes<32>>>(
+             [ownPublicKey().bytes,
+              wit_secretNonce(role),
+              ShieldedAccessControl__instanceSalt,
+              pad(32, "ShieldedAccessControl:accountId")]
+             ))
+           as ShieldedAccessControl_AccountIdentifier;
 }
 
-// circuit is reimplemented in the Mock contract for testing
+export pure circuit _computeAccountIdLocally(
+                 account: ZswapCoinPublicKey,
+                 secretNonce: Bytes<32>,
+                 instanceSalt: Bytes<32>
+                 ): ShieldedAccessControl_AccountIdentifier {
+
+  return ShieldedAccessControl__computeAccountIdLocally(account, secretNonce, instanceSalt);
+}
+
 export pure circuit _computeNullifier(
                       roleCommitment: ShieldedAccessControl_RoleCommitment
                       ): ShieldedAccessControl_RoleNullifier {
-  return persistentHash<Vector<2, Bytes<32>>>(
-           [roleCommitment as Bytes<32>, pad(32, "ShieldedAccessControl:nullifier")]
-           )
-         as ShieldedAccessControl_RoleNullifier;
+  return ShieldedAccessControl__computeNullifier(roleCommitment);
 }
 
 export circuit canProveRole(role: ShieldedAccessControl_RoleIdentifier): Boolean {
