@@ -6,6 +6,7 @@ import {
 import {
   ledger,
   Contract as MockShieldedAccessControl,
+  ZswapCoinPublicKey,
   type ShieldedAccessControl_UpdateType as UpdateType,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
@@ -66,6 +67,14 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     role: Uint8Array,
   ): Uint8Array {
     return this.circuits.impure._computeAccountId(role);
+  }
+
+  public _computeAccountIdLocally(
+    account: ZswapCoinPublicKey,
+    secretNonce: Uint8Array,
+    instanceSalt: Uint8Array
+  ): Uint8Array {
+    return this.circuits.pure._computeAccountIdLocally(account, secretNonce, instanceSalt);
   }
 
   public _computeNullifier(roleCommitment: Uint8Array): Uint8Array {
