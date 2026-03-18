@@ -155,7 +155,7 @@ describe('ShieldedAccessControl', () => {
       ['DEFAULT_ADMIN_ROLE', []],
       ['_validateRole', [UNINITIALIZED.roleCommitment]],
       ['_updateRole', [UNINITIALIZED.roleCommitment, UNINITIALIZED.accountId, UpdateType.Grant]],
-      ['_computeAccountIdLocally', [UNINITIALIZED.zPublicKey, UNINITIALIZED.secretNonce, UNINITIALIZED.role]],
+      ['computeAccountId', [UNINITIALIZED.zPublicKey, UNINITIALIZED.secretNonce, UNINITIALIZED.role]],
     ];
     it.each(circuitsToSucceed)('%s should succeed', (circuitName, args) => {
       expect(() => {
@@ -276,10 +276,10 @@ describe('ShieldedAccessControl', () => {
       });
     });
 
-    describe('_computeAccountIdLocally', () => {
+    describe('computeAccountId', () => {
       it('should match when given correct account and nonce', () => {
         expect(
-          shieldedAccessControl._computeAccountIdLocally(
+          shieldedAccessControl.computeAccountId(
             ADMIN.zPublicKey,
             ADMIN.secretNonce,
             INSTANCE_SALT,
@@ -288,7 +288,7 @@ describe('ShieldedAccessControl', () => {
       });
 
       it('should not match when given correct account with bad nonce', () => {
-        const computedAccountId = shieldedAccessControl._computeAccountIdLocally(
+        const computedAccountId = shieldedAccessControl.computeAccountId(
           ADMIN.zPublicKey,
           BAD_INPUT.secretNonce,
           INSTANCE_SALT,
@@ -298,7 +298,7 @@ describe('ShieldedAccessControl', () => {
       });
 
       it('should not match when given unauthorized account with correct nonce', () => {
-        const computedAccountId = shieldedAccessControl._computeAccountIdLocally(
+        const computedAccountId = shieldedAccessControl.computeAccountId(
           UNAUTHORIZED.zPublicKey,
           ADMIN.secretNonce,
           INSTANCE_SALT,

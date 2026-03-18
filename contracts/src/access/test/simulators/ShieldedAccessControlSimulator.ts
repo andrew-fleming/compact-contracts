@@ -69,12 +69,12 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.impure._computeAccountId(role);
   }
 
-  public _computeAccountIdLocally(
+  public computeAccountId(
     account: ZswapCoinPublicKey,
     secretNonce: Uint8Array,
     instanceSalt: Uint8Array
   ): Uint8Array {
-    return this.circuits.pure._computeAccountIdLocally(account, secretNonce, instanceSalt);
+    return this.circuits.pure.computeAccountId(account, secretNonce, instanceSalt);
   }
 
   public computeNullifier(roleCommitment: Uint8Array): Uint8Array {

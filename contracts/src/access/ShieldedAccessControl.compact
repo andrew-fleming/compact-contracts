@@ -705,13 +705,7 @@ module ShieldedAccessControl {
    * @returns {AccountIdentifier} accountId - The computed account ID.
    */
   circuit _computeAccountId(role: RoleIdentifier): AccountIdentifier {
-    return persistentHash<Vector<4, Bytes<32>>>(
-             [ownPublicKey().bytes,
-              wit_secretNonce(role),
-              _instanceSalt,
-              pad(32, "ShieldedAccessControl:accountId")]
-             )
-           as AccountIdentifier;
+    return computeAccountId(ownPublicKey(), wit_secretNonce(role), _instanceSalt);
   }
 
   /**
@@ -746,7 +740,7 @@ module ShieldedAccessControl {
    *
    * @returns {AccountIdentifier} accountId - The computed account ID.
    */
-  export pure circuit computeAccountIdLocally(
+  export pure circuit computeAccountId(
                         account: ZswapCoinPublicKey,
                         secretNonce: Bytes<32>,
                         instanceSalt: Bytes<32>

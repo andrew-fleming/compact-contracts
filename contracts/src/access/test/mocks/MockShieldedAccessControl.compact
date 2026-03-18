@@ -57,27 +57,17 @@ export pure circuit DEFAULT_ADMIN_ROLE(): ShieldedAccessControl_RoleIdentifier {
 }
 
 // circuit is reimplemented in the Mock contract for testing
-export circuit _computeAccountId(
-                 role: ShieldedAccessControl_RoleIdentifier
-                 ): ShieldedAccessControl_AccountIdentifier {
-
-  // value must be disclosed for testing
-  return disclose(persistentHash<Vector<4, Bytes<32>>>(
-                    [ownPublicKey().bytes,
-                     wit_secretNonce(role),
-                     ShieldedAccessControl__instanceSalt,
-                     pad(32, "ShieldedAccessControl:accountId")]
-                    ))
-         as ShieldedAccessControl_AccountIdentifier;
+export circuit _computeAccountId(role: ShieldedAccessControl_RoleIdentifier): ShieldedAccessControl_AccountIdentifier {
+  return disclose(ShieldedAccessControl_computeAccountId(ownPublicKey(), wit_secretNonce(role), ShieldedAccessControl__instanceSalt));
 }
 
-export pure circuit computeAccountIdLocally(
+export pure circuit computeAccountId(
                       account: ZswapCoinPublicKey,
                       secretNonce: Bytes<32>,
                       instanceSalt: Bytes<32>
                       ): ShieldedAccessControl_AccountIdentifier {
 
-  return ShieldedAccessControl_computeAccountIdLocally(account, secretNonce, instanceSalt);
+  return ShieldedAccessControl_computeAccountId(account, secretNonce, instanceSalt);
 }
 
 export pure circuit computeNullifier(
