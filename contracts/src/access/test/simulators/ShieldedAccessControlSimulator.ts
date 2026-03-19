@@ -161,7 +161,7 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
       const roleString = Buffer.from(role).toString('hex');
       const roleNonce = this.getPrivateState().roles[roleString];
       if (typeof roleNonce === "undefined") {
-        throw new Error(`Missing secret nonce for role ${roleNonce}`)
+        throw new Error(`Missing secret nonce for role ${roleString}`)
       }
       return roleNonce;
     },
