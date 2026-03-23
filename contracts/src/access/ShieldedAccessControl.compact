@@ -348,6 +348,9 @@ module ShieldedAccessControl {
    *
    * Internal circuit without access restriction.
    *
+   * @warning Exposing this circuit directly in an implementing contract would allow anyone to grant
+   * roles without authorization. It must be wrapped with appropriate access control.
+   *
    * ## Storage Caveat
    *
    * `_operatorRoles` is a fixed-depth Merkle tree with a maximum capacity of
@@ -461,6 +464,9 @@ module ShieldedAccessControl {
    * so a `(role, accountId)` pairing that does not exist can still be revoked. Returns false if a role is already
    * revoked. Internal circuit without access restriction.
    *
+   * @warning Exposing this circuit directly in an implementing contract would allow anyone to revoke
+   * roles without authorization. It must be wrapped with appropriate access control.
+   *
    * Requirements:
    *
    * - Contract is initialized.
@@ -521,8 +527,10 @@ module ShieldedAccessControl {
   }
 
   /**
-   * @description Returns the admin role that controls `role` or a zero
-   * byte array if `role` doesn't exist. See {grantRole} and {revokeRole}.
+   * @description Returns the admin role that controls `role`. Returns `DEFAULT_ADMIN_ROLE` for
+   * roles with no explicitly set admin. Since `DEFAULT_ADMIN_ROLE` is the zero byte array,
+   * there is no distinction between a nonexistent `role` and one whose admin is `DEFAULT_ADMIN_ROLE`.
+   * See {grantRole} and {revokeRole}.
    *
    * To change a role’s admin use {_setRoleAdmin}.
    *
@@ -545,7 +553,10 @@ module ShieldedAccessControl {
 
   /**
    * @description Sets `adminId` as `role`'s admin identifier. Users with valid admin identifiers
-   * may grant and revoke access to the specified `role`.Internal circuit without access restriction.
+   * may grant and revoke access to the specified `role`. Internal circuit without access restriction.
+   *
+   * @warning Exposing this circuit directly in an implementing contract would allow anyone to assign
+   * arbitrary admin roles without authorization. It must be wrapped with appropriate access control.
    *
    * @circuitInfo k=10, rows=581
    *
