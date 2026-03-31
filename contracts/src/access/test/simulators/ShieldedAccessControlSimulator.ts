@@ -6,8 +6,6 @@ import {
 import {
   ledger,
   Contract as MockShieldedAccessControl,
-  type ShieldedAccessControl_UpdateType as UpdateType,
-  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockShieldedAccessControl/contract/index.js';
 import {
   ShieldedAccessControlPrivateState,
@@ -77,8 +75,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.grantRole(role, accountId);
   }
 
-  public _grantRole(role: Uint8Array, accountId: Uint8Array): boolean {
-    return this.circuits.impure._grantRole(role, accountId);
+  public _grantRole(role: Uint8Array, accountId: Uint8Array) {
+    this.circuits.impure._grantRole(role, accountId);
   }
 
   public renounceRole(role: Uint8Array, callerConfirmation: Uint8Array) {
@@ -89,16 +87,8 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     this.circuits.impure.revokeRole(role, accountId);
   }
 
-  public _revokeRole(role: Uint8Array, accountId: Uint8Array): boolean {
-    return this.circuits.impure._revokeRole(role, accountId);
-  }
-
-  public _updateRole(
-    role: Uint8Array,
-    accountId: Uint8Array,
-    updateType: UpdateType,
-  ) {
-    return this.circuits.impure._updateRole(role, accountId, updateType);
+  public _revokeRole(role: Uint8Array, accountId: Uint8Array) {
+    this.circuits.impure._revokeRole(role, accountId);
   }
 
   public getRoleAdmin(role: Uint8Array): Uint8Array {
@@ -124,54 +114,53 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
     return this.circuits.pure.computeNullifier(roleCommitment);
   }
 
-  public _computeAccountId(role: Uint8Array): Uint8Array {
-    return this.circuits.impure._computeAccountId(role);
+  public _computeAccountId(): Uint8Array {
+    return this.circuits.impure._computeAccountId();
   }
 
   public computeAccountId(
-    account: ZswapCoinPublicKey,
-    secretNonce: Uint8Array,
+    secretKey: Uint8Array,
     instanceSalt: Uint8Array,
   ): Uint8Array {
-    return this.circuits.pure.computeAccountId(
-      account,
-      secretNonce,
-      instanceSalt,
-    );
+    return this.circuits.pure.computeAccountId(secretKey, instanceSalt);
   }
 
   public readonly privateState = {
     /**
-     * @description Contextually sets a new nonce into the private state.
-     * @param newNonce The secret nonce.
-     * @returns The ShieldedAccessControl private state after setting the new nonce.
+     * @description Replaces the secret key in the private state. Used in tests to
+     * simulate switching between different user identities or injecting incorrect
+     * keys to test failure paths.
+     * @param newSK - The new secret key to set.
+     * @returns The updated private state.
      */
-    injectSecretNonce: (
-      role: Uint8Array,
-      newNonce: Buffer<ArrayBufferLike>,
+    injectSecretKey: (
+      newSK: Buffer<ArrayBufferLike>,
     ): ShieldedAccessControlPrivateState => {
-      const currentState = this.getPrivateState();
-      const updatedState = {
-        roles: { ...currentState.roles },
-      };
-      const roleString = Buffer.from(role).toString('hex');
-      updatedState.roles[roleString] = newNonce;
+      const updatedState = { secretKey: newSK };
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
     },
 
     /**
-     * @description Returns the secret nonce for a given role.
-     * @returns The secret nonce.
+     * @description Returns the current secret key from the private state.
+     * @returns The secret key.
+     * @throws If the secret key is undefined.
      */
-    getCurrentSecretNonce: (role: Uint8Array): Uint8Array => {
-      const roleString = Buffer.from(role).toString('hex');
-      const roleNonce = this.getPrivateState().roles[roleString];
-      if (typeof roleNonce === 'undefined') {
-        throw new Error(`Missing secret nonce for role ${roleString}`);
+    getCurrentSecretKey: (): Uint8Array => {
+      const sk = this.getPrivateState().secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
       }
-      return roleNonce;
+      return sk;
     },
+
+    /**
+     * @description Searches the `_operatorRoles` Merkle tree for a leaf matching
+     * the given role commitment using the ledger's `findPathForLeaf` method.
+     * Returns the path if found, undefined otherwise.
+     * @param roleCommitment - The role commitment to search for.
+     * @returns The Merkle tree path if the commitment exists, undefined otherwise.
+     */
     getCommitmentPathWithFindForLeaf: (
       roleCommitment: Uint8Array,
     ): MerkleTreePath<Uint8Array> | undefined => {
@@ -179,6 +168,15 @@ export class ShieldedAccessControlSimulator extends ShieldedAccessControlSimulat
         roleCommitment,
       );
     },
+
+    /**
+     * @description Returns the Merkle tree path for a given role commitment using
+     * the witness implementation. Used to verify that the witness produces the
+     * expected path, or to compare against `getCommitmentPathWithFindForLeaf`
+     * to detect witness overrides or mismatches.
+     * @param roleCommitment - The role commitment to find a path for.
+     * @returns The Merkle tree path as returned by the witness.
+     */
     getCommitmentPathWithWitnessImpl: (
       roleCommitment: Uint8Array,
     ): MerkleTreePath<Uint8Array> => {

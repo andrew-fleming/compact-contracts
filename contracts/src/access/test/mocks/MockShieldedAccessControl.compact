@@ -11,25 +11,17 @@ import CompactStandardLibrary;
 
 import "../../ShieldedAccessControl" prefix ShieldedAccessControl_;
 
-import "../../../security/Initializable" prefix Initializable_;
-
-export { ZswapCoinPublicKey,
-         ContractAddress,
-         Either,
-         Maybe,
-         MerkleTreePath,
-         ShieldedAccessControl_DEFAULT_ADMIN_ROLE,
+export { MerkleTreePath,
          ShieldedAccessControl__operatorRoles,
          ShieldedAccessControl__roleCommitmentNullifiers,
-         ShieldedAccessControl__adminRoles,
-         ShieldedAccessControl_UpdateType };
+         ShieldedAccessControl__adminRoles };
 
 // witnesses are re-implemented in the Mock contract for testing
 witness wit_getRoleCommitmentPath(
           roleCommitment: ShieldedAccessControl_RoleCommitment
           ): MerkleTreePath<20, ShieldedAccessControl_RoleCommitment>;
 
-witness wit_secretNonce(role: ShieldedAccessControl_RoleIdentifier): Bytes<32>;
+witness wit_secretKey(): Bytes<32>;
 
 /**
  * @description `isInit` is a param for testing.
@@ -58,7 +50,7 @@ export circuit canProveRole(role: ShieldedAccessControl_RoleIdentifier): Boolean
 
 // _uncheckCanProveRole is re-implemented in the Mock contract for testing
 export circuit _uncheckedCanProveRole(role: ShieldedAccessControl_RoleIdentifier): Boolean {
-  const accountId = _computeAccountId(role);
+  const accountId = _computeAccountId();
   return _validateRole(role, accountId);
 }
 
@@ -72,7 +64,7 @@ export circuit grantRole(
 export circuit _grantRole(
                  role: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): Boolean {
+                 ): [] {
   return ShieldedAccessControl__grantRole(role, accountId);
 }
 
@@ -93,32 +85,8 @@ export circuit revokeRole(
 export circuit _revokeRole(
                  role: ShieldedAccessControl_RoleIdentifier,
                  accountId: ShieldedAccessControl_AccountIdentifier
-                 ): Boolean {
+                 ): [] {
   return ShieldedAccessControl__revokeRole(role, accountId);
-}
-
-// _updateRole is re-implemented in the Mock contract for testing
-export circuit _updateRole(
-                 role: ShieldedAccessControl_RoleIdentifier,
-                 accountId: ShieldedAccessControl_AccountIdentifier,
-                 updateType: ShieldedAccessControl_UpdateType
-                 ): Boolean {
-  const roleCommitment = computeRoleCommitment(role, accountId);
-  const roleNullifier = computeNullifier(roleCommitment);
-  const isRevoked = ShieldedAccessControl__roleCommitmentNullifiers.member(disclose(roleNullifier));
-
-  if (isRevoked) {
-    return false;
-  }
-
-  // disclosure only necessary here because we’re exporting the circuit for testing
-  if (disclose(updateType) == ShieldedAccessControl_UpdateType.Grant) {
-    ShieldedAccessControl__operatorRoles.insert(disclose(roleCommitment));
-  } else {
-    ShieldedAccessControl__roleCommitmentNullifiers.insert(disclose(roleNullifier));
-  }
-
-  return true;
 }
 
 export circuit getRoleAdmin(
@@ -148,7 +116,6 @@ export circuit _validateRole(
               )
             );
 
-  // If the path is valid we assert it’s a path for the queried leaf (not some other leaf).
   if (isValidPath) {
     assert(roleCommitmentPath.leaf == roleCommitment,
            "ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing"
@@ -176,15 +143,14 @@ export pure circuit computeNullifier(
 }
 
 // circuit is reimplemented in the Mock contract for testing
-export circuit _computeAccountId(role: ShieldedAccessControl_RoleIdentifier): ShieldedAccessControl_AccountIdentifier {
-  return disclose(ShieldedAccessControl_computeAccountId(ownPublicKey(), wit_secretNonce(role), ShieldedAccessControl__instanceSalt));
+export circuit _computeAccountId(): ShieldedAccessControl_AccountIdentifier {
+  return disclose(ShieldedAccessControl_computeAccountId(wit_secretKey(), ShieldedAccessControl__instanceSalt));
 }
 
 export pure circuit computeAccountId(
-                      account: ZswapCoinPublicKey,
-                      secretNonce: Bytes<32>,
+                      secretKey: Bytes<32>,
                       instanceSalt: Bytes<32>
                       ): ShieldedAccessControl_AccountIdentifier {
 
-  return ShieldedAccessControl_computeAccountId(account, secretNonce, instanceSalt);
+  return ShieldedAccessControl_computeAccountId(secretKey, instanceSalt);
 }
