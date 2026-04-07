@@ -286,6 +286,12 @@ describe('ShieldedAccessControl', () => {
             'ShieldedAccessControl: unauthorized account',
           );
         });
+
+        it('when role was never granted to anyone', () => {
+          expect(() => contract.assertOnlyRole(ROLE_NONEXISTENT)).toThrow(
+            'ShieldedAccessControl: unauthorized account',
+          );
+        });
       });
 
       describe('should succeed', () => {
@@ -742,6 +748,25 @@ describe('ShieldedAccessControl', () => {
             'ShieldedAccessControl: unauthorized account',
           );
         });
+
+        it('when witness returns path for a different commitment', () => {
+          contract.overrideWitness('wit_getRoleCommitmentPath', () => {
+            const ps = contract.getPrivateState();
+            const path = contract
+              .getPublicState()
+              .ShieldedAccessControl__operatorRoles.findPathForLeaf(
+                OP1_ROLE_COMMITMENT,
+              );
+            if (path) return [ps, path];
+            throw new Error('Path should be defined');
+          });
+
+          expect(() =>
+            contract.revokeRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID),
+          ).toThrow(
+            'ShieldedAccessControl: Path must contain leaf matching computed role commitment for the provided role, accountId pairing',
+          );
+        });
       });
 
       describe('should succeed', () => {
@@ -1127,5 +1152,53 @@ describe('ShieldedAccessControl', () => {
       });
     });
 
+    describe('cross-contract isolation', () => {
+      it('should not validate a role granted on a different contract instance', () => {
+        contract._grantRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID);
+        expect(contract.canProveRole(ROLE_ADMIN)).toBe(true);
+
+        // Deploy a different contract with a different salt
+        const differentSalt = new Uint8Array(32).fill(99);
+        const contractB = new ShieldedAccessControlSimulator(
+          differentSalt,
+          true,
+          {
+            privateState:
+              ShieldedAccessControlPrivateState.withSecretKey(ADMIN_SK),
+          },
+        );
+
+        // Same key on contract B produces a different accountId (different salt)
+        // so canProveRole should return false — role was never granted on B
+        expect(contractB.canProveRole(ROLE_ADMIN)).toBe(false);
+      });
+
+      it('should produce different commitments for same role and key across instances', () => {
+        const differentSalt = new Uint8Array(32).fill(99);
+        const contractB = new ShieldedAccessControlSimulator(
+          differentSalt,
+          true,
+          {
+            privateState:
+              ShieldedAccessControlPrivateState.withSecretKey(ADMIN_SK),
+          },
+        );
+
+        const commitmentA = contract.computeRoleCommitment(
+          ROLE_ADMIN,
+          ADMIN_ACCOUNT_ID,
+        );
+        const accountIdOnB = contractB.computeAccountId(
+          ADMIN_SK,
+          differentSalt,
+        );
+        const commitmentB = contractB.computeRoleCommitment(
+          ROLE_ADMIN,
+          accountIdOnB,
+        );
+
+        expect(commitmentA).not.toEqual(commitmentB);
+      });
+    });
   });
 });
