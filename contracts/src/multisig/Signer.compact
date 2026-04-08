@@ -31,9 +31,16 @@ pragma language_version >= 0.21.0;
  * Underscore-prefixed circuits (_addSigner, _removeSigner,
  * _changeThreshold) have no access control enforcement. The consuming
  * contract must gate these behind its own authorization policy.
+ *
+ * Contracts may handle their own initialization and this module
+ * supports custom flows. Thus, contracts may choose to not
+ * call `initialize` in the contract's constructor. Contracts MUST NOT
+ * call `initialize` outside of the constructor context because
+ * this could corrupt the signer set and threshold configuration.
  */
 module Signer<T> {
   import CompactStandardLibrary;
+  import "../security/Initializable" prefix Initializable_;
 
   // ─── State ──────────────────────────────────────────────────────────────────
 
@@ -46,12 +53,13 @@ module Signer<T> {
   /**
    * @description Initializes the signer module with the given threshold
    * and an initial set of signers.
-   * Must be called in the contract's constructor.
+   * If used, it should only be called in the contract's constructor.
    *
    * @circuitInfo k=11, rows=1815
    *
    * Requirements:
    *
+   * - If used, can only be called once (in the constructor).
    * - `thresh` must not be zero.
    * - `thresh` must not exceed the number of `signers`.
    * - `signers` must not contain duplicates.
@@ -64,6 +72,8 @@ module Signer<T> {
     signers: Vector<n, T>,
     thresh: Uint<8>
   ): [] {
+    Initializable_initialize();
+
     for (const signer of signers) {
       _addSigner(signer);
     }

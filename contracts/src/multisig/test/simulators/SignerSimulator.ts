@@ -3,11 +3,8 @@ import {
   createSimulator,
 } from '@openzeppelin-compact/contracts-simulator';
 import {
-  type ContractAddress,
-  type Either,
   ledger,
   Contract as MockSigner,
-  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockSigner/contract/index.js';
 import {
   SignerPrivateState,
@@ -18,7 +15,7 @@ import {
  * Type constructor args
  */
 type SignerArgs = readonly [
-  signers: Either<ZswapCoinPublicKey, ContractAddress>[],
+  signers: Uint8Array[],
   thresh: bigint,
   isInit: boolean,
 ];
@@ -42,7 +39,7 @@ const SignerSimulatorBase = createSimulator<
  */
 export class SignerSimulator extends SignerSimulatorBase {
   constructor(
-    signers: Either<ZswapCoinPublicKey, ContractAddress>[],
+    signers: Uint8Array[],
     thresh: bigint,
     isInit: boolean,
     options: BaseSimulatorOptions<
@@ -53,7 +50,11 @@ export class SignerSimulator extends SignerSimulatorBase {
     super([signers, thresh, isInit], options);
   }
 
-  public assertSigner(caller: Either<ZswapCoinPublicKey, ContractAddress>) {
+  public initialize(signers: Uint8Array[], thresh: bigint) {
+    return this.circuits.impure.initialize(signers, thresh);
+  }
+
+  public assertSigner(caller: Uint8Array) {
     return this.circuits.impure.assertSigner(caller);
   }
 
@@ -70,16 +71,16 @@ export class SignerSimulator extends SignerSimulatorBase {
   }
 
   public isSigner(
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Uint8Array,
   ): boolean {
     return this.circuits.impure.isSigner(account);
   }
 
-  public _addSigner(signer: Either<ZswapCoinPublicKey, ContractAddress>) {
+  public _addSigner(signer: Uint8Array) {
     return this.circuits.impure._addSigner(signer);
   }
 
-  public _removeSigner(signer: Either<ZswapCoinPublicKey, ContractAddress>) {
+  public _removeSigner(signer: Uint8Array) {
     return this.circuits.impure._removeSigner(signer);
   }
 

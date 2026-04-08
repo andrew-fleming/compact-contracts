@@ -1,20 +1,20 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import * as utils from '#test-utils/address.js';
 import { SignerSimulator } from './simulators/SignerSimulator.js';
 
 const THRESHOLD = 2n;
 const IS_INIT = true;
 
-const [_SIGNER, Z_SIGNER] = utils.generateEitherPubKeyPair('SIGNER');
-const [_SIGNER2, Z_SIGNER2] = utils.generateEitherPubKeyPair('SIGNER2');
-const [_SIGNER3, Z_SIGNER3] = utils.generateEitherPubKeyPair('SIGNER3');
-const SIGNERS = [Z_SIGNER, Z_SIGNER2, Z_SIGNER3];
-const [_OTHER, Z_OTHER] = utils.generateEitherPubKeyPair('OTHER');
-const [_OTHER2, Z_OTHER2] = utils.generateEitherPubKeyPair('OTHER2');
+// Simple `Bytes<32>` ids
+const SIGNER = new Uint8Array(32).fill(1);
+const SIGNER2 = new Uint8Array(32).fill(2);
+const SIGNER3 = new Uint8Array(32).fill(3);
+const SIGNERS = [SIGNER, SIGNER2, SIGNER3];
+const OTHER = new Uint8Array(32).fill(4);
+const OTHER2 = new Uint8Array(32).fill(5);
 
 let contract: SignerSimulator;
 
-describe('SigningManager', () => {
+describe('Signer', () => {
   describe('initialization', () => {
     it('should fail with a threshold of zero', () => {
       expect(() => {
@@ -29,7 +29,7 @@ describe('SigningManager', () => {
     });
 
     it('should fail with duplicate signers', () => {
-      const duplicateSigners = [Z_SIGNER, Z_SIGNER, Z_SIGNER2];
+      const duplicateSigners = [SIGNER, SIGNER, SIGNER2];
       expect(() => {
         new SignerSimulator(duplicateSigners, THRESHOLD, IS_INIT);
       }).toThrow('Signer: signer already active');
@@ -49,16 +49,20 @@ describe('SigningManager', () => {
         contract = new SignerSimulator(SIGNERS, THRESHOLD, IS_INIT);
       }).not.toThrow();
 
-      // Check thresh
       expect(contract.getThreshold()).toEqual(THRESHOLD);
-
-      // Check signers
       expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length));
       expect(() => {
         for (let i = 0; i < SIGNERS.length; i++) {
           contract.assertSigner(SIGNERS[i]);
         }
       }).not.toThrow();
+    });
+
+    it('should fail when initialized twice', () => {
+      contract = new SignerSimulator(SIGNERS, THRESHOLD, IS_INIT);
+      expect(() => {
+        contract.initialize(SIGNERS, THRESHOLD);
+      }).toThrow('Initializable: contract already initialized');
     });
   });
 
@@ -68,12 +72,12 @@ describe('SigningManager', () => {
 
   describe('assertSigner', () => {
     it('should pass with good signer', () => {
-      expect(() => contract.assertSigner(Z_SIGNER)).not.toThrow();
+      expect(() => contract.assertSigner(SIGNER)).not.toThrow();
     });
 
     it('should fail with bad signer', () => {
       expect(() => {
-        contract.assertSigner(Z_OTHER);
+        contract.assertSigner(OTHER);
       }).toThrow('Signer: not a signer');
     });
   });
@@ -110,99 +114,95 @@ describe('SigningManager', () => {
 
   describe('isSigner', () => {
     it('should return true for an active signer', () => {
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
     });
 
     it('should return false for a non-signer', () => {
-      expect(contract.isSigner(Z_OTHER)).toEqual(false);
+      expect(contract.isSigner(OTHER)).toEqual(false);
     });
   });
 
   describe('_addSigner', () => {
     it('should add a new signer', () => {
-      contract._addSigner(Z_OTHER);
+      contract._addSigner(OTHER);
 
-      expect(contract.isSigner(Z_OTHER)).toEqual(true);
+      expect(contract.isSigner(OTHER)).toEqual(true);
       expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) + 1n);
     });
 
     it('should fail when adding an existing signer', () => {
-      contract._addSigner(Z_OTHER);
+      contract._addSigner(OTHER);
 
       expect(() => {
-        contract._addSigner(Z_OTHER);
+        contract._addSigner(OTHER);
       }).toThrow('Signer: signer already active');
     });
 
     it('should add multiple new signers', () => {
-      contract._addSigner(Z_OTHER);
-      contract._addSigner(Z_OTHER2);
+      contract._addSigner(OTHER);
+      contract._addSigner(OTHER2);
 
-      expect(contract.isSigner(Z_OTHER)).toEqual(true);
-      expect(contract.isSigner(Z_OTHER2)).toEqual(true);
+      expect(contract.isSigner(OTHER)).toEqual(true);
+      expect(contract.isSigner(OTHER2)).toEqual(true);
       expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) + 2n);
     });
 
     it('should allow re-adding a previously removed signer', () => {
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
 
-      // Remove signer
-      contract._removeSigner(Z_SIGNER);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(false);
+      contract._removeSigner(SIGNER);
+      expect(contract.isSigner(SIGNER)).toEqual(false);
 
-      // Re-add signer
-      contract._addSigner(Z_SIGNER);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
+      contract._addSigner(SIGNER);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
     });
   });
 
   describe('_removeSigner', () => {
     it('should remove an existing signer', () => {
-      contract._removeSigner(Z_SIGNER3);
+      contract._removeSigner(SIGNER3);
 
-      expect(contract.isSigner(Z_SIGNER3)).toEqual(false);
+      expect(contract.isSigner(SIGNER3)).toEqual(false);
       expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) - 1n);
     });
 
     it('should fail when removing a non-signer', () => {
       expect(() => {
-        contract._removeSigner(Z_OTHER);
+        contract._removeSigner(OTHER);
       }).toThrow('Signer: not a signer');
     });
 
     it('should fail when removal would breach threshold', () => {
-      // Remove one signer: count goes from 3 to 2, threshold is 2 — ok
-      contract._removeSigner(Z_SIGNER3);
+      contract._removeSigner(SIGNER3);
 
-      // Remove another: count would go from 2 to 1, threshold is 2 — breach
       expect(() => {
-        contract._removeSigner(Z_SIGNER2);
+        contract._removeSigner(SIGNER2);
       }).toThrow('Signer: removal would breach threshold');
     });
 
     it('should allow removal after threshold is lowered', () => {
       contract._changeThreshold(1n);
-      contract._removeSigner(Z_SIGNER3);
-      contract._removeSigner(Z_SIGNER2);
+      contract._removeSigner(SIGNER3);
+      contract._removeSigner(SIGNER2);
 
       expect(contract.getSignerCount()).toEqual(1n);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
-      expect(contract.isSigner(Z_SIGNER2)).toEqual(false);
-      expect(contract.isSigner(Z_SIGNER3)).toEqual(false);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
+      expect(contract.isSigner(SIGNER2)).toEqual(false);
+      expect(contract.isSigner(SIGNER3)).toEqual(false);
     });
 
     it('should keep signer count in sync after multiple add/remove operations', () => {
-      contract._addSigner(Z_OTHER);
-      contract._addSigner(Z_OTHER2);
-      contract._removeSigner(Z_SIGNER3);
-      contract._removeSigner(Z_OTHER);
+      contract._addSigner(OTHER);
+      contract._addSigner(OTHER2);
+      contract._removeSigner(SIGNER3);
+      contract._removeSigner(OTHER);
 
       expect(contract.getSignerCount()).toEqual(3n);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
-      expect(contract.isSigner(Z_SIGNER2)).toEqual(true);
-      expect(contract.isSigner(Z_SIGNER3)).toEqual(false);
-      expect(contract.isSigner(Z_OTHER)).toEqual(false);
-      expect(contract.isSigner(Z_OTHER2)).toEqual(true);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
+      expect(contract.isSigner(SIGNER2)).toEqual(true);
+      expect(contract.isSigner(SIGNER3)).toEqual(false);
+      expect(contract.isSigner(OTHER)).toEqual(false);
+      expect(contract.isSigner(OTHER2)).toEqual(true);
     });
   });
 
@@ -288,7 +288,7 @@ describe('SigningManager', () => {
 
     it('should have no signers by default', () => {
       expect(contract.getSignerCount()).toEqual(0n);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(false);
+      expect(contract.isSigner(SIGNER)).toEqual(false);
     });
 
     it('should have zero threshold by default', () => {
@@ -296,20 +296,20 @@ describe('SigningManager', () => {
     });
 
     it('should allow adding signers then setting threshold', () => {
-      contract._addSigner(Z_SIGNER);
-      contract._addSigner(Z_SIGNER2);
-      contract._addSigner(Z_SIGNER3);
+      contract._addSigner(SIGNER);
+      contract._addSigner(SIGNER2);
+      contract._addSigner(SIGNER3);
       contract._changeThreshold(2n);
 
       expect(contract.getSignerCount()).toEqual(3n);
       expect(contract.getThreshold()).toEqual(2n);
-      expect(contract.isSigner(Z_SIGNER)).toEqual(true);
+      expect(contract.isSigner(SIGNER)).toEqual(true);
     });
 
     it('should allow setting threshold then adding signers to meet it', () => {
       contract._setThreshold(2n);
-      contract._addSigner(Z_SIGNER);
-      contract._addSigner(Z_SIGNER2);
+      contract._addSigner(SIGNER);
+      contract._addSigner(SIGNER2);
 
       expect(contract.getSignerCount()).toEqual(2n);
       expect(contract.getThreshold()).toEqual(2n);
@@ -323,15 +323,15 @@ describe('SigningManager', () => {
 
     it('should allow assertThresholdMet after custom setup', () => {
       contract._setThreshold(2n);
-      contract._addSigner(Z_SIGNER);
-      contract._addSigner(Z_SIGNER2);
+      contract._addSigner(SIGNER);
+      contract._addSigner(SIGNER2);
 
       expect(() => contract.assertThresholdMet(2n)).not.toThrow();
     });
 
     it('should fail assertThresholdMet before threshold is set', () => {
-      contract._addSigner(Z_SIGNER);
-      contract._addSigner(Z_SIGNER2);
+      contract._addSigner(SIGNER);
+      contract._addSigner(SIGNER2);
 
       expect(() => contract.assertThresholdMet(0n)).toThrow(
         'Signer: threshold not set',
