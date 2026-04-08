@@ -70,9 +70,7 @@ export class SignerSimulator extends SignerSimulatorBase {
     return this.circuits.impure.getThreshold();
   }
 
-  public isSigner(
-    account: Uint8Array,
-  ): boolean {
+  public isSigner(account: Uint8Array): boolean {
     return this.circuits.impure.isSigner(account);
   }
 
