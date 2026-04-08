@@ -47,7 +47,7 @@ describe('SigningManager', () => {
     it('should initialize', () => {
       expect(() => {
         contract = new SignerSimulator(SIGNERS, THRESHOLD, IS_INIT);
-      }).to.be.ok;
+      }).not.toThrow();
 
       // Check thresh
       expect(contract.getThreshold()).toEqual(THRESHOLD);
@@ -58,7 +58,7 @@ describe('SigningManager', () => {
         for (let i = 0; i < SIGNERS.length; i++) {
           contract.assertSigner(SIGNERS[i]);
         }
-      }).to.be.ok;
+      }).not.toThrow();
     });
   });
 
