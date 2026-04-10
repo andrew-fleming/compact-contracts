@@ -232,9 +232,10 @@ module Signer<T> {
 
   /**
    * @description Sets the approval threshold without checking
-   * against the current signer count. Intended for use during
-   * contract construction or custom setup flows where signers
-   * may not yet be registered.
+   * against the current signer count.
+   *
+   * @warning This is intended for use during contract construction
+   * or custom setup flows where signers may not yet be registered.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
