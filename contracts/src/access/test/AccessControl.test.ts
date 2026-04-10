@@ -225,6 +225,44 @@ describe('AccessControl', () => {
         accessControl.grantRole(OPERATOR_ROLE_1, OP1_CONTRACT);
       }).toThrow('AccessControl: unsafe role approval');
     });
+
+    it('admin should not be able to grant after self-revocation', () => {
+      // Set admin SK
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      accessControl.revokeRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
+
+      expect(() => accessControl.grantRole(OPERATOR_ROLE_1, OP1.either)).toThrow(
+        'AccessControl: unauthorized account',
+      );
+    });
+
+    it('admin should not be able to grant after renouncing role', () => {
+      // Set admin SK
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      accessControl.renounceRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
+
+      expect(() => accessControl.grantRole(OPERATOR_ROLE_1, OP1.either)).toThrow(
+        'AccessControl: unauthorized account',
+      );
+    });
+
+    it('admin authority should not be transitive across role hierarchies', () => {
+      accessControl._setRoleAdmin(OPERATOR_ROLE_2, OPERATOR_ROLE_1);
+      accessControl._grantRole(OPERATOR_ROLE_1, OP1.either);
+
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      // ADMIN holds DEFAULT_ADMIN_ROLE but not OPERATOR_ROLE_1
+      expect(() => accessControl.grantRole(OPERATOR_ROLE_2, OP2.either)).toThrow(
+        'AccessControl: unauthorized account',
+      );
+
+      // OP1 holds OPERATOR_ROLE_1 which is admin of OPERATOR_ROLE_2
+      accessControl.privateState.injectSecretKey(OP1.secretKey);
+      expect(() => accessControl.grantRole(OPERATOR_ROLE_2, OP2.either)).not.toThrow();
+    });
   });
 
   describe('revokeRole', () => {
@@ -306,6 +344,15 @@ describe('AccessControl', () => {
       expect(() => {
         accessControl.renounceRole(OPERATOR_ROLE_1, OP1.either);
       }).toThrow('AccessControl: bad confirmation');
+    });
+
+    it('should not fail when renouncing a role not held', () => {
+      accessControl.privateState.injectSecretKey(OP1.secretKey);
+      // Confirm role not already held
+      expect(accessControl.hasRole(OPERATOR_ROLE_3, OP1.either)).toBe(false);
+
+      accessControl.renounceRole(OPERATOR_ROLE_3, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_3, OP1.either)).toBe(false);
     });
   });
 
@@ -406,6 +453,15 @@ describe('AccessControl', () => {
           ).toBe(true);
         }
       }
+    });
+
+    it('should allow regranting a revoked role', () => {
+      accessControl._grantRole(OPERATOR_ROLE_1, OP1.either);
+      accessControl._revokeRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(false);
+
+      expect(accessControl._grantRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
     });
   });
 
