@@ -54,7 +54,9 @@ describe('AccessControlPrivateState', () => {
     it('should throw for an empty array', () => {
       expect(() =>
         AccessControlPrivateState.withSecretKey(new Uint8Array(0)),
-      ).toThrowError('withSecretKey: expected 32-byte secret key, received 0 bytes');
+      ).toThrowError(
+        'withSecretKey: expected 32-byte secret key, received 0 bytes',
+      );
     });
   });
 });
@@ -65,7 +67,10 @@ describe('AccessControlWitnesses', () => {
   function makeContext(
     privateState: AccessControlPrivateState,
   ): WitnessContext<Ledger, AccessControlPrivateState> {
-    return { privateState } as WitnessContext<Ledger, AccessControlPrivateState>;
+    return { privateState } as WitnessContext<
+      Ledger,
+      AccessControlPrivateState
+    >;
   }
 
   describe('wit_AccessControlSK', () => {
