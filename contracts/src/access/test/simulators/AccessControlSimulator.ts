@@ -189,7 +189,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
      * @returns The updated private state.
      */
     injectSecretKey: (
-      newSK: Buffer<ArrayBufferLike>,
+      newSK: Uint8Array,
     ): AccessControlPrivateState => {
       const updatedState = { secretKey: newSK };
       this.circuitContextManager.updatePrivateState(updatedState);

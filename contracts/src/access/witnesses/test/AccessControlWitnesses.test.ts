@@ -6,20 +6,20 @@ import {
   AccessControlWitnesses,
 } from '../AccessControlWitnesses.js';
 
-const SECRET_KEY = Buffer.alloc(32, 0x34);
+const SECRET_KEY = new Uint8Array(32).fill(0x34);
 
 describe('AccessControlPrivateState', () => {
   describe('generate', () => {
     it('should return a state with a 32-byte secretKey', () => {
       const state = AccessControlPrivateState.generate();
-      expect(state.secretKey).toBeInstanceOf(Buffer);
+      expect(state.secretKey).toBeInstanceOf(Uint8Array);
       expect(state.secretKey.length).toBe(32);
     });
 
     it('should produce unique secret key on successive calls', () => {
       const a = AccessControlPrivateState.generate();
       const b = AccessControlPrivateState.generate();
-      expect(a.secretKey.equals(b.secretKey)).toBe(false);
+      expect(a.secretKey).not.toEqual(b.secretKey);
     });
   });
 
@@ -30,30 +30,30 @@ describe('AccessControlPrivateState', () => {
     });
 
     it('should create a defensive copy of the input secret key', () => {
-      const sk = Buffer.alloc(32, 0xcc);
+      const sk = new Uint8Array(32).fill(0xcc);
       const state = AccessControlPrivateState.withSecretKey(sk);
 
       sk.fill(0xff);
-      expect(state.secretKey).toEqual(Buffer.alloc(32, 0xcc));
+      expect(state.secretKey).toEqual(new Uint8Array(32).fill(0xcc));
     });
 
     it('should throw for a secret key shorter than 32 bytes', () => {
-      const short = Buffer.alloc(16);
+      const short = new Uint8Array(16);
       expect(() => AccessControlPrivateState.withSecretKey(short)).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 16 bytes',
       );
     });
 
     it('should throw for a secret key longer than 32 bytes', () => {
-      const long = Buffer.alloc(64);
+      const long = new Uint8Array(64);
       expect(() => AccessControlPrivateState.withSecretKey(long)).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 64 bytes',
       );
     });
 
-    it('should throw for an empty buffer', () => {
+    it('should throw for an empty array', () => {
       expect(() =>
-        AccessControlPrivateState.withSecretKey(Buffer.alloc(0)),
+        AccessControlPrivateState.withSecretKey(new Uint8Array(0)),
       ).toThrowError('withSecretKey: expected 32-byte secret key, received 0 bytes');
     });
   });
@@ -103,7 +103,7 @@ describe('AccessControlWitnesses', () => {
       const [returnedState, returnedSK] = witnesses.wit_AccessControlSK(ctx);
 
       expect(returnedState).toBe(state);
-      expect(Buffer.from(returnedSK).equals(state.secretKey)).toBe(true);
+      expect(returnedSK).toEqual(state.secretKey);
     });
   });
 });
@@ -128,6 +128,6 @@ describe('AccessControlWitnesses factory', () => {
     const [stateB, skB] = b.wit_AccessControlSK(ctx);
 
     expect(stateA).toBe(stateB);
-    expect(Buffer.from(skA).equals(Buffer.from(skB))).toBe(true);
+    expect(skA).toEqual(skB);
   });
 });

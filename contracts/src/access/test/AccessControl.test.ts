@@ -32,7 +32,12 @@ const eitherContract = (address: string) => {
   };
 };
 
-const createTestSK = (label: string): Buffer => Buffer.alloc(32, label);
+const createTestSK = (label: string): Uint8Array => {
+  const sk = new Uint8Array(32);
+  const encoded = new TextEncoder().encode(label);
+  sk.set(encoded.slice(0, 32));
+  return sk;
+};
 
 const makeUser = (label: string) => {
   const secretKey = createTestSK(label);

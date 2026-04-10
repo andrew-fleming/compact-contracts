@@ -20,7 +20,7 @@ export interface IAccessControlWitnesses<P> {
  */
 export type AccessControlPrivateState = {
   /** @description A 32-byte secret key used for creating a public user identifier. */
-  secretKey: Buffer;
+  secretKey: Uint8Array;
 };
 
 /**
@@ -32,7 +32,7 @@ export const AccessControlPrivateState = {
    * @returns A fresh AccessControlPrivateState instance.
    */
   generate: (): AccessControlPrivateState => {
-    return { secretKey: getRandomValues(Buffer.alloc(32)) };
+    return { secretKey: getRandomValues(new Uint8Array(32)) };
   },
 
   /**
@@ -49,13 +49,13 @@ export const AccessControlPrivateState = {
    * const privateState = AccessControlPrivateState.withSecretKey(deterministicKey);
    * ```
    */
-  withSecretKey: (sk: Buffer): AccessControlPrivateState => {
+  withSecretKey: (sk: Uint8Array): AccessControlPrivateState => {
     if (sk.length !== 32) {
       throw new Error(
         `withSecretKey: expected 32-byte secret key, received ${sk.length} bytes`,
       );
     }
-    return { secretKey: Buffer.from(sk) };
+    return { secretKey: Uint8Array.from(sk) };
   },
 };
 
