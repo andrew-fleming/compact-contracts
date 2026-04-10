@@ -7,7 +7,6 @@ import {
   type Either,
   ledger,
   Contract as MockAccessControl,
-  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockAccessControl/contract/index.js';
 import {
   AccessControlPrivateState,
@@ -28,7 +27,7 @@ const AccessControlSimulatorBase = createSimulator<
 >({
   contractFactory: (witnesses) =>
     new MockAccessControl<AccessControlPrivateState>(witnesses),
-  defaultPrivateState: () => AccessControlPrivateState,
+  defaultPrivateState: () => AccessControlPrivateState.generate(),
   contractArgs: () => [],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => AccessControlWitnesses(),
@@ -55,7 +54,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public hasRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ): boolean {
     return this.circuits.impure.hasRole(roleId, account);
   }
@@ -75,7 +74,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public _checkRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ) {
     this.circuits.impure._checkRole(roleId, account);
   }
@@ -96,7 +95,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public grantRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ) {
     this.circuits.impure.grantRole(roleId, account);
   }
@@ -108,7 +107,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public revokeRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ) {
     this.circuits.impure.revokeRole(roleId, account);
   }
@@ -120,7 +119,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public renounceRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ) {
     this.circuits.impure.renounceRole(roleId, account);
   }
@@ -141,7 +140,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public _grantRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ): boolean {
     return this.circuits.impure._grantRole(roleId, account);
   }
@@ -154,7 +153,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public _unsafeGrantRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ): boolean {
     return this.circuits.impure._unsafeGrantRole(roleId, account);
   }
@@ -166,8 +165,48 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    */
   public _revokeRole(
     roleId: Uint8Array,
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
   ): boolean {
     return this.circuits.impure._revokeRole(roleId, account);
   }
+
+  /**
+   * @description Computes an account identifier without on-chain state, allowing a user to derive
+   * their identity commitment before submitting it in a grant or revoke operation.
+   * @param {Bytes<32>} secretKey - A 32-byte cryptographically secure random value.
+   * @returns {Bytes<32>} accountId - The computed account identifier.
+   */
+  public computeAccountId(secretKey: Uint8Array): Uint8Array {
+    return this.circuits.pure.computeAccountId(secretKey);
+  }
+
+  public readonly privateState = {
+    /**
+     * @description Replaces the secret key in the private state. Used in tests to
+     * simulate switching between different user identities or injecting incorrect
+     * keys to test failure paths.
+     * @param newSK - The new secret key to set.
+     * @returns The updated private state.
+     */
+    injectSecretKey: (
+      newSK: Buffer<ArrayBufferLike>,
+    ): AccessControlPrivateState => {
+      const updatedState = { secretKey: newSK };
+      this.circuitContextManager.updatePrivateState(updatedState);
+      return updatedState;
+    },
+
+    /**
+     * @description Returns the current secret key from the private state.
+     * @returns The secret key.
+     * @throws If the secret key is undefined.
+     */
+    getCurrentSecretKey: (): Uint8Array => {
+      const sk = this.getPrivateState().secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
+      }
+      return sk;
+    },
+  };
 }
