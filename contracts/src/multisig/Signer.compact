@@ -20,6 +20,11 @@ pragma language_version >= 0.21.0;
  * This separation allows the identity mechanism to change without
  * modifying the module.
  *
+* The signer count and threshold are of type `Uint<8>`, limiting the
+ * maximum number of signers and threshold to 255. This is sufficient
+ * for any practical multisig use case. For large-scale governance
+ * requiring more signers, consider a Merkle tree-based variant.
+ *
  * Multi-step signer reconfigurations (e.g., removing a signer and
  * lowering the threshold) may produce intermediate states where the
  * module's invariants temporarily hold but the contract's intended
