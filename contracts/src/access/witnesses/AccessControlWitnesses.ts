@@ -1,18 +1,17 @@
 import { getRandomValues } from 'node:crypto';
 import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
-import type { Ledger } from '../../../artifacts/MockAccessControl/contract/index.js';
 
 /**
  * @description Interface defining the witness methods for AccessControl operations.
  * @template P - The private state type.
  */
-export interface IAccessControlWitnesses<P> {
+export interface IAccessControlWitnesses<L, P> {
   /**
    * Retrieves the secret key from the private state.
    * @param context - The witness context containing the private state.
    * @returns A tuple of the private state and the secret key as a Uint8Array.
    */
-  wit_AccessControlSK(context: WitnessContext<Ledger, P>): [P, Uint8Array];
+  wit_AccessControlSK(context: WitnessContext<L, P>): [P, Uint8Array];
 }
 
 /**
@@ -63,10 +62,9 @@ export const AccessControlPrivateState = {
  * @description Factory function creating witness implementations for Ownable operations.
  * @returns An object implementing the Witnesses interface for AccessControlPrivateState.
  */
-export const AccessControlWitnesses =
-  (): IAccessControlWitnesses<AccessControlPrivateState> => ({
+export const AccessControlWitnesses = <L>(): IAccessControlWitnesses<L, AccessControlPrivateState> => ({
     wit_AccessControlSK(
-      context: WitnessContext<Ledger, AccessControlPrivateState>,
+      context: WitnessContext<L, AccessControlPrivateState>,
     ): [AccessControlPrivateState, Uint8Array] {
       return [context.privateState, context.privateState.secretKey];
     },
