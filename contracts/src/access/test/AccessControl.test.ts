@@ -232,9 +232,9 @@ describe('AccessControl', () => {
 
       accessControl.revokeRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
 
-      expect(() => accessControl.grantRole(OPERATOR_ROLE_1, OP1.either)).toThrow(
-        'AccessControl: unauthorized account',
-      );
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP1.either),
+      ).toThrow('AccessControl: unauthorized account');
     });
 
     it('admin should not be able to grant after renouncing role', () => {
@@ -243,9 +243,9 @@ describe('AccessControl', () => {
 
       accessControl.renounceRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
 
-      expect(() => accessControl.grantRole(OPERATOR_ROLE_1, OP1.either)).toThrow(
-        'AccessControl: unauthorized account',
-      );
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP1.either),
+      ).toThrow('AccessControl: unauthorized account');
     });
 
     it('admin authority should not be transitive across role hierarchies', () => {
@@ -255,13 +255,15 @@ describe('AccessControl', () => {
       accessControl.privateState.injectSecretKey(ADMIN.secretKey);
 
       // ADMIN holds DEFAULT_ADMIN_ROLE but not OPERATOR_ROLE_1
-      expect(() => accessControl.grantRole(OPERATOR_ROLE_2, OP2.either)).toThrow(
-        'AccessControl: unauthorized account',
-      );
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_2, OP2.either),
+      ).toThrow('AccessControl: unauthorized account');
 
       // OP1 holds OPERATOR_ROLE_1 which is admin of OPERATOR_ROLE_2
       accessControl.privateState.injectSecretKey(OP1.secretKey);
-      expect(() => accessControl.grantRole(OPERATOR_ROLE_2, OP2.either)).not.toThrow();
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_2, OP2.either),
+      ).not.toThrow();
     });
   });
 

@@ -62,10 +62,13 @@ export const AccessControlPrivateState = {
  * @description Factory function creating witness implementations for Ownable operations.
  * @returns An object implementing the Witnesses interface for AccessControlPrivateState.
  */
-export const AccessControlWitnesses = <L>(): IAccessControlWitnesses<L, AccessControlPrivateState> => ({
-    wit_AccessControlSK(
-      context: WitnessContext<L, AccessControlPrivateState>,
-    ): [AccessControlPrivateState, Uint8Array] {
-      return [context.privateState, context.privateState.secretKey];
-    },
-  });
+export const AccessControlWitnesses = <L>(): IAccessControlWitnesses<
+  L,
+  AccessControlPrivateState
+> => ({
+  wit_AccessControlSK(
+    context: WitnessContext<L, AccessControlPrivateState>,
+  ): [AccessControlPrivateState, Uint8Array] {
+    return [context.privateState, context.privateState.secretKey];
+  },
+});
