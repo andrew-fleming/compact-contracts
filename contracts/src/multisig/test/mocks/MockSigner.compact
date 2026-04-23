@@ -3,9 +3,10 @@ pragma language_version >= 0.21.0;
 import CompactStandardLibrary;
 
 import "../../Signer"<Bytes<32>> prefix Signer_;
+import "../../Signer"<Bytes<32>>;
 
 export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
-export { Signer__signers };
+export { _signers, _signerCount, _threshold };
 
 /**
  * @description `isInit` is a param for testing.

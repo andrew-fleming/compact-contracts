@@ -95,12 +95,14 @@ module Signer<T> {
    *
    * Requirements:
    *
+   * - Contract must be initialized.
    * - `caller` must be a member of the signers registry.
    *
    * @param {T} caller - The identity to validate.
    * @returns {[]} Empty tuple.
    */
   export circuit assertSigner(caller: T): [] {
+    Initializable_assertInitialized();
     assert(isSigner(caller), "Signer: not a signer");
   }
 
@@ -111,6 +113,7 @@ module Signer<T> {
    *
    * Requirements:
    *
+   * - Contract must be initialized.
    * - Ledger threshold must be set (not be zero).
    * - `approvalCount` must be >= threshold.
    *
@@ -118,6 +121,7 @@ module Signer<T> {
    * @returns {[]} Empty tuple.
    */
   export circuit assertThresholdMet(approvalCount: Uint<8>): [] {
+    Initializable_assertInitialized();
     assert(_threshold != 0, "Signer: threshold not set");
     assert(approvalCount >= _threshold, "Signer: threshold not met");
   }
@@ -129,9 +133,14 @@ module Signer<T> {
    *
    * @circuitInfo k=6, rows=26
    *
+   * Requirements:
+   *
+   * - Contract must be initialized.
+   *
    * @returns {Uint<8>} The number of active signers.
    */
   export circuit getSignerCount(): Uint<8> {
+    Initializable_assertInitialized();
     return _signerCount;
   }
 
@@ -140,9 +149,14 @@ module Signer<T> {
    *
    * @circuitInfo k=6, rows=26
    *
+   * Requirements:
+   *
+   * - Contract must be initialized.
+   *
    * @returns {Uint<8>} The threshold.
    */
   export circuit getThreshold(): Uint<8> {
+    Initializable_assertInitialized();
     return _threshold;
   }
 
