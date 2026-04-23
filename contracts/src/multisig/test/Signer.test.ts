@@ -132,6 +132,38 @@ describe('Signer', () => {
     });
   });
 
+  describe('getSignerCount', () => {
+    it('should return the initial signer count', () => {
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length));
+    });
+
+    it('should reflect additions', () => {
+      contract._addSigner(OTHER);
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) + 1n);
+    });
+
+    it('should reflect removals', () => {
+      contract._removeSigner(SIGNER3);
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) - 1n);
+    });
+  });
+
+  describe('getThreshold', () => {
+    it('should return the initial threshold', () => {
+      expect(contract.getThreshold()).toEqual(THRESHOLD);
+    });
+
+    it('should reflect _changeThreshold', () => {
+      contract._changeThreshold(3n);
+      expect(contract.getThreshold()).toEqual(3n);
+    });
+
+    it('should reflect _setThreshold', () => {
+      contract._setThreshold(1n);
+      expect(contract.getThreshold()).toEqual(1n);
+    });
+  });
+
   describe('isSigner', () => {
     it('should return true for an active signer', () => {
       expect(contract.isSigner(SIGNER)).toEqual(true);
