@@ -172,8 +172,8 @@ module AccessControl {
 
   /**
    * @description Reverts if the caller cannot prove ownership of `roleId`.
-   * The caller's identity is derived from the `wit_AccessControlSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller’s identity is
+   * derived from the `wit_AccessControlSK` witness as `persistentHash(secretKey)`.
    *
    * @circuitInfo k=13, rows=2669
    *
