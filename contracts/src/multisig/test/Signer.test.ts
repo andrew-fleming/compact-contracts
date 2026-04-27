@@ -15,6 +15,34 @@ const OTHER2 = new Uint8Array(32).fill(5);
 let contract: SignerSimulator;
 
 describe('Signer', () => {
+  describe('when not initialized', () => {
+    beforeEach(() => {
+      const isNotInit = false;
+      contract = new SignerSimulator(SIGNERS, 0n, isNotInit);
+    });
+
+    const circuitsRequiringInit: [string, unknown[]][] = [
+      ['assertSigner', [SIGNER]],
+      ['assertThresholdMet', [0n]],
+      ['getSignerCount', []],
+      ['getThreshold', []],
+    ];
+
+    it.each(circuitsRequiringInit)('%s should fail', (circuitName, args) => {
+      expect(() => {
+        (
+          contract[circuitName as keyof SignerSimulator] as (
+            ...a: unknown[]
+          ) => unknown
+        )(...args);
+      }).toThrow('Initializable: contract not initialized');
+    });
+
+    it('isSigner should succeed (no init guard)', () => {
+      expect(contract.isSigner(SIGNER)).toEqual(false);
+    });
+  });
+
   describe('initialization', () => {
     it('should fail with a threshold of zero', () => {
       expect(() => {
@@ -102,13 +130,37 @@ describe('Signer', () => {
         contract.assertThresholdMet(0n);
       }).toThrow('Signer: threshold not met');
     });
+  });
 
-    it('should fail with any count when threshold not set', () => {
-      const isNotInit = false;
-      const uninit = new SignerSimulator(SIGNERS, 0n, isNotInit);
-      expect(() => uninit.assertThresholdMet(5n)).toThrow(
-        'Signer: threshold not set',
-      );
+  describe('getSignerCount', () => {
+    it('should return the initial signer count', () => {
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length));
+    });
+
+    it('should reflect additions', () => {
+      contract._addSigner(OTHER);
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) + 1n);
+    });
+
+    it('should reflect removals', () => {
+      contract._removeSigner(SIGNER3);
+      expect(contract.getSignerCount()).toEqual(BigInt(SIGNERS.length) - 1n);
+    });
+  });
+
+  describe('getThreshold', () => {
+    it('should return the initial threshold', () => {
+      expect(contract.getThreshold()).toEqual(THRESHOLD);
+    });
+
+    it('should reflect _changeThreshold', () => {
+      contract._changeThreshold(3n);
+      expect(contract.getThreshold()).toEqual(3n);
+    });
+
+    it('should reflect _setThreshold', () => {
+      contract._setThreshold(1n);
+      expect(contract.getThreshold()).toEqual(1n);
     });
   });
 
@@ -255,22 +307,22 @@ describe('Signer', () => {
     });
 
     it('should have an empty state', () => {
-      expect(contract.getThreshold()).toEqual(0n);
-      expect(contract.getSignerCount()).toEqual(0n);
-      expect(contract.getPublicState().Signer__signers.isEmpty()).toEqual(true);
+      expect(contract.getPublicState()._threshold).toEqual(0n);
+      expect(contract.getPublicState()._signerCount).toEqual(0n);
+      expect(contract.getPublicState()._signers.isEmpty()).toEqual(true);
     });
 
     it('should set threshold without signers', () => {
-      expect(contract.getThreshold()).toEqual(0n);
+      expect(contract.getPublicState()._threshold).toEqual(0n);
 
       contract._setThreshold(2n);
-      expect(contract.getThreshold()).toEqual(2n);
+      expect(contract.getPublicState()._threshold).toEqual(2n);
     });
 
     it('should set threshold multiple times', () => {
       contract._setThreshold(2n);
       contract._setThreshold(3n);
-      expect(contract.getThreshold()).toEqual(3n);
+      expect(contract.getPublicState()._threshold).toEqual(3n);
     });
 
     it('should fail with zero threshold', () => {
@@ -287,12 +339,12 @@ describe('Signer', () => {
     });
 
     it('should have no signers by default', () => {
-      expect(contract.getSignerCount()).toEqual(0n);
+      expect(contract.getPublicState()._signerCount).toEqual(0n);
       expect(contract.isSigner(SIGNER)).toEqual(false);
     });
 
     it('should have zero threshold by default', () => {
-      expect(contract.getThreshold()).toEqual(0n);
+      expect(contract.getPublicState()._threshold).toEqual(0n);
     });
 
     it('should allow adding signers then setting threshold', () => {
@@ -301,8 +353,8 @@ describe('Signer', () => {
       contract._addSigner(SIGNER3);
       contract._changeThreshold(2n);
 
-      expect(contract.getSignerCount()).toEqual(3n);
-      expect(contract.getThreshold()).toEqual(2n);
+      expect(contract.getPublicState()._signerCount).toEqual(3n);
+      expect(contract.getPublicState()._threshold).toEqual(2n);
       expect(contract.isSigner(SIGNER)).toEqual(true);
     });
 
@@ -311,31 +363,14 @@ describe('Signer', () => {
       contract._addSigner(SIGNER);
       contract._addSigner(SIGNER2);
 
-      expect(contract.getSignerCount()).toEqual(2n);
-      expect(contract.getThreshold()).toEqual(2n);
+      expect(contract.getPublicState()._signerCount).toEqual(2n);
+      expect(contract.getPublicState()._threshold).toEqual(2n);
     });
 
     it('should fail _changeThreshold before signers are added', () => {
       expect(() => {
         contract._changeThreshold(2n);
       }).toThrow('Signer: threshold exceeds signer count');
-    });
-
-    it('should allow assertThresholdMet after custom setup', () => {
-      contract._setThreshold(2n);
-      contract._addSigner(SIGNER);
-      contract._addSigner(SIGNER2);
-
-      expect(() => contract.assertThresholdMet(2n)).not.toThrow();
-    });
-
-    it('should fail assertThresholdMet before threshold is set', () => {
-      contract._addSigner(SIGNER);
-      contract._addSigner(SIGNER2);
-
-      expect(() => contract.assertThresholdMet(0n)).toThrow(
-        'Signer: threshold not set',
-      );
     });
   });
 });
