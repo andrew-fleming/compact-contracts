@@ -651,7 +651,9 @@ describe('AccessControl', () => {
       };
 
       // Dirty Either should still detect the existing grant
-      expect(accessControl._unsafeGrantRole(OPERATOR_ROLE_1, dirtyEither)).toBe(false);
+      expect(accessControl._unsafeGrantRole(OPERATOR_ROLE_1, dirtyEither)).toBe(
+        false,
+      );
     });
   });
 
@@ -697,7 +699,9 @@ describe('AccessControl', () => {
         right: { bytes: new Uint8Array(32).fill(0xff) },
       };
 
-      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(true);
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(
+        true,
+      );
       expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(false);
     });
 
@@ -707,7 +711,9 @@ describe('AccessControl', () => {
         left: OP2.accountId,
         right: { bytes: new Uint8Array(32).fill(0xff) },
       };
-      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(false);
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(
+        false,
+      );
     });
 
     it('should revoke with dirty left side on contract address', () => {
@@ -718,7 +724,9 @@ describe('AccessControl', () => {
         left: new Uint8Array(32).fill(0xff),
         right: OP1_CONTRACT.right,
       };
-      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyContract)).toBe(true);
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyContract)).toBe(
+        true,
+      );
       expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1_CONTRACT)).toBe(false);
     });
   });
