@@ -100,6 +100,35 @@ describe('AccessControl', () => {
     it('should return false when role does not exist', () => {
       expect(accessControl.hasRole(UNINITIALIZED_ROLE, OP1.either)).toBe(false);
     });
+
+    it('should return true when queried with dirty Either (canonicalization)', () => {
+      const dirtyEither = {
+        is_left: true,
+        left: OP1.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, dirtyEither)).toBe(true);
+    });
+
+    it('should return false when dirty Either has wrong accountId', () => {
+      const dirtyEither = {
+        is_left: true,
+        left: UNAUTHORIZED.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, dirtyEither)).toBe(false);
+    });
+
+    it('should match hasRole with dirty left side on contract address', () => {
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, OP1_CONTRACT);
+
+      const dirtyContract = {
+        is_left: false,
+        left: new Uint8Array(32).fill(0xff),
+        right: OP1_CONTRACT.right,
+      };
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, dirtyContract)).toBe(true);
+    });
   });
 
   describe('assertOnlyRole', () => {
@@ -271,6 +300,36 @@ describe('AccessControl', () => {
         accessControl.grantRole(OPERATOR_ROLE_2, OP2.either),
       ).not.toThrow();
     });
+
+    it('admin should re-grant a role after revoking it', () => {
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      accessControl.grantRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
+
+      accessControl.revokeRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(false);
+
+      accessControl.grantRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
+    });
+
+    it('should be idempotent when granting an already-held role', () => {
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      accessControl.grantRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
+
+      // Second grant should not throw or corrupt state
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP1.either),
+      ).not.toThrow();
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(true);
+
+      // Revoke should still work normally after double-grant
+      accessControl.revokeRole(OPERATOR_ROLE_1, OP1.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(false);
+    });
   });
 
   describe('revokeRole', () => {
@@ -320,6 +379,18 @@ describe('AccessControl', () => {
           ).toBe(false);
         }
       }
+    });
+
+    it('should not corrupt state when revoking a never-granted role', () => {
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+
+      // Revoke a role that was never granted to OP2
+      accessControl.revokeRole(OPERATOR_ROLE_2, OP2.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_2, OP2.either)).toBe(false);
+
+      // Subsequent grant should still work
+      accessControl.grantRole(OPERATOR_ROLE_2, OP2.either);
+      expect(accessControl.hasRole(OPERATOR_ROLE_2, OP2.either)).toBe(true);
     });
   });
 
@@ -426,6 +497,35 @@ describe('AccessControl', () => {
         accessControl.revokeRole(OPERATOR_ROLE_1, OP1.either);
       }).toThrow('AccessControl: unauthorized account');
     });
+
+    it('should allow overwriting admin role and transfer authority', () => {
+      const NEW_ADMIN_ROLE = convertFieldToBytes(32, 99n, '');
+      const NEW_ADMIN = makeUser('NEW_ADMIN');
+
+      accessControl._grantRole(CUSTOM_ADMIN_ROLE, CUSTOM_ADMIN.either);
+      accessControl._grantRole(NEW_ADMIN_ROLE, NEW_ADMIN.either);
+      accessControl._setRoleAdmin(OPERATOR_ROLE_1, CUSTOM_ADMIN_ROLE);
+
+      // CUSTOM_ADMIN can grant
+      accessControl.privateState.injectSecretKey(CUSTOM_ADMIN.secretKey);
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP1.either),
+      ).not.toThrow();
+
+      // Overwrite admin role
+      accessControl._setRoleAdmin(OPERATOR_ROLE_1, NEW_ADMIN_ROLE);
+
+      // CUSTOM_ADMIN should lose authority
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP2.either),
+      ).toThrow('AccessControl: unauthorized account');
+
+      // NEW_ADMIN should gain authority
+      accessControl.privateState.injectSecretKey(NEW_ADMIN.secretKey);
+      expect(() =>
+        accessControl.grantRole(OPERATOR_ROLE_1, OP2.either),
+      ).not.toThrow();
+    });
   });
 
   describe('_grantRole', () => {
@@ -516,6 +616,43 @@ describe('AccessControl', () => {
         }
       }
     });
+
+    it('should match on subsequent hasRole with clean Either after dirty grant', () => {
+      const dirtyEither = {
+        is_left: true,
+        left: OP2.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, dirtyEither);
+
+      // Clean Either should find the role
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP2.either)).toBe(true);
+    });
+
+    it('should match on subsequent hasRole with dirty Either after clean grant', () => {
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, OP2.either);
+
+      const dirtyEither = {
+        is_left: true,
+        left: OP2.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, dirtyEither)).toBe(true);
+    });
+
+    it('should return false for duplicate grant with dirty Either', () => {
+      // Init granted role
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, OP1.either);
+
+      const dirtyEither = {
+        is_left: true,
+        left: OP1.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+
+      // Dirty Either should still detect the existing grant
+      expect(accessControl._unsafeGrantRole(OPERATOR_ROLE_1, dirtyEither)).toBe(false);
+    });
   });
 
   describe('_revokeRole', () => {
@@ -550,6 +687,40 @@ describe('AccessControl', () => {
         }
       }
     });
+
+    it('should revoke with dirty Either after clean grant', () => {
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, OP1.either);
+
+      const dirtyEither = {
+        is_left: true,
+        left: OP1.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(true);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1.either)).toBe(false);
+    });
+
+    it('should return false when revoking ungranted role with dirty Either', () => {
+      const dirtyEither = {
+        is_left: true,
+        left: OP2.accountId,
+        right: { bytes: new Uint8Array(32).fill(0xff) },
+      };
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyEither)).toBe(false);
+    });
+
+    it('should revoke with dirty left side on contract address', () => {
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, OP1_CONTRACT);
+
+      const dirtyContract = {
+        is_left: false,
+        left: new Uint8Array(32).fill(0xff),
+        right: OP1_CONTRACT.right,
+      };
+      expect(accessControl._revokeRole(OPERATOR_ROLE_1, dirtyContract)).toBe(true);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, OP1_CONTRACT)).toBe(false);
+    });
   });
 
   describe('computeAccountId', () => {
@@ -560,6 +731,17 @@ describe('AccessControl', () => {
         expect(accessControl.computeAccountId(users[i].secretKey)).toEqual(
           users[i].accountId,
         );
+      }
+    });
+
+    it('should produce distinct identifiers for distinct keys', () => {
+      const users = [ADMIN, CUSTOM_ADMIN, OP1, OP2, OP3, UNAUTHORIZED];
+      const ids = users.map((u) => accessControl.computeAccountId(u.secretKey));
+
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          expect(ids[i]).not.toEqual(ids[j]);
+        }
       }
     });
   });
