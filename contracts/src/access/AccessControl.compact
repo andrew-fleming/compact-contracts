@@ -137,7 +137,7 @@ module AccessControl {
   /**
    * @description Returns `true` if `account` has been granted `roleId`.
    *
-   * @circuitInfo k=10, rows=1007
+   * @circuitInfo k=10, rows=1019
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} account - The account to query.
@@ -232,7 +232,7 @@ module AccessControl {
   /**
    * @description Grants `roleId` to `account`.
    *
-   * @circuitInfo k=13, rows=3578
+   * @circuitInfo k=13, rows=3536
    *
    * Requirements:
    *
@@ -254,7 +254,7 @@ module AccessControl {
   /**
    * @description Revokes `roleId` from `account`.
    *
-   * @circuitInfo k=13, rows=3454
+   * @circuitInfo k=13, rows=3466
    *
    * Requirements:
    *
@@ -283,7 +283,7 @@ module AccessControl {
    * `persistentHash(secretKey)`. The `callerConfirmation` parameter must match
    * the caller's computed account identifier to prevent accidental renunciation.
    *
-   * @circuitInfo k=13, rows=3310
+   * @circuitInfo k=13, rows=3322
    *
    * Requirements:
    *
@@ -321,7 +321,7 @@ module AccessControl {
    * @description Attempts to grant `roleId` to `account` and returns a boolean indicating if `roleId` was granted.
    * Internal circuit without access restriction.
    *
-   * @circuitInfo k=11, rows=1185
+   * @circuitInfo k=11, rows=1143
    *
    * Requirements:
    *
@@ -344,7 +344,7 @@ module AccessControl {
    * @description Attempts to grant `roleId` to `account` and returns a boolean indicating if `roleId` was granted.
    * Internal circuit without access restriction. It does NOT check if the role is granted to a ContractAddress.
    *
-   * @circuitInfo k=11, rows=1184
+   * @circuitInfo k=11, rows=1142
    *
    * @notice External smart contracts cannot call the token contract at this time, so granting a role to a ContractAddress may
    * render a circuit permanently inaccessible.
@@ -377,7 +377,7 @@ module AccessControl {
    * @description Attempts to revoke `roleId` from `account` and returns a boolean indicating if `roleId` was revoked.
    * Internal circuit without access restriction.
    *
-   * @circuitInfo k=11, rows=1061
+   * @circuitInfo k=11, rows=1073
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} account - A Bytes<32> or ContractAddress.
