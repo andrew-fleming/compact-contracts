@@ -131,7 +131,7 @@ export class OwnableSimulator extends OwnableSimulatorBase {
      * @returns The updated private state.
      */
     injectSecretKey: (newSK: Uint8Array): OwnablePrivateState => {
-      const updatedState = { secretKey: newSK };
+      const updatedState = OwnablePrivateState.withSecretKey(newSK);
       this.circuitContextManager.updatePrivateState(updatedState);
       return updatedState;
     },
@@ -146,7 +146,7 @@ export class OwnableSimulator extends OwnableSimulatorBase {
       if (typeof sk === 'undefined') {
         throw new Error('Missing secret key');
       }
-      return sk;
+      return Uint8Array.from(sk);
     },
   };
 }
