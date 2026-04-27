@@ -179,8 +179,8 @@ module Ownable {
    * @description Throws if called by any account other than the owner.
    * Use this to restrict access of specific circuits to the owner.
    *
-   * The caller's identity is derived from the `wit_OwnableSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller’s identity is
+   * derived from the `wit_OwnableSK` witness as `persistentHash(secretKey)`.
    *
    * Requirements:
    *
