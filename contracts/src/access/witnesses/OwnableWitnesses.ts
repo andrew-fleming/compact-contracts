@@ -3,19 +3,18 @@
 
 import { getRandomValues } from 'node:crypto';
 import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
-import type { Ledger } from '../../../artifacts/MockOwnable/contract/index.js';
 
 /**
  * @description Interface defining the witness methods for Ownable operations.
  * @template P - The private state type.
  */
-export interface IOwnableWitnesses<P> {
+export interface IOwnableWitnesses<L, P> {
   /**
    * Retrieves the secret key from the private state.
    * @param context - The witness context containing the private state.
    * @returns A tuple of the private state and the secret key as a Uint8Array.
    */
-  wit_OwnableSK(context: WitnessContext<Ledger, P>): [P, Uint8Array];
+  wit_OwnableSK(context: WitnessContext<L, P>): [P, Uint8Array];
 }
 
 /**
@@ -66,9 +65,12 @@ export const OwnablePrivateState = {
  * @description Factory function creating witness implementations for Ownable operations.
  * @returns An object implementing the Witnesses interface for OwnablePrivateState.
  */
-export const OwnableWitnesses = (): IOwnableWitnesses<OwnablePrivateState> => ({
+export const OwnableWitnesses = <L>(): IOwnableWitnesses<
+  L,
+  OwnablePrivateState
+> => ({
   wit_OwnableSK(
-    context: WitnessContext<Ledger, OwnablePrivateState>,
+    context: WitnessContext<L, OwnablePrivateState>,
   ): [OwnablePrivateState, Uint8Array] {
     return [context.privateState, context.privateState.secretKey];
   },
