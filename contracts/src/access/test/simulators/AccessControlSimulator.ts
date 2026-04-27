@@ -57,7 +57,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Retrieves an account's permission for `roleId`.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    * @returns Whether an account has a specified role.
    */
   public hasRole(
@@ -78,7 +78,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Retrieves an account's permission for `roleId`.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public _checkRole(
     roleId: Uint8Array,
@@ -99,7 +99,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Grants an account permissions to use `roleId`.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public grantRole(
     roleId: Uint8Array,
@@ -111,7 +111,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Revokes an account's permission to use `roleId`.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public revokeRole(
     roleId: Uint8Array,
@@ -123,7 +123,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Revokes `roleId` from the calling account.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public renounceRole(
     roleId: Uint8Array,
@@ -144,7 +144,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Grants an account permissions to use `roleId`. Internal function without access restriction.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public _grantRole(
     roleId: Uint8Array,
@@ -157,7 +157,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
    * @description Grants an account permissions to use `roleId`. Internal function without access restriction.
    * DOES NOT restrict sending to a ContractAddress.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public _unsafeGrantRole(
     roleId: Uint8Array,
@@ -169,7 +169,7 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   /**
    * @description Revokes an account's permission to use `roleId`. Internal function without access restriction.
    * @param roleId - The role identifier.
-   * @param account - A Bytes<32> accountId or a ContractAddress.
+   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
    */
   public _revokeRole(
     roleId: Uint8Array,
