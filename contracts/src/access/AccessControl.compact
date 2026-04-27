@@ -91,6 +91,7 @@ pragma language_version >= 0.21.0;
  */
 module AccessControl {
   import CompactStandardLibrary;
+  import "../utils/Utils" prefix Utils_;
 
   /**
    * @description Mapping from a role identifier -> account -> its permissions.
@@ -145,6 +146,22 @@ module AccessControl {
   export circuit hasRole(roleId: Bytes<32>,
                          account: Either<Bytes<32>, ContractAddress>
                          ): Boolean {
+    const canonAcct = Utils_canonicalize<Bytes<32>, ContractAddress>(account);
+    return _hasRole(roleId, canonAcct);
+  }
+
+  /**
+   * @description Returns `true` if `account` has been granted `roleId`. Internal variant
+   * that assumes `account` has already been canonicalized by the caller. External consumers
+   * should use {hasRole} which canonicalizes the input automatically.
+   *
+   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Either<Bytes<32>, ContractAddress>} account - The canonicalized account to query.
+   * @return {Boolean} - Whether the account has the specified role.
+   */
+  circuit _hasRole(roleId: Bytes<32>,
+                         account: Either<Bytes<32>, ContractAddress>
+                         ): Boolean {
     if (_operatorRoles.member(disclose(roleId)) &&
         _operatorRoles.lookup(roleId).member(disclose(account))) {
       return _operatorRoles.lookup(roleId).lookup(disclose(account));
@@ -168,6 +185,9 @@ module AccessControl {
    * @return {[]} - Empty tuple.
    */
   export circuit assertOnlyRole(roleId: Bytes<32>): [] {
+    // The account constructed via left<...>() is already canonical,
+    // but we route through _checkRole -> hasRole for consistency.
+    // The redundant canonicalization is negligible.
     _checkRole(roleId, left<Bytes<32>, ContractAddress>(_computeAccountId()));
   }
 
@@ -337,7 +357,8 @@ module AccessControl {
                    roleId: Bytes<32>,
                    account: Either<Bytes<32>, ContractAddress>
                    ): Boolean {
-    if (hasRole(roleId, account)) {
+    const canonAcct = Utils_canonicalize<Bytes<32>, ContractAddress>(account);
+    if (_hasRole(roleId, canonAcct)) {
       return false;
     }
 
@@ -348,7 +369,7 @@ module AccessControl {
         );
     }
 
-    _operatorRoles.lookup(roleId).insert(disclose(account), true);
+    _operatorRoles.lookup(roleId).insert(disclose(canonAcct), true);
     return true;
   }
 
@@ -366,11 +387,13 @@ module AccessControl {
                    roleId: Bytes<32>,
                    account: Either<Bytes<32>, ContractAddress>
                    ): Boolean {
-    if (!hasRole(roleId, account)) {
+    const canonAcct = Utils_canonicalize<Bytes<32>, ContractAddress>(account);
+
+    if (!_hasRole(roleId, canonAcct)) {
       return false;
     }
 
-    _operatorRoles.lookup(roleId).insert(disclose(account), false);
+    _operatorRoles.lookup(roleId).insert(disclose(canonAcct), false);
     return true;
   }
 
