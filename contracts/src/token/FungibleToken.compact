@@ -122,7 +122,7 @@ module FungibleToken {
   /**
    * @description Returns the token name.
    *
-   * @circuitInfo k=10, rows=37
+   * @circuitInfo k=6, rows=28
    *
    * Requirements:
    *
@@ -138,7 +138,7 @@ module FungibleToken {
   /**
    * @description Returns the symbol of the token.
    *
-   * @circuitInfo k=10, rows=37
+   * @circuitInfo k=6, rows=28
    *
    * Requirements:
    *
@@ -154,7 +154,7 @@ module FungibleToken {
   /**
    * @description Returns the number of decimals used to get its user representation.
    *
-   * @circuitInfo k=10, rows=36
+   * @circuitInfo k=6, rows=28
    *
    * Requirements:
    *
@@ -170,7 +170,7 @@ module FungibleToken {
   /**
    * @description Returns the value of tokens in existence.
    *
-   * @circuitInfo k=10, rows=36
+   * @circuitInfo k=6, rows=28
    *
    * Requirements:
    *
@@ -186,7 +186,7 @@ module FungibleToken {
   /**
    * @description Returns the value of tokens owned by `account`.
    *
-   * @circuitInfo k=10, rows=310
+   * @circuitInfo k=10, rows=673
    *
    * @dev Manually checks if `account` is a key in the map and returns 0 if it is not.
    *
@@ -211,7 +211,7 @@ module FungibleToken {
   /**
    * @description Moves a `value` amount of tokens from the caller's account to `to`.
    *
-   * @circuitInfo k=11, rows=1173
+   * @circuitInfo k=13, rows=3985
    *
    * @notice Transfers to contract addresses are currently disallowed until contract-to-contract
    * interactions are supported in Compact. This restriction prevents assets from
@@ -242,7 +242,7 @@ module FungibleToken {
   /**
    * @description Unsafe variant of `transfer` which allows transfers to contract addresses.
    *
-   * @circuitInfo k=11, rows=1170
+   * @circuitInfo k=13, rows=3982
    *
    * @warning Transfers to contract addresses are considered unsafe because contract-to-contract
    * calls are not currently supported. Tokens sent to a contract address may become irretrievable.
@@ -272,7 +272,7 @@ module FungibleToken {
    * @description Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner`
    * through `transferFrom`. This value changes when `approve` or `transferFrom` are called.
    *
-   * @circuitInfo k=10, rows=624
+   * @circuitInfo k=11, rows=1346
    *
    * @dev Manually checks if `owner` and `spender` are keys in the map and returns 0 if they are not.
    *
@@ -302,7 +302,7 @@ module FungibleToken {
   /**
    * @description Sets a `value` amount of tokens as allowance of `spender` over the caller's tokens.
    *
-   * @circuitInfo k=10, rows=452
+   * @circuitInfo k=13, rows=3072
    *
    * Requirements:
    *
@@ -327,7 +327,7 @@ module FungibleToken {
    * @description Moves `value` tokens from `fromAddress` to `to` using the allowance mechanism.
    * `value` is the deducted from the caller's allowance.
    *
-   * @circuitInfo k=11, rows=1821
+   * @circuitInfo k=13, rows=4960
    *
    * @notice Transfers to contract addresses are currently disallowed until contract-to-contract
    * interactions are supported in Compact. This restriction prevents assets from
@@ -361,7 +361,7 @@ module FungibleToken {
   /**
    * @description Unsafe variant of `transferFrom` which allows transfers to contract addresses.
    *
-   * @circuitInfo k=11, rows=1818
+   * @circuitInfo k=13, rows=4957
    *
    * @warning Transfers to contract addresses are considered unsafe because contract-to-contract
    * calls are not currently supported. Tokens sent to a contract address may become irretrievable.
@@ -398,7 +398,7 @@ module FungibleToken {
    * This circuit is equivalent to {transfer}, and can be used to
    * e.g. implement automatic token fees, slashing mechanisms, etc.
    *
-   * @circuitInfo k=11, rows=1312
+   * @circuitInfo k=12, rows=2345
    *
    * @notice Transfers to contract addresses are currently disallowed until contract-to-contract
    * interactions are supported in Compact. This restriction prevents assets from
@@ -431,7 +431,7 @@ module FungibleToken {
   /**
    * @description Unsafe variant of `transferFrom` which allows transfers to contract addresses.
    *
-   * @circuitInfo k=11, rows=1309
+   * @circuitInfo k=12, rows=2342
    *
    * @warning Transfers to contract addresses are considered unsafe because contract-to-contract
    * calls are not currently supported. Tokens sent to a contract address may become irretrievable.
@@ -509,7 +509,7 @@ module FungibleToken {
    * @description Creates a `value` amount of tokens and assigns them to `account`,
    * by transferring it from the zero address. Relies on the `update` mechanism.
    *
-   * @circuitInfo k=10, rows=752
+   * @circuitInfo k=11, rows=1437
    *
    * @notice Transfers to contract addresses are currently disallowed until contract-to-contract
    * interactions are supported in Compact. This restriction prevents assets from
@@ -535,7 +535,7 @@ module FungibleToken {
   /**
    * @description Unsafe variant of `_mint` which allows transfers to contract addresses.
    *
-   * @circuitInfo k=10, rows=749
+   * @circuitInfo k=11, rows=1434
    *
    * @warning Transfers to contract addresses are considered unsafe because contract-to-contract
    * calls are not currently supported. Tokens sent to a contract address may become irretrievable.
@@ -563,7 +563,7 @@ module FungibleToken {
    * @description Destroys a `value` amount of tokens from `account`, lowering the total supply.
    * Relies on the `_update` mechanism.
    *
-   * @circuitInfo k=10, rows=773
+   * @circuitInfo k=11, rows=1377
    *
    * Requirements:
    *
@@ -586,7 +586,7 @@ module FungibleToken {
    * This circuit is equivalent to `approve`, and can be used to
    * e.g. set automatic allowances for certain subsystems, etc.
    *
-   * @circuitInfo k=10, rows=583
+   * @circuitInfo k=11, rows=1406
    *
    * Requirements:
    *
@@ -625,7 +625,7 @@ module FungibleToken {
    * @description Updates `owner`'s allowance for `spender` based on spent `value`.
    * Does not update the allowance value in case of infinite allowance.
    *
-   * @circuitInfo k=10, rows=931
+   * @circuitInfo k=11, rows=1729
    *
    * Requirements:
    *
