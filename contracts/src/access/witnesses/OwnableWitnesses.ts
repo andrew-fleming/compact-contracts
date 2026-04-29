@@ -72,6 +72,9 @@ export const OwnableWitnesses = <L>(): IOwnableWitnesses<
   wit_OwnableSK(
     context: WitnessContext<L, OwnablePrivateState>,
   ): [OwnablePrivateState, Uint8Array] {
-    return [context.privateState, context.privateState.secretKey];
+    return [
+      context.privateState,
+      Uint8Array.from(context.privateState.secretKey),
+    ];
   },
 });
