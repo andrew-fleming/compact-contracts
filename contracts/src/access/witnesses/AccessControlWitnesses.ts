@@ -69,6 +69,9 @@ export const AccessControlWitnesses = <L>(): IAccessControlWitnesses<
   wit_AccessControlSK(
     context: WitnessContext<L, AccessControlPrivateState>,
   ): [AccessControlPrivateState, Uint8Array] {
-    return [context.privateState, context.privateState.secretKey];
+    return [
+      context.privateState,
+      Uint8Array.from(context.privateState.secretKey),
+    ];
   },
 });
