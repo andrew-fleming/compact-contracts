@@ -84,6 +84,14 @@ pragma language_version >= 0.21.0;
  *   Any DApp may provide any implementation. The ZK proof system constrains what values
  *   can produce valid proofs.
  *
+ * @dev Canonicalization
+ * All `Either<Bytes<32>, ContractAddress>` values used as map keys in `_operatorRoles`
+ * are canonicalized before reads and writes. Canonicalization zeroes out the inactive
+ * branch of the Either, ensuring that two values with the same active branch always
+ * resolve to the same map key regardless of what data the inactive branch carries.
+ * `hasRole` canonicalizes on read. `_unsafeGrantRole` and `_revokeRole` canonicalize
+ * on write. Internal circuits use `_hasRole` which assumes pre-canonicalized inputs.
+ *
  * @notice Missing Features and Improvements:
  *
  * - Role events
