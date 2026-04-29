@@ -194,7 +194,7 @@ module FungibleToken {
    *
    * - Contract is initialized.
    *
-   * @param {Either<Bytes<32>, ContractAddress>} account - The public key or contract address to query.
+   * @param {Either<Bytes<32>, ContractAddress>} account - The account id or contract address to query.
    * @return {Uint<128>} - The account's token balance.
    */
   export circuit balanceOf(account: Either<Bytes<32>, ContractAddress>): Uint<128> {
@@ -280,8 +280,8 @@ module FungibleToken {
    *
    * - Contract is initialized.
    *
-   * @param {Either<Bytes<32>, ContractAddress>} owner - The public key or contract address of approver.
-   * @param {Either<Bytes<32>, ContractAddress>} spender - The public key or contract address of spender.
+   * @param {Either<Bytes<32>, ContractAddress>} owner - The account id or contract address of approver.
+   * @param {Either<Bytes<32>, ContractAddress>} spender - The account id or contract address of spender.
    * @return {Uint<128>} - The `spender`'s allowance over `owner`'s tokens.
    */
   export circuit allowance(
