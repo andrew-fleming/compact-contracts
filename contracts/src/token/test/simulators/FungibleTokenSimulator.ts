@@ -7,7 +7,6 @@ import {
   type Either,
   ledger,
   Contract as MockFungibleToken,
-  type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockFungibleToken/contract/index.js';
 import {
   FungibleTokenPrivateState,
@@ -33,7 +32,7 @@ const FungibleTokenSimulatorBase = createSimulator<
 >({
   contractFactory: (witnesses) =>
     new MockFungibleToken<FungibleTokenPrivateState>(witnesses),
-  defaultPrivateState: () => FungibleTokenPrivateState,
+  defaultPrivateState: () => FungibleTokenPrivateState.generate(),
   contractArgs: (name, symbol, decimals, init) => [
     name,
     symbol,
@@ -97,9 +96,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param account The public key or contract address to query.
    * @returns The account's token balance.
    */
-  public balanceOf(
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
-  ): bigint {
+  public balanceOf(account: Either<Uint8Array, ContractAddress>): bigint {
     return this.circuits.impure.balanceOf(account);
   }
 
@@ -111,8 +108,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns The `spender`'s allowance over `owner`'s tokens.
    */
   public allowance(
-    owner: Either<ZswapCoinPublicKey, ContractAddress>,
-    spender: Either<ZswapCoinPublicKey, ContractAddress>,
+    owner: Either<Uint8Array, ContractAddress>,
+    spender: Either<Uint8Array, ContractAddress>,
   ): bigint {
     return this.circuits.impure.allowance(owner, spender);
   }
@@ -124,7 +121,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns As per the IERC20 spec, this MUST return true.
    */
   public transfer(
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ): boolean {
     return this.circuits.impure.transfer(to, value);
@@ -137,7 +134,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns As per the IERC20 spec, this MUST return true.
    */
   public _unsafeTransfer(
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ): boolean {
     return this.circuits.impure._unsafeTransfer(to, value);
@@ -152,8 +149,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns As per the IERC20 spec, this MUST return true.
    */
   public transferFrom(
-    fromAddress: Either<ZswapCoinPublicKey, ContractAddress>,
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    fromAddress: Either<Uint8Array, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ): boolean {
     return this.circuits.impure.transferFrom(fromAddress, to, value);
@@ -167,8 +164,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns As per the IERC20 spec, this MUST return true.
    */
   public _unsafeTransferFrom(
-    fromAddress: Either<ZswapCoinPublicKey, ContractAddress>,
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    fromAddress: Either<Uint8Array, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ): boolean {
     return this.circuits.impure._unsafeTransferFrom(fromAddress, to, value);
@@ -181,7 +178,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @returns Returns a boolean value indicating whether the operation succeeded.
    */
   public approve(
-    spender: Either<ZswapCoinPublicKey, ContractAddress>,
+    spender: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ): boolean {
     return this.circuits.impure.approve(spender, value);
@@ -200,8 +197,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param value The amount of tokens to transfer.
    */
   public _transfer(
-    fromAddress: Either<ZswapCoinPublicKey, ContractAddress>,
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    fromAddress: Either<Uint8Array, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ) {
     this.circuits.impure._transfer(fromAddress, to, value);
@@ -214,8 +211,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param value The amount of tokens to transfer.
    */
   public _unsafeUncheckedTransfer(
-    fromAddress: Either<ZswapCoinPublicKey, ContractAddress>,
-    to: Either<ZswapCoinPublicKey, ContractAddress>,
+    fromAddress: Either<Uint8Array, ContractAddress>,
+    to: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ) {
     this.circuits.impure._unsafeUncheckedTransfer(fromAddress, to, value);
@@ -227,10 +224,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param account The recipient of tokens minted.
    * @param value The amount of tokens minted.
    */
-  public _mint(
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
-    value: bigint,
-  ) {
+  public _mint(account: Either<Uint8Array, ContractAddress>, value: bigint) {
     this.circuits.impure._mint(account, value);
   }
 
@@ -240,7 +234,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param value The amount of tokens minted.
    */
   public _unsafeMint(
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
+    account: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ) {
     this.circuits.impure._unsafeMint(account, value);
@@ -252,10 +246,7 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param account The target owner of tokens to burn.
    * @param value The amount of tokens to burn.
    */
-  public _burn(
-    account: Either<ZswapCoinPublicKey, ContractAddress>,
-    value: bigint,
-  ) {
+  public _burn(account: Either<Uint8Array, ContractAddress>, value: bigint) {
     this.circuits.impure._burn(account, value);
   }
 
@@ -268,8 +259,8 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param value The amount of tokens `spender` may spend on behalf of `owner`.
    */
   public _approve(
-    owner: Either<ZswapCoinPublicKey, ContractAddress>,
-    spender: Either<ZswapCoinPublicKey, ContractAddress>,
+    owner: Either<Uint8Array, ContractAddress>,
+    spender: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ) {
     this.circuits.impure._approve(owner, spender, value);
@@ -283,10 +274,48 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
    * @param value The amount of token allowance to spend.
    */
   public _spendAllowance(
-    owner: Either<ZswapCoinPublicKey, ContractAddress>,
-    spender: Either<ZswapCoinPublicKey, ContractAddress>,
+    owner: Either<Uint8Array, ContractAddress>,
+    spender: Either<Uint8Array, ContractAddress>,
     value: bigint,
   ) {
     this.circuits.impure._spendAllowance(owner, spender, value);
   }
+
+  /**
+   * @description Computes an account identifier without on-chain state, allowing a user to derive
+   * their identity commitment before submitting it in a grant or revoke operation.
+   * @param {Bytes<32>} secretKey - A 32-byte cryptographically secure random value.
+   * @returns {Bytes<32>} accountId - The computed account identifier.
+   */
+  public computeAccountId(secretKey: Uint8Array): Uint8Array {
+    return this.circuits.pure.computeAccountId(secretKey);
+  }
+
+  public readonly privateState = {
+    /**
+     * @description Replaces the secret key in the private state. Used in tests to
+     * simulate switching between different user identities or injecting incorrect
+     * keys to test failure paths.
+     * @param newSK - The new secret key to set.
+     * @returns The updated private state.
+     */
+    injectSecretKey: (newSK: Uint8Array): FungibleTokenPrivateState => {
+      const updatedState = FungibleTokenPrivateState.withSecretKey(newSK);
+      this.circuitContextManager.updatePrivateState(updatedState);
+      return updatedState;
+    },
+
+    /**
+     * @description Returns the current secret key from the private state.
+     * @returns The secret key.
+     * @throws If the secret key is undefined.
+     */
+    getCurrentSecretKey: (): Uint8Array => {
+      const sk = this.getPrivateState().secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
+      }
+      return Uint8Array.from(sk);
+    },
+  };
 }
