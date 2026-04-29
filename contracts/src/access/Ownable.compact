@@ -42,6 +42,13 @@ pragma language_version >= 0.21.0;
  * @notice The unsafe circuits are planned to become deprecated once contract-to-contract calls
  * are supported.
  *
+ * @dev Canonicalization
+ * All `Either<Bytes<32>, ContractAddress>` values are canonicalized before being written
+ * to the `_owner` ledger field. Canonicalization zeroes out the inactive branch of the Either,
+ * ensuring consistent storage regardless of what data the inactive branch carries.
+ * The single write point is `_unsafeUncheckedTransferOwnership`, through which all
+ * ownership changes flow.
+ *
  * @dev Security Considerations:
  * - The `secretKey` must be kept private. Loss of the key prevents the owner
  *   from proving ownership. Key exposure allows impersonation.
