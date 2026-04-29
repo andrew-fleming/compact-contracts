@@ -72,6 +72,6 @@ export const FungibleTokenWitnesses = <L>(): IFungibleTokenWitnesses<
   wit_FungibleTokenSK(
     context: WitnessContext<L, FungibleTokenPrivateState>,
   ): [FungibleTokenPrivateState, Uint8Array] {
-    return [context.privateState, context.privateState.secretKey];
+    return [context.privateState, Uint8Array.from(context.privateState.secretKey)];
   },
 });
