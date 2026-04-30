@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.0.1-alpha.1 (access/witnesses/AccessControlWitnesses.ts)
+
 import { getRandomValues } from 'node:crypto';
 import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
 
