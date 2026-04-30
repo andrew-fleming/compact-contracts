@@ -355,7 +355,7 @@ module AccessControl {
    *
    * @circuitInfo k=11, rows=1142
    *
-   * @notice External smart contracts cannot call the token contract at this time, so granting a role to a ContractAddress may
+   * @notice External smart contracts cannot call the access control contract at this time, so granting a role to a ContractAddress may
    * render a circuit permanently inaccessible.
    *
    * @param {Bytes<32>} roleId - The role identifier.
