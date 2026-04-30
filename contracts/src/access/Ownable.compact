@@ -199,8 +199,7 @@ module Ownable {
   export circuit assertOnlyOwner(): [] {
     Initializable_assertInitialized();
     if (_owner.is_left) {
-      const callerId = _computeAccountId();
-      assert(callerId == _owner.left, "Ownable: caller is not the owner");
+      assert(_computeAccountId() == _owner.left, "Ownable: caller is not the owner");
     } else {
       assert(false, "Ownable: contract address owner authentication is not yet supported");
     }
