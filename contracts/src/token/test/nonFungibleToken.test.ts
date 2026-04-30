@@ -139,6 +139,33 @@ describe('NonFungibleToken', () => {
     });
   });
 
+  describe('ZERO', () => {
+    it('should return a left variant', () => {
+      const zero = token.ZERO();
+      expect(zero.is_left).toBe(true);
+    });
+
+    it('should have zero left branch', () => {
+      const zero = token.ZERO();
+      expect(zero.left).toEqual(zeroBytes);
+    });
+
+    it('should have zero right branch', () => {
+      const zero = token.ZERO();
+      expect(zero.right).toEqual({ bytes: zeroBytes });
+    });
+
+    it('should be canonical', () => {
+      const zero = token.ZERO();
+      expect(zero).toEqual(ZERO_ACCOUNT);
+    });
+
+    it('should not equal a right-variant zero', () => {
+      const zero = token.ZERO();
+      expect(zero).not.toEqual(ZERO_CONTRACT);
+    });
+  });
+
   describe('balanceOf', () => {
     it('should return zero when requested account has no balance', () => {
       expect(token.balanceOf(OWNER.either)).toEqual(0n);
@@ -943,6 +970,12 @@ describe('NonFungibleToken', () => {
       expect(token.ownerOf(TOKENID_1)).toEqual(OWNER.either);
       expect(token.balanceOf(OWNER.either)).toEqual(1n);
     });
+
+    it('should not mint to zero (contract)', () => {
+      expect(() => {
+        token._mint(ZERO_CONTRACT, TOKENID_1);
+      }).toThrow('NonFungibleToken: unsafe transfer');
+    });
   });
 
   describe('_burn', () => {
@@ -1167,6 +1200,29 @@ describe('NonFungibleToken', () => {
       token._unsafeTransfer(OWNER.either, OTHER.either, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
     });
+
+    it('should canonicalize contract address recipient', () => {
+      const nonCanonical = {
+        is_left: false,
+        left: new Uint8Array(32).fill(1),
+        right: SOME_CONTRACT.right,
+      };
+
+      token._unsafeTransfer(OWNER.either, nonCanonical, TOKENID_1);
+      expect(token.ownerOf(TOKENID_1)).toEqual(SOME_CONTRACT);
+      expect(token.balanceOf(SOME_CONTRACT)).toEqual(1n);
+    });
+
+    it('should handle non-canonical fromAddress', () => {
+      const nonCanonical = {
+        is_left: true,
+        left: OWNER.accountId,
+        right: utils.encodeToAddress('JUNK_DATA'),
+      };
+
+      token._unsafeTransfer(nonCanonical, SPENDER.either, TOKENID_1);
+      expect(token.ownerOf(TOKENID_1)).toEqual(SPENDER.either);
+    });
   });
 
   describe('_unsafeTransferFrom', () => {
@@ -1259,6 +1315,33 @@ describe('NonFungibleToken', () => {
       token._unsafeTransferFrom(OWNER.either, OTHER.either, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
     });
+
+    it('should handle non-canonical fromAddress', () => {
+      token.privateState.injectSecretKey(OWNER.secretKey);
+
+      const nonCanonical = {
+        is_left: true,
+        left: OWNER.accountId,
+        right: utils.encodeToAddress('JUNK_DATA'),
+      };
+
+      token._unsafeTransferFrom(nonCanonical, SPENDER.either, TOKENID_1);
+      expect(token.ownerOf(TOKENID_1)).toEqual(SPENDER.either);
+    });
+
+    it('should canonicalize contract address recipient', () => {
+      token.privateState.injectSecretKey(OWNER.secretKey);
+
+      const nonCanonical = {
+        is_left: false,
+        left: new Uint8Array(32).fill(1),
+        right: SOME_CONTRACT.right,
+      };
+
+      token._unsafeTransferFrom(OWNER.either, nonCanonical, TOKENID_1);
+      expect(token.ownerOf(TOKENID_1)).toEqual(SOME_CONTRACT);
+      expect(token.balanceOf(SOME_CONTRACT)).toEqual(1n);
+    });
   });
 });
 
@@ -1289,7 +1372,7 @@ const circuitsToFail: FailingCircuits[] = [
   ['_mint', [OWNER.either, TOKENID_1]],
   ['_burn', [TOKENID_1]],
   ['_transfer', [OWNER.either, RECIPIENT.either, TOKENID_1]],
-  ['_setTokenURI', [TOKENID_1]],
+  ['_setTokenURI', [TOKENID_1, EMPTY_URI]],
   ['_unsafeTransferFrom', [OWNER.either, RECIPIENT.either, TOKENID_1]],
   ['_unsafeTransfer', [OWNER.either, RECIPIENT.either, TOKENID_1]],
   ['_unsafeMint', [OWNER.either, TOKENID_1]],
