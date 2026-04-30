@@ -151,6 +151,25 @@ describe('AccessControl', () => {
         'AccessControl: unauthorized account',
       );
     });
+
+    it('should fail when contract address matches accountId bytes but is right variant', () => {
+      // Grant role to a contract address whose bytes match ADMIN's accountId
+      const contractWithSameBytes = {
+        is_left: false,
+        left: zeroBytes,
+        right: { bytes: ADMIN.accountId },
+      };
+
+      accessControl._unsafeGrantRole(OPERATOR_ROLE_1, contractWithSameBytes);
+      expect(accessControl.hasRole(OPERATOR_ROLE_1, contractWithSameBytes)).toBe(true);
+
+      // ADMIN's witness produces left(H(sk)) which has the same bytes
+      // but is a different Either variant than the granted role
+      accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+      expect(() => {
+        accessControl.assertOnlyRole(OPERATOR_ROLE_1);
+      }).toThrow('AccessControl: unauthorized account');
+    });
   });
 
   describe('_checkRole', () => {
