@@ -161,7 +161,9 @@ describe('AccessControl', () => {
       };
 
       accessControl._unsafeGrantRole(OPERATOR_ROLE_1, contractWithSameBytes);
-      expect(accessControl.hasRole(OPERATOR_ROLE_1, contractWithSameBytes)).toBe(true);
+      expect(
+        accessControl.hasRole(OPERATOR_ROLE_1, contractWithSameBytes),
+      ).toBe(true);
 
       // ADMIN's witness produces left(H(sk)) which has the same bytes
       // but is a different Either variant than the granted role
