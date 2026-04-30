@@ -54,6 +54,14 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
   }
 
   /**
+   * @description Returns a canonical zero Either value (left variant with zero Bytes<32>).
+   * @return The zero value.
+   */
+  public ZERO(): Either<Uint8Array, ContractAddress> {
+    return this.circuits.pure.ZERO();
+  }
+
+  /**
    * @description Returns the token name.
    * @returns The token name.
    */
