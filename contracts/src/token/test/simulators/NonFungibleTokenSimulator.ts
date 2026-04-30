@@ -82,9 +82,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param account The public key to query.
    * @return The number of tokens in `account`'s account.
    */
-  public balanceOf(
-    account: Either<Uint8Array, ContractAddress>,
-  ): bigint {
+  public balanceOf(account: Either<Uint8Array, ContractAddress>): bigint {
     return this.circuits.impure.balanceOf(account);
   }
 
@@ -125,10 +123,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param to The account receiving the approval
    * @param tokenId The token `to` may be permitted to transfer
    */
-  public approve(
-    to: Either<Uint8Array, ContractAddress>,
-    tokenId: bigint,
-  ) {
+  public approve(to: Either<Uint8Array, ContractAddress>, tokenId: bigint) {
     this.circuits.impure.approve(to, tokenId);
   }
 
@@ -137,9 +132,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param tokenId The token an account may be approved to manage
    * @return The account approved to manage the token
    */
-  public getApproved(
-    tokenId: bigint,
-  ): Either<Uint8Array, ContractAddress> {
+  public getApproved(tokenId: bigint): Either<Uint8Array, ContractAddress> {
     return this.circuits.impure.getApproved(tokenId);
   }
 
@@ -206,9 +199,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param tokenId The token that should be owned
    * @return The owner of `tokenId`
    */
-  public _requireOwned(
-    tokenId: bigint,
-  ): Either<Uint8Array, ContractAddress> {
+  public _requireOwned(tokenId: bigint): Either<Uint8Array, ContractAddress> {
     return this.circuits.impure._requireOwned(tokenId);
   }
 
@@ -218,9 +209,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param tokenId The target token of the owner query
    * @return The owner of the token
    */
-  public _ownerOf(
-    tokenId: bigint,
-  ): Either<Uint8Array, ContractAddress> {
+  public _ownerOf(tokenId: bigint): Either<Uint8Array, ContractAddress> {
     return this.circuits.impure._ownerOf(tokenId);
   }
 
@@ -289,9 +278,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param tokenId The token to query
    * @return An account approved to spend `tokenId`
    */
-  public _getApproved(
-    tokenId: bigint,
-  ): Either<Uint8Array, ContractAddress> {
+  public _getApproved(tokenId: bigint): Either<Uint8Array, ContractAddress> {
     return this.circuits.impure._getApproved(tokenId);
   }
 
@@ -325,10 +312,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param to The account receiving `tokenId`
    * @param tokenId The token to transfer
    */
-  public _mint(
-    to: Either<Uint8Array, ContractAddress>,
-    tokenId: bigint,
-  ) {
+  public _mint(to: Either<Uint8Array, ContractAddress>, tokenId: bigint) {
     this.circuits.impure._mint(to, tokenId);
   }
 
@@ -448,10 +432,7 @@ export class NonFungibleTokenSimulator extends NonFungibleTokenSimulatorBase {
    * @param {Either<Uint8Array, ContractAddress>} to - The account receiving `tokenId`
    * @param {TokenId} tokenId - The token to transfer
    */
-  public _unsafeMint(
-    to: Either<Uint8Array, ContractAddress>,
-    tokenId: bigint,
-  ) {
+  public _unsafeMint(to: Either<Uint8Array, ContractAddress>, tokenId: bigint) {
     this.circuits.impure._unsafeMint(to, tokenId);
   }
 

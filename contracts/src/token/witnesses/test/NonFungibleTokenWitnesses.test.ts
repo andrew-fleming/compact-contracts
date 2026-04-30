@@ -39,14 +39,18 @@ describe('NonFungibleTokenPrivateState', () => {
 
     it('should throw for a secret key shorter than 32 bytes', () => {
       const short = new Uint8Array(16);
-      expect(() => NonFungibleTokenPrivateState.withSecretKey(short)).toThrowError(
+      expect(() =>
+        NonFungibleTokenPrivateState.withSecretKey(short),
+      ).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 16 bytes',
       );
     });
 
     it('should throw for a secret key longer than 32 bytes', () => {
       const long = new Uint8Array(64);
-      expect(() => NonFungibleTokenPrivateState.withSecretKey(long)).toThrowError(
+      expect(() =>
+        NonFungibleTokenPrivateState.withSecretKey(long),
+      ).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 64 bytes',
       );
     });

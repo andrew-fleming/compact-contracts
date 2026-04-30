@@ -632,7 +632,9 @@ describe('NonFungibleToken', () => {
       expect(token.ownerOf(TOKENID_1)).toEqual(OWNER.either);
       expect(token.balanceOf(OWNER.either)).toEqual(1n);
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
-      expect(token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1)).toEqual(true);
+      expect(
+        token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1),
+      ).toEqual(true);
     });
 
     it('should not transfer after approval revocation', () => {
@@ -695,7 +697,9 @@ describe('NonFungibleToken', () => {
 
       token.transferFrom(OWNER.either, OTHER.either, TOKENID_1);
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
-      expect(token._isAuthorized(OTHER.either, SPENDER.either, TOKENID_1)).toBe(false);
+      expect(token._isAuthorized(OTHER.either, SPENDER.either, TOKENID_1)).toBe(
+        false,
+      );
 
       token.privateState.injectSecretKey(SPENDER.secretKey);
       expect(() => {
@@ -819,25 +823,35 @@ describe('NonFungibleToken', () => {
     it('should return true if spender is authorized', () => {
       token.privateState.injectSecretKey(OWNER.secretKey);
       token.approve(SPENDER.either, TOKENID_1);
-      expect(token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1)).toBe(true);
+      expect(token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1)).toBe(
+        true,
+      );
     });
 
     it('should return true if spender is authorized for all', () => {
       token.privateState.injectSecretKey(OWNER.secretKey);
       token.setApprovalForAll(SPENDER.either, true);
-      expect(token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1)).toBe(true);
+      expect(token._isAuthorized(OWNER.either, SPENDER.either, TOKENID_1)).toBe(
+        true,
+      );
     });
 
     it('should return true if spender is owner', () => {
-      expect(token._isAuthorized(OWNER.either, OWNER.either, TOKENID_1)).toBe(true);
+      expect(token._isAuthorized(OWNER.either, OWNER.either, TOKENID_1)).toBe(
+        true,
+      );
     });
 
     it('should return false if spender is zero address', () => {
-      expect(token._isAuthorized(OWNER.either, ZERO_ACCOUNT, TOKENID_1)).toBe(false);
+      expect(token._isAuthorized(OWNER.either, ZERO_ACCOUNT, TOKENID_1)).toBe(
+        false,
+      );
     });
 
     it('should return false for unauthorized', () => {
-      expect(token._isAuthorized(OWNER.either, UNAUTHORIZED.either, TOKENID_1)).toBe(false);
+      expect(
+        token._isAuthorized(OWNER.either, UNAUTHORIZED.either, TOKENID_1),
+      ).toBe(false);
     });
   });
 
@@ -1184,7 +1198,11 @@ describe('NonFungibleToken', () => {
 
     it('should throw if from does not own token', () => {
       expect(() => {
-        token._unsafeTransfer(UNAUTHORIZED.either, UNAUTHORIZED.either, TOKENID_1);
+        token._unsafeTransfer(
+          UNAUTHORIZED.either,
+          UNAUTHORIZED.either,
+          TOKENID_1,
+        );
       }).toThrow('NonFungibleToken: incorrect owner');
     });
 
@@ -1268,7 +1286,11 @@ describe('NonFungibleToken', () => {
     it('should not transfer token that has not been minted', () => {
       token.privateState.injectSecretKey(OWNER.secretKey);
       expect(() => {
-        token._unsafeTransferFrom(OWNER.either, SPENDER.either, NON_EXISTENT_TOKEN);
+        token._unsafeTransferFrom(
+          OWNER.either,
+          SPENDER.either,
+          NON_EXISTENT_TOKEN,
+        );
       }).toThrow('NonFungibleToken: nonexistent token');
     });
 
