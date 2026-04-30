@@ -60,6 +60,16 @@ export class FungibleTokenSimulator extends FungibleTokenSimulatorBase {
     super([name, symbol, decimals, init], options);
   }
   /**
+   * @description Returns a canonical zero Either value for Bytes<32> and ContractAddress.
+   * This circuit returns the left variant (Bytes<32>) to avoid misleading contract-to-contract
+   * error messages.
+   * @returns The zero value.
+   */
+  public ZERO(): Either<Uint8Array, ContractAddress> {
+    return this.circuits.pure.ZERO();
+  }
+
+  /**
    * @description Returns the token name.
    * @returns The token name.
    */

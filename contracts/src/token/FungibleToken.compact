@@ -90,6 +90,13 @@ module FungibleToken {
    */
   witness wit_FungibleTokenSK(): Bytes<32>;
 
+  /**
+   * @description Returns a canonical zero Either value for Bytes<32> and ContractAddress.
+   * This circuit returns the left variant (Bytes<32>) to avoid misleading contract-to-contract
+   * error messages.
+   *
+   * @return {Either<Bytes<32>, ContractAddress>} - The zero value.
+   */
   export pure circuit ZERO(): Either<Bytes<32>, ContractAddress> {
     return Either<Bytes<32>, ContractAddress> {
       is_left: true, left: default<Bytes<32>>, right: default<ContractAddress>

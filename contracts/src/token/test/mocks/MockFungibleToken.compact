@@ -31,6 +31,10 @@ constructor(
   }
 }
 
+export pure circuit ZERO(): Either<Bytes<32>, ContractAddress> {
+  return FungibleToken_ZERO();
+}
+
 export circuit name(): Opaque<"string"> {
   return FungibleToken_name();
 }

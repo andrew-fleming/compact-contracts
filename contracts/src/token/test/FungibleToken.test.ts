@@ -157,6 +157,33 @@ describe('FungibleToken', () => {
       token = new FungibleTokenSimulator(NAME, SYMBOL, DECIMALS, INIT);
     });
 
+    describe('ZERO', () => {
+      it('should return a left variant', () => {
+        const zero = token.ZERO();
+        expect(zero.is_left).toBe(true);
+      });
+
+      it('should have zero left branch', () => {
+        const zero = token.ZERO();
+        expect(zero.left).toEqual(zeroBytes);
+      });
+
+      it('should have zero right branch', () => {
+        const zero = token.ZERO();
+        expect(zero.right).toEqual({ bytes: zeroBytes });
+      });
+
+      it('should be canonical', () => {
+        const zero = token.ZERO();
+        expect(zero).toEqual(ZERO_ACCOUNT);
+      });
+
+      it('should not equal a right-variant zero', () => {
+        const zero = token.ZERO();
+        expect(zero).not.toEqual(ZERO_CONTRACT);
+      });
+    });
+
     describe('totalSupply', () => {
       it('returns 0 when there is no supply', () => {
         expect(token.totalSupply()).toEqual(0n);
