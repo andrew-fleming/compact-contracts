@@ -795,6 +795,30 @@ describe('FungibleToken', () => {
         token._unsafeUncheckedTransfer(OWNER.either, nonCanonical, AMOUNT);
         expect(token.balanceOf(RECIPIENT.either)).toEqual(AMOUNT);
       });
+
+      it('should canonicalize recipient contract address (zero out inactive left side)', () => {
+        const nonCanonical = {
+          is_left: false,
+          left: new Uint8Array(32).fill(1),
+          right: RECIPIENT_CONTRACT.right,
+        };
+
+        token._unsafeUncheckedTransfer(OWNER.either, nonCanonical, AMOUNT);
+        expect(token.balanceOf(RECIPIENT_CONTRACT)).toEqual(AMOUNT);
+        expect(token.balanceOf(OWNER.either)).toEqual(0n);
+      });
+
+      it('should canonicalize fromAddress (zero out inactive right side)', () => {
+        const nonCanonical = {
+          is_left: true,
+          left: OWNER.accountId,
+          right: utils.encodeToAddress('JUNK_DATA'),
+        };
+
+        token._unsafeUncheckedTransfer(nonCanonical, RECIPIENT.either, AMOUNT);
+        expect(token.balanceOf(OWNER.either)).toEqual(0n);
+        expect(token.balanceOf(RECIPIENT.either)).toEqual(AMOUNT);
+      });
     });
 
     describe('_mint', () => {
@@ -927,6 +951,18 @@ describe('FungibleToken', () => {
         expect(token.totalSupply()).toEqual(AMOUNT);
         expect(token.balanceOf(OWNER.either)).toEqual(AMOUNT);
       });
+
+      it('should burn with non-canonical account (left)', () => {
+        const nonCanonical = {
+          is_left: true,
+          left: OWNER.accountId,
+          right: utils.encodeToAddress('JUNK_DATA'),
+        };
+
+        token._burn(nonCanonical, 1n);
+        expect(token.balanceOf(OWNER.either)).toEqual(AMOUNT - 1n);
+        expect(token.totalSupply()).toEqual(AMOUNT - 1n);
+      });
     });
 
     describe('_approve', () => {
@@ -998,6 +1034,17 @@ describe('FungibleToken', () => {
 
         token._approve(OWNER.either, nonCanonicalSpender, AMOUNT);
         expect(token.allowance(OWNER.either, SPENDER.either)).toEqual(AMOUNT);
+      });
+
+      it('should canonicalize contract address owner (zero out inactive left side)', () => {
+        const nonCanonicalOwner = {
+          is_left: false,
+          left: new Uint8Array(32).fill(1),
+          right: OWNER_CONTRACT.right,
+        };
+
+        token._approve(nonCanonicalOwner, SPENDER.either, AMOUNT);
+        expect(token.allowance(OWNER_CONTRACT, SPENDER.either)).toEqual(AMOUNT);
       });
     });
 
