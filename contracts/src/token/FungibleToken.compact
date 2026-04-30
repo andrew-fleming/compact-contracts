@@ -90,7 +90,7 @@ module FungibleToken {
    */
   witness wit_FungibleTokenSK(): Bytes<32>;
 
-  export circuit ZERO(): Either<Bytes<32>, ContractAddress> {
+  export pure circuit ZERO(): Either<Bytes<32>, ContractAddress> {
     return Either<Bytes<32>, ContractAddress> {
       is_left: true, left: default<Bytes<32>>, right: default<ContractAddress>
     };
