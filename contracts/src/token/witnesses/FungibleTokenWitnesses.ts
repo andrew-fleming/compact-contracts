@@ -18,7 +18,7 @@ export interface IFungibleTokenWitnesses<L, P> {
 }
 
 /**
- * @description Represents the private state of an FungibleToken contract, storing a secret key.
+ * @description Represents the private state of a FungibleToken contract, storing a secret key.
  */
 export type FungibleTokenPrivateState = {
   /** @description A 32-byte secret key used for creating a public user identifier. */
