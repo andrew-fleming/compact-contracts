@@ -296,6 +296,7 @@ module AccessControl {
    * Requirements:
    *
    * - The caller's computed account identifier must match `callerConfirmation`.
+   * - The caller must not be a `ContractAddress`.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} callerConfirmation - The caller's account identifier, must match the internally computed value.
