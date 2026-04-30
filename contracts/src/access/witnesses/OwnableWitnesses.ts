@@ -39,10 +39,10 @@ export const OwnablePrivateState = {
 
   /**
    * @description Generates a new private state with a user-defined secret key.
-   * Useful for deterministic nonce generation or advanced use cases.
+   * Useful for deterministic key generation or advanced use cases.
    *
-   * @param sk - The 32-byte secret nonce to use.
-   * @returns A fresh OwnablePrivateState instance with the provided nonce.
+   * @param sk - The 32-byte secret key to use.
+   * @returns A fresh OwnablePrivateState instance with the provided key.
    *
    * @example
    * ```typescript
