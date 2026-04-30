@@ -309,7 +309,7 @@ module FungibleToken {
    * - Contract is initialized.
    * - `spender` is not the zero address.
    *
-   * @param {Either<Bytes<32>, ContractAddress>} spender - The Zswap key or ContractAddress that may spend on behalf of the caller.
+   * @param {Either<Bytes<32>, ContractAddress>} spender - The account id or ContractAddress that may spend on behalf of the caller.
    * @param {Uint<128>} value - The amount of tokens the `spender` may spend.
    * @return {Boolean} - Returns a boolean value indicating whether the operation succeeded.
    */
