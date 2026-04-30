@@ -36,10 +36,10 @@ export const AccessControlPrivateState = {
 
   /**
    * @description Generates a new private state with a user-defined secret key.
-   * Useful for deterministic nonce generation or advanced use cases.
+   * Useful for deterministic key generation or advanced use cases.
    *
-   * @param sk - The 32-byte secret nonce to use.
-   * @returns A fresh AccessControlPrivateState instance with the provided nonce.
+   * @param sk - The 32-byte secret key to use.
+   * @returns A fresh AccessControlPrivateState instance with the provided key.
    *
    * @example
    * ```typescript
@@ -59,7 +59,7 @@ export const AccessControlPrivateState = {
 };
 
 /**
- * @description Factory function creating witness implementations for Ownable operations.
+ * @description Factory function creating witness implementations for AccessControl operations.
  * @returns An object implementing the Witnesses interface for AccessControlPrivateState.
  */
 export const AccessControlWitnesses = <L>(): IAccessControlWitnesses<
