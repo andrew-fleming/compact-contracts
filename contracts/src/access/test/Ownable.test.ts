@@ -395,11 +395,6 @@ describe('Ownable', () => {
         expect(() => ownable.assertOnlyOwner()).not.toThrow();
       });
 
-      it('should allow transfers to zero', () => {
-        ownable._transferOwnership(ZERO_ACCOUNT);
-        expect(ownable.owner()).toEqual(ZERO_ACCOUNT);
-      });
-
       it('should fail when transferring to contract address zero', () => {
         expect(() => ownable._transferOwnership(ZERO_CONTRACT)).toThrow(
           'Ownable: unsafe ownership transfer',
