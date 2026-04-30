@@ -26,7 +26,7 @@ pragma language_version >= 0.21.0;
  *
  * ```compact
  * import CompactStandardLibrary;
- * import "./node_modules/@myProject/accessControl/src/AccessControl" prefix AccessControl_;
+ * import "./node_modules/@openzeppelin-compact/accessControl/src/AccessControl" prefix AccessControl_;
  *
  * export sealed ledger MY_ROLE: Bytes<32>;
  *
