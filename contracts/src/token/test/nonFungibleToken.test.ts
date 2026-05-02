@@ -394,6 +394,13 @@ describe('NonFungibleToken', () => {
       token.approve(SPENDER.either, longTokenId);
       expect(token.getApproved(longTokenId)).toEqual(SPENDER.either);
     });
+
+    it('should normalize right-variant zero approval', () => {
+      token.privateState.injectSecretKey(OWNER.secretKey);
+      token.approve(ZERO_CONTRACT, TOKENID_1);
+
+      expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
+    });
   });
 
   describe('getApproved', () => {
@@ -709,6 +716,17 @@ describe('NonFungibleToken', () => {
         token.transferFrom(OTHER.either, UNAUTHORIZED.either, TOKENID_1);
       }).toThrow('NonFungibleToken: insufficient approval');
     });
+
+    it('should store canonical zero after clearing approval via transfer', () => {
+      token.privateState.injectSecretKey(OWNER.secretKey);
+      token.approve(SPENDER.either, TOKENID_1);
+
+      token.transferFrom(OWNER.either, RECIPIENT.either, TOKENID_1);
+
+      // _update calls _approve(ZERO(), tokenId, ZERO()) internally,
+      // which should store the left-variant zero
+      expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
+    });
   });
 
   describe('_requireOwned', () => {
@@ -783,6 +801,28 @@ describe('NonFungibleToken', () => {
 
       token._approve(nonCanonical, TOKENID_1, OWNER.either);
       expect(token.getApproved(TOKENID_1)).toEqual(SPENDER.either);
+    });
+
+    it('should normalize right-variant zero to ZERO()', () => {
+      token._mint(OWNER.either, TOKENID_1);
+
+      // Approve with a right-variant zero (contract address zero)
+      token._approve(ZERO_CONTRACT, TOKENID_1, OWNER.either);
+
+      // getApproved should return the left-variant ZERO, not the right-variant
+      expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
+    });
+
+    it('should normalize left-variant zero to ZERO()', () => {
+      token._mint(OWNER.either, TOKENID_1);
+
+      // First set a real approval
+      token._approve(SPENDER.either, TOKENID_1, OWNER.either);
+      expect(token.getApproved(TOKENID_1)).toEqual(SPENDER.either);
+
+      // Clear it with left-variant zero
+      token._approve(ZERO_ACCOUNT, TOKENID_1, OWNER.either);
+      expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
     });
   });
 
@@ -892,10 +932,28 @@ describe('NonFungibleToken', () => {
       expect(token.isApprovedForAll(OWNER.either, SPENDER.either)).toBe(false);
     });
 
-    it('should throw if operator is zero address', () => {
+    it('should throw if operator is zero address (left)', () => {
       expect(() => {
         token._setApprovalForAll(OWNER.either, ZERO_ACCOUNT, true);
       }).toThrow('NonFungibleToken: invalid operator');
+    });
+
+    it('should throw if operator is zero address (right)', () => {
+      expect(() => {
+        token._setApprovalForAll(OWNER.either, ZERO_CONTRACT, true);
+      }).toThrow('NonFungibleToken: invalid operator');
+    });
+
+    it('should fail if owner is zero address (left)', () => {
+      expect(() => {
+        token._setApprovalForAll(ZERO_ACCOUNT, RECIPIENT.either, true);
+      }).toThrow('NonFungibleToken: invalid owner');
+    });
+
+    it('should fail if owner is zero address (right)', () => {
+      expect(() => {
+        token._setApprovalForAll(ZERO_CONTRACT, RECIPIENT.either, true);
+      }).toThrow('NonFungibleToken: invalid owner');
     });
 
     it('should canonicalize owner and operator', () => {
