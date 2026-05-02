@@ -142,7 +142,7 @@ module NonFungibleToken {
    *
    * @return {Either<Bytes<32>, ContractAddress>} - The zero value.
    */
-  export circuit ZERO(): Either<Bytes<32>, ContractAddress> {
+  export pure circuit ZERO(): Either<Bytes<32>, ContractAddress> {
     return Either<Bytes<32>, ContractAddress> {
       is_left: true, left: default<Bytes<32>>, right: default<ContractAddress>
     };
