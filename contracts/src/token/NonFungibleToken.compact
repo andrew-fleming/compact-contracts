@@ -828,7 +828,8 @@ module NonFungibleToken {
    * Requirements:
    *
    * - The contract is initialized.
-   * - `operator` is not the address zero.
+   * - `owner` is not zero.
+   * - `operator` is not zero.
    *
    * @param {Either<Bytes<32>, ContractAddress>} owner - Owner of a token
    * @param {Either<Bytes<32>, ContractAddress>} operator - The account to approve
@@ -842,8 +843,9 @@ module NonFungibleToken {
                    ): [] {
     Initializable_assertInitialized();
     const canonOwner = Utils_canonicalize<Bytes<32>, ContractAddress>(owner);
-    const canonOp = Utils_canonicalize<Bytes<32>, ContractAddress>(operator);
+    assert(!_isTargetZero(canonOwner), "NonFungibleToken: invalid owner");
 
+    const canonOp = Utils_canonicalize<Bytes<32>, ContractAddress>(operator);
     assert(!_isTargetZero(canonOp), "NonFungibleToken: invalid operator");
 
     if (!_operatorApprovals.member(disclose(canonOwner))) {
