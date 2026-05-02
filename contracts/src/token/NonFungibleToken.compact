@@ -801,7 +801,11 @@ module NonFungibleToken {
                    auth: Either<Bytes<32>, ContractAddress>
                    ): [] {
     Initializable_assertInitialized();
+    // Canonicalize + normalize `to`
     const canonTo = Utils_canonicalize<Bytes<32>, ContractAddress>(to);
+    const normalizedTo = _isTargetZero(canonTo) ? ZERO() : canonTo;
+
+    // Canonicalize auth
     const canonAuth = Utils_canonicalize<Bytes<32>, ContractAddress>(auth);
 
     if (!_isTargetZero(disclose(canonAuth))) {
@@ -813,7 +817,7 @@ module NonFungibleToken {
              );
     }
 
-    _tokenApprovals.insert(disclose(tokenId), disclose(canonTo));
+    _tokenApprovals.insert(disclose(tokenId), disclose(normalizedTo));
   }
 
   /**
