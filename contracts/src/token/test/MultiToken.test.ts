@@ -1167,7 +1167,7 @@ describe('MultiToken', () => {
         }).toThrow('MultiToken: arithmetic overflow');
       });
 
-      it('should fail when minting to zero address (id))', () => {
+      it('should fail when minting to zero address (id)', () => {
         expect(() => {
           token._mint(ZERO_ACCOUNT, TOKEN_ID, AMOUNT);
         }).toThrow('MultiToken: invalid receiver');
