@@ -357,6 +357,8 @@ module MultiToken {
    * @description Transfers a value amount of tokens of type id from fromAddress to to.
    * This circuit will mint (or burn) if `fromAddress` (or `to`) is zero.
    *
+   * @notice Both `fromAddress` and `to` are canonicalized internally before use as map keys.
+   *
    * Requirements:
    *
    * - Contract is initialized.
