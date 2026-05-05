@@ -39,18 +39,14 @@ describe('MultiTokenPrivateState', () => {
 
     it('should throw for a secret key shorter than 32 bytes', () => {
       const short = new Uint8Array(16);
-      expect(() =>
-        MultiTokenPrivateState.withSecretKey(short),
-      ).toThrowError(
+      expect(() => MultiTokenPrivateState.withSecretKey(short)).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 16 bytes',
       );
     });
 
     it('should throw for a secret key longer than 32 bytes', () => {
       const long = new Uint8Array(64);
-      expect(() =>
-        MultiTokenPrivateState.withSecretKey(long),
-      ).toThrowError(
+      expect(() => MultiTokenPrivateState.withSecretKey(long)).toThrowError(
         'withSecretKey: expected 32-byte secret key, received 64 bytes',
       );
     });
@@ -71,10 +67,7 @@ describe('MultiTokenWitnesses', () => {
   function makeContext(
     privateState: MultiTokenPrivateState,
   ): WitnessContext<Ledger, MultiTokenPrivateState> {
-    return { privateState } as WitnessContext<
-      Ledger,
-      MultiTokenPrivateState
-    >;
+    return { privateState } as WitnessContext<Ledger, MultiTokenPrivateState>;
   }
 
   describe('wit_MultiTokenSK', () => {
