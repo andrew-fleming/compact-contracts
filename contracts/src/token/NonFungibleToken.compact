@@ -302,8 +302,8 @@ module NonFungibleToken {
    *
    * Only a single account can be approved at a time, so approving the zero value clears previous approvals.
    *
-   * The caller's identity is derived from the `wit_NonFungibleTokenSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller's identity is derived from the `wit_NonFungibleTokenSK`
+   * witness as `persistentHash(secretKey)`.
    *
    * @circuitInfo k=13, rows=3468
    *
@@ -347,8 +347,8 @@ module NonFungibleToken {
    * @description Approve or remove `operator` as an operator for the caller.
    * Operators can call {transferFrom} for any token owned by the caller.
    *
-   * The caller's identity is derived from the `wit_NonFungibleTokenSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller's identity is derived from the `wit_NonFungibleTokenSK`
+   * witness as `persistentHash(secretKey)`.
    *
    * @circuitInfo k=13, rows=2936
    *
@@ -403,8 +403,8 @@ module NonFungibleToken {
    * are supported in Compact. This restriction prevents assets from being inadvertently locked in contracts that cannot
    * currently handle token receipt.
    *
-   * The caller's identity is derived from the `wit_NonFungibleTokenSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller's identity is derived from the `wit_NonFungibleTokenSK`
+   * witness as `persistentHash(secretKey)`.
    *
    * @circuitInfo k=13, rows=4800
    *
@@ -437,8 +437,8 @@ module NonFungibleToken {
   /**
    * @description Transfers `tokenId` token from `fromAddress` to `to`. It does NOT check if the recipient is a ContractAddress.
    *
-   * The caller's identity is derived from the `wit_NonFungibleTokenSK` witness as
-   * `persistentHash(secretKey)`.
+   * In the case of an external (non-contract) caller, the caller's identity is derived from the `wit_NonFungibleTokenSK`
+   * witness as `persistentHash(secretKey)`.
    *
    * @warning Transfers to contract addresses are considered unsafe because contract-to-contract calls
    * are not currently supported. Tokens sent to a contract address may become irretrievable.
