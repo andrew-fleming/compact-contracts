@@ -44,7 +44,7 @@ function makeQualifiedCoin(
 
 let multisig: ShieldedMultiSigV3Simulator;
 
-describe('ShieldedMultisigV3', () => {
+describe('ShieldedMultiSigV3', () => {
   describe('constructor', () => {
     it('should initialize with 2-of-3 threshold', () => {
       multisig = new ShieldedMultiSigV3Simulator(

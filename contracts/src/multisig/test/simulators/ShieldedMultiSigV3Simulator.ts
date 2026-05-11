@@ -5,14 +5,14 @@ import {
 import {
   ledger,
   pureCircuits,
-  Contract as ShieldedMultisigV3Contract,
-} from '../../../../artifacts/ShieldedMultisigV3/contract/index.js';
+  Contract as ShieldedMultiSigV3Contract,
+} from '../../../../artifacts/ShieldedMultiSigV3/contract/index.js';
 import {
   ShieldedMultiSigV3PrivateState,
   ShieldedMultiSigV3Witnesses,
 } from '../../witnesses/ShieldedMultiSigV3Witnesses.js';
 
-type ShieldedMultisigV3Args = readonly [
+type ShieldedMultiSigV3Args = readonly [
   instanceSalt: Uint8Array,
   initCoinNonce: Uint8Array,
   tokenDomain: Uint8Array,
@@ -24,11 +24,11 @@ const ShieldedMultiSigV3SimulatorBase = createSimulator<
   ShieldedMultiSigV3PrivateState,
   ReturnType<typeof ledger>,
   ReturnType<typeof ShieldedMultiSigV3Witnesses>,
-  ShieldedMultisigV3Contract<ShieldedMultiSigV3PrivateState>,
-  ShieldedMultisigV3Args
+  ShieldedMultiSigV3Contract<ShieldedMultiSigV3PrivateState>,
+  ShieldedMultiSigV3Args
 >({
   contractFactory: (witnesses) =>
-    new ShieldedMultisigV3Contract<ShieldedMultiSigV3PrivateState>(witnesses),
+    new ShieldedMultiSigV3Contract<ShieldedMultiSigV3PrivateState>(witnesses),
   defaultPrivateState: () => ShieldedMultiSigV3PrivateState,
   contractArgs: (
     instanceSalt,
