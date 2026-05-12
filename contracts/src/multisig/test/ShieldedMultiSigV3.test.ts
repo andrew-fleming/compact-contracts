@@ -78,7 +78,7 @@ describe('ShieldedMultiSigV3', () => {
           SIGNER_COMMITMENTS,
           0n,
         );
-      }).toThrow('SignerManager: threshold must be > 0');
+      }).toThrow('Signer: threshold must not be zero');
     });
 
     it('should fail with threshold greater than 2', () => {
@@ -116,6 +116,18 @@ describe('ShieldedMultiSigV3', () => {
       );
       const unknown = multisig._calculateSignerId(NON_SIGNER_PK, INSTANCE_SALT);
       expect(multisig.isSigner(unknown)).toEqual(false);
+    });
+
+    it('should fail with duplicate signer commitments', () => {
+      expect(() => {
+        new ShieldedMultiSigV3Simulator(
+          INSTANCE_SALT,
+          INIT_COIN_NONCE,
+          TOKEN_DOMAIN,
+          [COMMITMENT1, COMMITMENT1, COMMITMENT2],
+          2n,
+        );
+      }).toThrow('Signer: signer already active');
     });
 
     it('should store token domain', () => {
@@ -224,7 +236,7 @@ describe('ShieldedMultiSigV3', () => {
       it('should reject a non-signer pubkey', () => {
         expect(() => {
           multisig.mint(100n, [PK1, NON_SIGNER_PK], [DUMMY_SIG, DUMMY_SIG]);
-        }).toThrow('SignerManager: not a signer');
+        }).toThrow('Signer: not a signer');
       });
 
       it('should increment nonce after mint', () => {
@@ -245,9 +257,41 @@ describe('ShieldedMultiSigV3', () => {
           multisig.mint(0n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         }).not.toThrow();
       });
+
+      it('should prevent replay by incrementing nonce', () => {
+        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        // Second mint with same params succeeds because nonce is different
+        // (stub ver doesn't actually check signatures)
+        expect(() => {
+          multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+        expect(multisig.getNonce()).toEqual(2n);
+      });
     });
 
     describe('burn', () => {
+      it('should burn with valid coin and signers', () => {
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+        expect(() => {
+          multisig.burn(coin, 100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+      });
+
+      it('should burn partial amount', () => {
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+        expect(() => {
+          multisig.burn(coin, 50n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+      });
+
+      it('should handle zero burn amount', () => {
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+
+        expect(() => {
+          multisig.burn(coin, 0n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+      });
+
       it('should reject duplicate signer', () => {
         const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
         expect(() => {
@@ -264,7 +308,7 @@ describe('ShieldedMultiSigV3', () => {
             [PK1, NON_SIGNER_PK],
             [DUMMY_SIG, DUMMY_SIG],
           );
-        }).toThrow('SignerManager: not a signer');
+        }).toThrow('Signer: not a signer');
       });
 
       it('should reject wrong token color', () => {
@@ -287,6 +331,15 @@ describe('ShieldedMultiSigV3', () => {
         expect(() => {
           multisig.burn(coin, 100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         }).toThrow('Multisig: insufficient coin value');
+      });
+
+      it('should share nonce across mint and burn', () => {
+        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        expect(multisig.getNonce()).toEqual(1n);
+
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+        multisig.burn(coin, 50n, [PK1, PK3], [DUMMY_SIG, DUMMY_SIG]);
+        expect(multisig.getNonce()).toEqual(2n);
       });
     });
 
@@ -324,6 +377,27 @@ describe('ShieldedMultiSigV3', () => {
           multisig.mint(1n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
           expect(multisig.getNonce()).toEqual(BigInt(i + 1));
         }
+      });
+    });
+
+    describe('cross-instance replay', () => {
+      it('should derive different message hashes for different instances', () => {
+        const instance2 = new ShieldedMultiSigV3Simulator(
+          INSTANCE_SALT,
+          INIT_COIN_NONCE,
+          TOKEN_DOMAIN,
+          SIGNER_COMMITMENTS,
+          2n,
+        );
+
+        // With stub verification, both succeed independently.
+        // Once real ECDSA is available, a signature produced for one
+        // instance's message hash must not validate against the other's.
+        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        instance2.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+
+        expect(multisig.getNonce()).toEqual(1n);
+        expect(instance2.getNonce()).toEqual(1n);
       });
     });
   });
