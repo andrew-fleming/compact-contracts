@@ -73,7 +73,14 @@ export class CompactBuilder {
         msg: 'Compiling TypeScript',
       },
 
-      // Step 3: Copy .compact files preserving structure (excludes Mock* files and archive/)
+      // Step 3: Remove witness directories from dist
+      {
+        cmd: 'find dist -type d -name "witnesses" -exec rm -rf {} +',
+        msg: 'Removing witness directories from dist',
+        shell: '/bin/bash',
+      },
+
+      // Step 4: Copy .compact files preserving structure (excludes Mock* files and archive/)
       {
         // biome-ignore-start lint/suspicious/noUselessEscapeInString: Needed inside JS template literal
         cmd: `
@@ -89,7 +96,7 @@ export class CompactBuilder {
         shell: '/bin/bash',
       },
 
-      // Step 4: Copy essential files for distribution
+      // Step 5: Copy essential files for distribution
       {
         cmd: `
         # Copy package.json and README
