@@ -73,10 +73,7 @@
       "outputs": ["dist/**"]
     },
     "types": {
-      "dependsOn": [
-        "@openzeppelin-compact/compact#build",
-        "@openzeppelin/compact-contracts#compact"
-      ],
+      "dependsOn": ["@openzeppelin/compact-contracts#compact"],
       "outputs": [],
       "cache": false
     },
