@@ -245,38 +245,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@openzeppelin-compact/compact@workspace:packages/compact":
-  version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/compact@workspace:packages/compact"
-  dependencies:
-    "@tsconfig/node24": "npm:^24.0.4"
-    "@types/node": "npm:25.7.0"
-    chalk: "npm:^5.6.2"
-    log-symbols: "npm:^7.0.0"
-    ora: "npm:^9.4.0"
-    typescript: "npm:^5.9.3"
-    vitest: "npm:^4.1.6"
-  bin:
-    compact-builder: dist/runBuilder.js
-    compact-compiler: dist/runCompiler.js
-  languageName: unknown
-  linkType: soft
-
-"@openzeppelin-compact/contracts-simulator@workspace:packages/simulator":
-  version: 0.0.0-use.local
-  resolution: "@openzeppelin-compact/contracts-simulator@workspace:packages/simulator"
-  dependencies:
-    "@midnight-ntwrk/compact-runtime": "npm:0.14.0"
-    "@midnight-ntwrk/ledger-v7": "npm:7.0.3"
-    "@midnight-ntwrk/zswap": "npm:^4.0.0"
-    "@tsconfig/node24": "npm:^24.0.4"
-    "@types/node": "npm:25.7.0"
-    fast-check: "npm:^4.8.0"
-    typescript: "npm:^5.8.2"
-    vitest: "npm:^4.1.6"
-  languageName: unknown
-  linkType: soft
-
 "@openzeppelin/compact-builder@npm:^0.0.2":
   version: 0.0.2
   resolution: "@openzeppelin/compact-builder@npm:0.0.2"
@@ -952,15 +920,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"fast-check@npm:^4.8.0":
-  version: 4.8.0
-  resolution: "fast-check@npm:4.8.0"
-  dependencies:
-    pure-rand: "npm:^8.0.0"
-  checksum: 10/32101d27e69f7f0a3ea486f1a6feee6b34c824ba14bf3efce2ad1741fcd412817ac3ed14f53ef57a55d6fe2e00038e399c4a9c62444446a6e7a1a4b04bc6b88d
-  languageName: node
-  linkType: hard
-
 "fdir@npm:^6.5.0":
   version: 6.5.0
   resolution: "fdir@npm:6.5.0"
@@ -1496,7 +1455,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"ora@npm:^9.0.0, ora@npm:^9.4.0":
+"ora@npm:^9.0.0":
   version: 9.4.0
   resolution: "ora@npm:9.4.0"
   dependencies:
@@ -1596,13 +1555,6 @@ __metadata:
     err-code: "npm:^2.0.2"
     retry: "npm:^0.12.0"
   checksum: 10/96e1a82453c6c96eef53a37a1d6134c9f2482f94068f98a59145d0986ca4e497bf110a410adf73857e588165eab3899f0ebcf7b3890c1b3ce802abc0d65967d4
-  languageName: node
-  linkType: hard
-
-"pure-rand@npm:^8.0.0":
-  version: 8.1.0
-  resolution: "pure-rand@npm:8.1.0"
-  checksum: 10/5197ed56c2ec624f08c7837922d7b2443d7b0541c02cd0c3bcd8faab856d8719dac26bb361f510cc5d423e4b494a7e0a5c535d49385506d042d9202c57f35c41
   languageName: node
   linkType: hard
 
@@ -1967,7 +1919,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@npm:^5.8.2, typescript@npm:^5.9.3":
+"typescript@npm:^5.9.3":
   version: 5.9.3
   resolution: "typescript@npm:5.9.3"
   bin:
@@ -1977,7 +1929,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"typescript@patch:typescript@npm%3A^5.8.2#optional!builtin<compat/typescript>, typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
+"typescript@patch:typescript@npm%3A^5.9.3#optional!builtin<compat/typescript>":
   version: 5.9.3
   resolution: "typescript@patch:typescript@npm%3A5.9.3#optional!builtin<compat/typescript>::version=5.9.3&hash=5786d5"
   bin:
