@@ -190,7 +190,7 @@ export circuit mint(
   Signer_assertThresholdMet(finalState.validCount);
 
   _coinNonce = evolveNonce(_counter, _coinNonce);
-  mintShieldedToken(_tokenDomain, disclose(amount), _coinNonce, disclose(recipient));
+  mintShieldedToken(_tokenDomain, disclose(amount), _coinNonce, disclose(canonRecipient));
 }
 
 // ─── Burn ───────────────────────────────────────────────────────
