@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import * as utils from '#test-utils/address.js';
 import {
   calculateSignerId,
   ShieldedMultiSigV3Simulator,
@@ -22,6 +23,9 @@ const COMMITMENT3 = calculateSignerId(PK3, INSTANCE_SALT);
 const SIGNER_COMMITMENTS = [COMMITMENT1, COMMITMENT2, COMMITMENT3];
 
 const DUMMY_SIG = new Uint8Array(64).fill(0xff);
+
+const USER_RECIPIENT = utils.createEitherTestUser('ALICE');
+const CONTRACT_RECIPIENT = utils.createEitherTestContractAddress('TARGET');
 
 function makeQualifiedCoin(
   color: Uint8Array,
@@ -209,71 +213,131 @@ describe('ShieldedMultiSigV3', () => {
     });
 
     describe('mint', () => {
-      it('should mint with signers 0 and 1', () => {
+      it('should mint to a user recipient with signers 0 and 1', () => {
         expect(() => {
-          multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK1, PK2],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).not.toThrow();
       });
 
-      it('should mint with signers 0 and 2', () => {
+      it('should mint to a user recipient with signers 0 and 2', () => {
         expect(() => {
-          multisig.mint(100n, [PK1, PK3], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK1, PK3],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).not.toThrow();
       });
 
-      it('should mint with signers 1 and 2', () => {
+      it('should mint to a user recipient with signers 1 and 2', () => {
         expect(() => {
-          multisig.mint(100n, [PK2, PK3], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK2, PK3],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
+        }).not.toThrow();
+      });
+
+      it('should mint to a contract recipient', () => {
+        expect(() => {
+          multisig.mint(
+            100n,
+            CONTRACT_RECIPIENT,
+            [PK1, PK2],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).not.toThrow();
       });
 
       it('should reject duplicate signer', () => {
         expect(() => {
-          multisig.mint(100n, [PK1, PK1], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK1, PK1],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).toThrow('Multisig: duplicate signer');
       });
 
       it('should reject a non-signer pubkey', () => {
         expect(() => {
-          multisig.mint(100n, [PK1, NON_SIGNER_PK], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK1, NON_SIGNER_PK],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).toThrow('Signer: not a signer');
       });
 
       it('should increment nonce after mint', () => {
         expect(multisig.getNonce()).toEqual(0n);
-        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(100n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         expect(multisig.getNonce()).toEqual(1n);
       });
 
       it('should increment nonce on each mint', () => {
-        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
-        multisig.mint(200n, [PK1, PK3], [DUMMY_SIG, DUMMY_SIG]);
-        multisig.mint(300n, [PK2, PK3], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(100n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(200n, USER_RECIPIENT, [PK1, PK3], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(
+          300n,
+          CONTRACT_RECIPIENT,
+          [PK2, PK3],
+          [DUMMY_SIG, DUMMY_SIG],
+        );
         expect(multisig.getNonce()).toEqual(3n);
       });
 
       it('should accept zero amount', () => {
         expect(() => {
-          multisig.mint(0n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(0n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         }).not.toThrow();
       });
 
       it('should prevent replay by incrementing nonce', () => {
-        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(100n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         // Second mint with same params succeeds because nonce is different
         // (stub ver doesn't actually check signatures)
         expect(() => {
-          multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [PK1, PK2],
+            [DUMMY_SIG, DUMMY_SIG],
+          );
         }).not.toThrow();
         expect(multisig.getNonce()).toEqual(2n);
       });
     });
 
     describe('burn', () => {
-      it('should burn with valid coin and signers', () => {
+      it('should burn with valid coin and signers 0 and 1', () => {
         const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
         expect(() => {
           multisig.burn(coin, 100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+      });
+
+      it('should burn with signers 0 and 2', () => {
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+        expect(() => {
+          multisig.burn(coin, 100n, [PK1, PK3], [DUMMY_SIG, DUMMY_SIG]);
+        }).not.toThrow();
+      });
+
+      it('should burn with signers 1 and 2', () => {
+        const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
+        expect(() => {
+          multisig.burn(coin, 100n, [PK2, PK3], [DUMMY_SIG, DUMMY_SIG]);
         }).not.toThrow();
       });
 
@@ -286,7 +350,6 @@ describe('ShieldedMultiSigV3', () => {
 
       it('should handle zero burn amount', () => {
         const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
-
         expect(() => {
           multisig.burn(coin, 0n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         }).not.toThrow();
@@ -334,7 +397,7 @@ describe('ShieldedMultiSigV3', () => {
       });
 
       it('should share nonce across mint and burn', () => {
-        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(100n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
         expect(multisig.getNonce()).toEqual(1n);
 
         const coin = makeQualifiedCoin(multisig.getTokenType(), 100n);
@@ -374,7 +437,7 @@ describe('ShieldedMultiSigV3', () => {
 
       it('should increment monotonically', () => {
         for (let i = 0; i < 5; i++) {
-          multisig.mint(1n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+          multisig.mint(1n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
           expect(multisig.getNonce()).toEqual(BigInt(i + 1));
         }
       });
@@ -393,8 +456,13 @@ describe('ShieldedMultiSigV3', () => {
         // With stub verification, both succeed independently.
         // Once real ECDSA is available, a signature produced for one
         // instance's message hash must not validate against the other's.
-        multisig.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
-        instance2.mint(100n, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        multisig.mint(100n, USER_RECIPIENT, [PK1, PK2], [DUMMY_SIG, DUMMY_SIG]);
+        instance2.mint(
+          100n,
+          USER_RECIPIENT,
+          [PK1, PK2],
+          [DUMMY_SIG, DUMMY_SIG],
+        );
 
         expect(multisig.getNonce()).toEqual(1n);
         expect(instance2.getNonce()).toEqual(1n);
