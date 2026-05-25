@@ -41,6 +41,9 @@ pragma language_version >= 0.21.0;
 import CompactStandardLibrary;
 
 import "../Signer"<Bytes<32>> prefix Signer_;
+import "../../utils/Utils" prefix Utils_;
+// For testing
+export { ZswapCoinPublicKey };
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -122,19 +125,19 @@ constructor(
 // ─── Mint ───────────────────────────────────────────────────────
 
 /**
- * @description Mints a new shielded coin addressed to this contract,
- * authorized by threshold signatures.
+ * @description Mints a new shielded coin addressed to the specified
+ * recipient, authorized by threshold signatures.
  *
  * Creates a new UTXO of this contract's token type via `mintShieldedToken`,
- * addressed to the contract itself — (false, contract_address). No external
- * coin input is required; supply is produced on-chain.
+ * addressed to the provided recipient. No external coin input is required;
+ * supply is produced on-chain.
  *
- * The operator discovers the new UTXO via ZswapOutput events from the
- * indexer and adds it to the off-chain UTXO pool for future burn operations.
- *
- * The message hash commits to: operation domain ("multisig:mint:"), current
- * counter value (replay protection), and the amount. The domain prefix
- * ensures mint signatures cannot be replayed as burn operations.
+ * The message hash commits to:
+ *   - operation domain ("multisig:mint:" for burn op replay protection)
+ *   - contract address (cross-instance replay protection)
+ *   - recipient (redirection protection)
+ *   - counter value (replay protection)
+ *   - amount
  *
  * Coin nonce uniqueness is guaranteed by `evolveNonce(_counter, _coinNonce)`
  * after the counter has been incremented, binding each mint's nonce to a
@@ -152,20 +155,27 @@ constructor(
  * - Threshold must be met.
  *
  * @param {Uint<64>} amount - The token amount to mint.
+ * @param {Either<ZswapCoinPublicKey, ContractAddress>} recipient - The address to receive the minted tokens.
  * @param {Vector<2, Bytes<64>>} pubkeys - ECDSA public keys of approving signers.
  * @param {Vector<2, Bytes<64>>} signatures - ECDSA signatures over the mint hash.
  */
 export circuit mint(
   amount: Uint<64>,
+  recipient: Either<ZswapCoinPublicKey, ContractAddress>,
   pubkeys: Vector<2, Bytes<64>>,
   signatures: Vector<2, Bytes<64>>
 ): [] {
   const opNonce = _counter;
   _counter.increment(1);
 
-  const msgHash = persistentHash<Vector<4, Bytes<32>>>([
+  // Canonicalize recipient to ensure garbage values don't sully the hash
+  const canonRecipient = Utils_canonicalize<ZswapCoinPublicKey, ContractAddress>(recipient);
+  const recipientHash = persistentHash<Either<ZswapCoinPublicKey, ContractAddress>>(canonRecipient);
+
+  const msgHash = persistentHash<Vector<5, Bytes<32>>>([
     pad(32, "multisig:mint:"),
     kernel.self().bytes,
+    recipientHash,
     opNonce as Bytes<32>,
     amount as Bytes<32>
   ]);
@@ -180,8 +190,7 @@ export circuit mint(
   Signer_assertThresholdMet(finalState.validCount);
 
   _coinNonce = evolveNonce(_counter, _coinNonce);
-  const contractRecipient = right<ZswapCoinPublicKey, ContractAddress>(kernel.self());
-  mintShieldedToken(_tokenDomain, disclose(amount), _coinNonce, disclose(contractRecipient));
+  mintShieldedToken(_tokenDomain, disclose(amount), _coinNonce, disclose(recipient));
 }
 
 // ─── Burn ───────────────────────────────────────────────────────
