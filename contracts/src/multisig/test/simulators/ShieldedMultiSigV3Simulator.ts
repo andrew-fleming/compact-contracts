@@ -6,6 +6,7 @@ import {
   ledger,
   pureCircuits,
   Contract as ShieldedMultiSigV3Contract,
+  type ZswapCoinPublicKey,
 } from '../../../../artifacts/ShieldedMultiSigV3/contract/index.js';
 import {
   ShieldedMultiSigV3PrivateState,
@@ -63,8 +64,13 @@ export class ShieldedMultiSigV3Simulator extends ShieldedMultiSigV3SimulatorBase
     return this.circuits.pure._calculateSignerId(pk, salt);
   }
 
-  public mint(amount: bigint, pubkeys: Uint8Array[], signatures: Uint8Array[]) {
-    return this.circuits.impure.mint(amount, pubkeys, signatures);
+  public mint(
+    amount: bigint,
+    recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+    pubkeys: Uint8Array[],
+    signatures: Uint8Array[],
+  ) {
+    return this.circuits.impure.mint(amount, recipient, pubkeys, signatures);
   }
 
   public burn(
