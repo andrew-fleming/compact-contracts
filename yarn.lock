@@ -297,29 +297,29 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@openzeppelin/compact-builder@npm:^0.0.2":
-  version: 0.0.2
-  resolution: "@openzeppelin/compact-builder@npm:0.0.2"
+"@openzeppelin/compact-builder@npm:^0.0.3":
+  version: 0.0.3
+  resolution: "@openzeppelin/compact-builder@npm:0.0.3"
   dependencies:
     chalk: "npm:^5.6.2"
     log-symbols: "npm:^7.0.0"
     ora: "npm:^9.0.0"
-    shell-quote: "npm:^1.8.3"
-  checksum: 10/f765c286a3208f052bd9fe5e7f798d21ae8c2352dbca5e0377cdc68c9ab856eab5be0f53d0fd199988600c69c9fa650227353000053a5bfb55f71477571559a5
+    shell-quote: "npm:^1.8.4"
+  checksum: 10/a083c504fe4b976b5c8d4fffb28981acc7ee3afd55515e467f9faffbf3e36e1bd5f491344dee09865447a31703bfd9ce4327421c3b41adb2fe5dc218dafc894f
   languageName: node
   linkType: hard
 
-"@openzeppelin/compact-cli@npm:^0.0.1":
-  version: 0.0.1
-  resolution: "@openzeppelin/compact-cli@npm:0.0.1"
+"@openzeppelin/compact-cli@npm:^0.0.2":
+  version: 0.0.2
+  resolution: "@openzeppelin/compact-cli@npm:0.0.2"
   dependencies:
-    "@openzeppelin/compact-builder": "npm:^0.0.2"
+    "@openzeppelin/compact-builder": "npm:^0.0.3"
     chalk: "npm:^5.6.2"
     ora: "npm:^9.0.0"
   bin:
     compact-builder: dist/runBuilder.js
     compact-compiler: dist/runCompiler.js
-  checksum: 10/9a1d4ce4126d646d72908219f76fa3d62a4a5ba3a8a622e19333352e7c7d61cebbfaf8434bd1fcbbc3d45b28ab87e4e5e0bf889b1b4f0464708b0f2476eb1394
+  checksum: 10/c399234115c015ec927b5bf2249ee156b18a40cae4900be3711ba68f9bbba559d483d3a58878c2de1c2c69232383c5a301ae3646d8bdbed48787f35de4c7371c
   languageName: node
   linkType: hard
 
@@ -327,7 +327,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@openzeppelin/compact-contracts@workspace:contracts"
   dependencies:
-    "@openzeppelin/compact-cli": "npm:^0.0.1"
+    "@openzeppelin/compact-cli": "npm:^0.0.2"
     "@openzeppelin/compact-simulator": "npm:^0.0.1"
     "@tsconfig/node24": "npm:^24.0.4"
     "@types/node": "npm:25.7.0"
@@ -1913,10 +1913,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shell-quote@npm:^1.8.3":
-  version: 1.8.3
-  resolution: "shell-quote@npm:1.8.3"
-  checksum: 10/5473e354637c2bd698911224129c9a8961697486cff1fb221f234d71c153fc377674029b0223d1d3c953a68d451d79366abfe53d1a0b46ee1f28eb9ade928f4c
+"shell-quote@npm:^1.8.4":
+  version: 1.8.4
+  resolution: "shell-quote@npm:1.8.4"
+  checksum: 10/a3e3796385f2cd5cf0b78207a4439f0c7395c0833fc75b2473084b5d298c109c5c0fa687fcd1c04e4b4484866e5bb8eaae7efae443b80fff71ea7e29baf11f0c
   languageName: node
   linkType: hard
 
