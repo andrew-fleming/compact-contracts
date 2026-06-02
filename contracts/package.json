@@ -40,7 +40,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@openzeppelin/compact-cli": "^0.0.1"
+    "@openzeppelin/compact-cli": "^0.0.2"
   },
   "devDependencies": {
     "@openzeppelin/compact-simulator": "^0.0.1",
