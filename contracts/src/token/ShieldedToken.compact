@@ -1,0 +1,273 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.1.0 (token/ShieldedToken.compact)
+
+pragma language_version >= 0.21.0;
+
+/**
+ * @module ShieldedToken
+ * @description A module for shielded tokens on Midnight.
+ *
+ * This module exposes composable building blocks for minting and burning
+ * shielded coins. It does NOT include access control or supply tracking.
+ * Consuming contracts compose those through the module/contract pattern.
+ *
+ * # Design notes
+ *
+ * - Off-chain consumers SHOULD read ledger state directly. The getter circuits exist
+ *   for contract-to-contract use when c2c arrives, and may become unnecessary if direct
+ *   ledger reads are supported.
+ *
+ * - Mint amounts are `Uint<64>`; burn amounts are `Uint<128>`. This asymmetry
+ *   is imposed by the protocol primitives (`mintShieldedToken` caps at 64;
+ *   `sendShielded` accepts 128) and is not a choice the module makes.
+ *
+ * - The `domain` parameter is passed explicitly per-call rather than stored.
+ *   The coin's `color` is derived as `hash(domain, contract_address)`, so the
+ *   domain is the discriminator that distinguishes multiple token types within
+ *   the same contract. Single-token contracts should hardcode a domain
+ *   constant in their wrapper circuits (the recommended convention is
+ *   `pad(32, "ShieldedToken")`); multi-token contracts pass different domains
+ *   per token type.
+ *
+ * - Two mint variants are exposed: `_mint` evolves a nonce internally via a
+ *   monotonic counter (the safe default), and `_mintWithNonce` accepts a
+ *   caller-supplied nonce (required for operator-driven flows where the
+ *   commitment must be computed off-chain before submission).
+ *
+ * - The single burn circuit `_burn` accepts an explicit change recipient.
+ *   The module cannot honestly answer "who held this coin" without
+ *   information the caller has, so the caller must specify where any
+ *   unspent value goes. To destroy a coin in full, pass `coin.value` as
+ *   `amount`; the change branch will not fire.
+ *
+ * - The burn circuit takes a `domain` parameter and asserts that the
+ *   supplied coin matches `tokenType(domain, kernel.self())`.
+ *   `receiveShielded` enforces output presence but not color matching,
+ *   so the assertion is the only thing preventing a multi-token contract
+ *   from accidentally burning the wrong token type.
+ *
+ * - Total supply tracking is NOT included. Shielded UTXO accounting cannot
+ *   be guaranteed accurate (users can send to the burn address directly,
+ *   lose nonces, etc.), and the right answer depends on the contract's
+ *   needs. A separate `SupplyTracker` extension module is the recommended
+ *   approach for contracts that want an approximate counter.
+ *
+ * - Off-chain consumers (wallets, explorers, indexers) should read
+ *   the metadata values from the ledger directly rather than invoking the
+ *   circuits. The circuit calls require proof generation and are not free.
+ *   The getters exist for contract-to-contract reads, pending the shape
+ *   of Midnight's c2c story; if direct cross-contract ledger reads are
+ *   supported, these will be unnecessary.
+ */
+module ShieldedToken {
+  import CompactStandardLibrary;
+  import "../utils/Utils" prefix Utils_;
+
+  export ledger _counter: Counter;
+  export ledger _nonce: Bytes<32>;
+  export sealed ledger _isInitialized: Boolean;
+  export sealed ledger _name: Opaque<"string">;
+  export sealed ledger _symbol: Opaque<"string">;
+  export sealed ledger _decimals: Uint<8>;
+
+  /**
+   * @description Initializes the module's metadata and nonce seed.
+   * @dev Per the module/contract pattern, this circuit must be invoked from
+   * the consuming contract's constructor, not called directly.
+   *
+   * Requirements:
+   *
+   * - Contract is not initialized.
+   *
+   * @param initNonce - Initial nonce seed; subsequent nonces evolve from this
+   *   via the internal counter. Choose unpredictably (e.g. random bytes).
+   * @param name_ - Optional human-readable token name.
+   * @param symbol_ - Optional token symbol.
+   * @param decimals_ - Number of decimal places for user-facing representation.
+   */
+  export circuit initialize(
+    initNonce: Bytes<32>,
+    name_: Opaque<"string">,
+    symbol_: Opaque<"string">,
+    decimals_: Uint<8>
+  ): [] {
+    assert(!_isInitialized, "ShieldedToken: contract already initialized");
+    _isInitialized = true;
+
+    _nonce = disclose(initNonce);
+    _name = disclose(name_);
+    _symbol = disclose(symbol_);
+    _decimals = disclose(decimals_);
+  }
+
+  /**
+   * @description Returns the token name.
+   *
+   * @circuitInfo k=6, rows=26
+   *
+   * @return The token name.
+   */
+  export circuit name(): Opaque<"string"> {
+    return _name;
+  }
+
+  /**
+   * @description Returns the token symbol.
+   *
+   * @circuitInfo k=6, rows=26
+   *
+   * @return The token symbol.
+   */
+  export circuit symbol(): Opaque<"string"> {
+    return _symbol;
+  }
+
+  /**
+   * @description Returns the number of decimal places used to derive the
+   * token's user-facing representation from its on-chain integer value.
+   *
+   * @dev This is a display convention only. The protocol stores and operates
+   * on integer values without reference to decimals.
+   *
+   * @circuitInfo k=6, rows=26
+   *
+   * @return The decimals value.
+   */
+  export circuit decimals(): Uint<8> {
+    return _decimals;
+  }
+
+  /**
+   * @description Mints `amount` of the token identified by `domain` to
+   * `recipient`, using a nonce evolved from the module's internal counter.
+   *
+   * Use this when the caller does not need to predict the coin's commitment
+   * ahead of submission. For operator-driven flows that require off-chain
+   * commitment computation, use `_mintWithNonce` instead.
+   *
+   * @circuitInfo k=14, rows=11248
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - `recipient` is not zero.
+   *
+   * @param domain - 32-byte token discriminator. Same domain + same contract
+   *   address produces the same coin `color` (i.e. same token type).
+   * @param recipient - Either a user `ZswapCoinPublicKey` or a `ContractAddress`.
+   * @param amount - Quantity to mint. Capped at `Uint<64>` by the protocol.
+   * @return The newly created coin's info (nonce, color, value).
+   */
+  export circuit _mint(
+    domain: Bytes<32>,
+    recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+    amount: Uint<64>
+  ): ShieldedCoinInfo {
+    _counter.increment(1);
+    const newNonce = evolveNonce(_counter, _nonce);
+    _nonce = newNonce;
+    return _mintWithNonce(domain, recipient, amount, newNonce);
+  }
+
+  /**
+   * @description Mints `amount` of the token identified by `domain` to
+   * `recipient`, using a caller-supplied nonce.
+   *
+   * @dev The caller is fully responsible for nonce uniqueness. Reusing a
+   * nonce will produce a duplicate commitment, which the protocol rejects.
+   * If unsure whether this variant is needed, use `_mint` instead.
+   *
+   * @circuitInfo k=14, rows=11119
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - `recipient` is not zero.
+   *
+   * @param domain - 32-byte token discriminator.
+   * @param recipient - Coin recipient.
+   * @param amount - Quantity to mint. Capped at `Uint<64>` by the protocol.
+   * @param nonce - Caller-supplied nonce. Must be unique per (domain, contract).
+   * @return The newly created coin's info.
+   */
+  export circuit _mintWithNonce(
+    domain: Bytes<32>,
+    recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+    amount: Uint<64>,
+    nonce: Bytes<32>
+  ): ShieldedCoinInfo {
+    assertInitialized();
+    assert(!Utils_isKeyOrAddressZero(recipient), "ShieldedToken: invalid recipient");
+
+    return mintShieldedToken(disclose(domain), disclose(amount), disclose(nonce), disclose(recipient));
+  }
+
+  /**
+   * @description Burns `amount` from `coin` and routes the remaining change
+   * to `refundTo`.
+   *
+   * To destroy `coin` in full, pass `coin.value` as `amount`. The change
+   * branch will not fire (since `coin.value - amount == 0`), so the
+   * `refundTo` value is inert in that case but must still be supplied.
+   *
+   * The protocol-level `sendShielded` returns any change as a coin owned by
+   * this contract by default. This circuit forwards that change to
+   * `refundTo` via `sendImmediateShielded`, ensuring the value does
+   * not remain stuck in the contract unless that is what the caller intends
+   * (in which case pass `right<ZswapCoinPublicKey, ContractAddress>(kernel.self())`).
+   *
+   * @dev The caller is responsible for choosing `refundTo`. For
+   * direct user-initiated burns from a wallet, this is typically
+   * `left<ZswapCoinPublicKey, ContractAddress>(ownPublicKey())`. For
+   * treasury-mediated burns where the contract holds the coin, pass
+   * `right<ZswapCoinPublicKey, ContractAddress>(kernel.self())` to retain
+   * the change.
+   *
+   * @circuitInfo k=16, rows=48035
+   *
+   * Requirements:
+   *
+   * - Contract is initialized
+   * - `coin.color` is equal to the contract's token type (`H(domain, kernel.self())`).
+   * - `amount` is less than or equal to `coin.value`.
+   *
+   * @param domain - 32-byte token discriminator.
+   * @param coin - The coin to partially burn.
+   * @param amount - Value to destroy. Must be ≤ `coin.value`.
+   * @param refundTo - Where to route the unspent portion (`coin.value - amount`).
+   */
+  export circuit _burn(
+    domain: Bytes<32>,
+    coin: QualifiedShieldedCoinInfo,
+    amount: Uint<128>,
+    refundTo: Either<ZswapCoinPublicKey, ContractAddress>
+  ): ShieldedSendResult {
+    assertInitialized();
+    assert(coin.color == tokenType(disclose(domain), kernel.self()), "ShieldedToken: wrong token");
+    assert(coin.value >= amount, "ShieldedToken: insufficient coin value");
+
+    receiveShielded(disclose(Utils_downcastQualifiedCoin(coin)));
+    const sendRes = sendShielded(disclose(coin), shieldedBurnAddress(), disclose(amount));
+
+    if (disclose(sendRes.change.is_some)) {
+      sendImmediateShielded(
+        disclose(sendRes.change.value),
+        disclose(refundTo),
+        disclose(sendRes.change.value.value)
+      );
+    }
+    return sendRes;
+  }
+
+  /**
+   * @description Reverts if the module has not been initialized.
+   *
+   * @dev Invoked in every mutating circuit. Initialization is a
+   * precondition because operations rely on `_nonce` having been seeded with
+   * an unpredictable value; an uninitialized contract would mint with a
+   * zero-derived nonce, producing predictable commitments.
+   */
+  circuit assertInitialized(): [] {
+    assert(_isInitialized, "ShieldedToken: contract not initialized"); 
+  }
+}

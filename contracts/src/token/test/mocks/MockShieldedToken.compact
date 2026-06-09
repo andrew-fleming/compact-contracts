@@ -1,0 +1,61 @@
+// SPDX-License-Identifier: MIT
+
+// WARNING: FOR TESTING PURPOSES ONLY.
+// This contract exposes internal circuits and bypasses safety checks that the
+// corresponding production contract relies on. DO NOT deploy or use this
+// contract in any production application.
+
+pragma language_version >= 0.21.0;
+
+import CompactStandardLibrary;
+
+import "../../ShieldedToken" prefix ShieldedToken_;
+
+//export { ShieldedCoinInfo, ShieldedSendResult };
+
+constructor(
+  initNonce: Bytes<32>,
+  _name: Opaque<"string">,
+  _symbol: Opaque<"string">,
+  _decimals:Uint<8>,
+) {
+  ShieldedToken_initialize(initNonce, _name, _symbol, _decimals);
+}
+
+export circuit name(): Opaque<"string"> {
+  return ShieldedToken_name();
+}
+
+export circuit symbol(): Opaque<"string"> {
+  return ShieldedToken_symbol();
+}
+
+export circuit decimals(): Uint<8> {
+  return ShieldedToken_decimals();
+}
+
+export circuit _mint(
+  domain: Bytes<32>,
+  recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+  amount: Uint<64>
+): ShieldedCoinInfo {
+  return ShieldedToken__mint(domain, recipient, amount);
+}
+
+export circuit _mintWithNonce(
+  domain: Bytes<32>,
+  recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+  amount: Uint<64>,
+  nonce: Bytes<32>
+): ShieldedCoinInfo {
+  return ShieldedToken__mintWithNonce(domain, recipient, amount, nonce);
+}
+
+export circuit _burn(
+  domain: Bytes<32>,
+  coin: QualifiedShieldedCoinInfo,
+  amount: Uint<128>,
+  refundTo: Either<ZswapCoinPublicKey, ContractAddress>
+): ShieldedSendResult {
+  return ShieldedToken__burn(domain, coin, amount, refundTo);
+}
