@@ -11,7 +11,7 @@ import CompactStandardLibrary;
 
 import "../../Utils" prefix Utils_;
 
-export { ZswapCoinPublicKey, ContractAddress, Either };
+export { ZswapCoinPublicKey, ContractAddress, Either, QualifiedShieldedCoinInfo, ShieldedCoinInfo };
 
 export pure circuit isKeyOrAddressZero(keyOrAddress: Either<ZswapCoinPublicKey, ContractAddress>): Boolean {
   return Utils_isKeyOrAddressZero(keyOrAddress);
@@ -40,4 +40,8 @@ export pure circuit canonicalizeKeyOrAddress(
     keyOrAddress: Either<ZswapCoinPublicKey, ContractAddress>
 ): Either<ZswapCoinPublicKey, ContractAddress> {
   return Utils_canonicalize<ZswapCoinPublicKey, ContractAddress>(keyOrAddress);
+}
+
+export pure circuit downcastQualifiedCoin(coin: QualifiedShieldedCoinInfo): ShieldedCoinInfo {
+  return Utils_downcastQualifiedCoin(coin);
 }

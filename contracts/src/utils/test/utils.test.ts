@@ -146,6 +146,25 @@ describe('Utils', () => {
     });
   });
 
+  describe('downcastQualifiedCoin', () => {
+    it('should downcast QualifiedShieldedCoin to ShieldedCoinInfo', () => {
+      const [nonce, color, value, mt_index] = [
+        new Uint8Array(32).fill(0x34),
+        new Uint8Array(32).fill(0xcc),
+        123n,
+        456n 
+      ];
+
+      const qCoin = { nonce, color, value, mt_index };
+      const downcasted = contract.downcastQualifiedCoin(qCoin);
+
+      expect(downcasted.nonce).toEqual(nonce);
+      expect(downcasted.color).toEqual(color);
+      expect(downcasted.value).toEqual(value);
+      expect(downcasted).not.toHaveProperty('mt_index');
+    });
+  });
+
   describe('simulator wiring', () => {
     it('should expose an empty public ledger via getPublicState', () => {
       expect(contract.getPublicState()).toStrictEqual({});

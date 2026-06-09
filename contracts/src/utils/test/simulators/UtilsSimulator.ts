@@ -7,6 +7,8 @@ import {
   type Either,
   ledger,
   Contract as MockUtils,
+  type QualifiedShieldedCoinInfo,
+  type ShieldedCoinInfo,
   type ZswapCoinPublicKey,
 } from '../../../../artifacts/MockUtils/contract/index.js';
 import {
@@ -110,5 +112,11 @@ export class UtilsSimulator extends UtilsSimulatorBase {
     keyOrAddress: Either<ZswapCoinPublicKey, ContractAddress>,
   ): Either<ZswapCoinPublicKey, ContractAddress> {
     return this.circuits.pure.canonicalizeKeyOrAddress(keyOrAddress);
+  }
+
+  public downcastQualifiedCoin(
+    coin: QualifiedShieldedCoinInfo,
+  ): ShieldedCoinInfo {
+    return this.circuits.pure.downcastQualifiedCoin(coin);
   }
 }
