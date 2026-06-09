@@ -51,13 +51,6 @@ pragma language_version >= 0.21.0;
  *   lose nonces, etc.), and the right answer depends on the contract's
  *   needs. A separate `SupplyTracker` extension module is the recommended
  *   approach for contracts that want an approximate counter.
- *
- * - Off-chain consumers (wallets, explorers, indexers) should read
- *   the metadata values from the ledger directly rather than invoking the
- *   circuits. The circuit calls require proof generation and are not free.
- *   The getters exist for contract-to-contract reads, pending the shape
- *   of Midnight's c2c story; if direct cross-contract ledger reads are
- *   supported, these will be unnecessary.
  */
 module ShieldedToken {
   import CompactStandardLibrary;
