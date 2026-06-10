@@ -39,10 +39,10 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Compile contracts
-        run: turbo compact --filter=@openzeppelin/compact-contracts
+        run: yarn compact --filter=@openzeppelin/compact-contracts
 
       - name: Run type checks
-        run: turbo types
+        run: yarn types
 
       - name: Run tests
-        run: turbo test
+        run: yarn test

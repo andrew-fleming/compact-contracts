@@ -38,7 +38,7 @@ jobs:
           compact-version: "0.29.0"
 
       - name: Build contracts
-        run: yarn turbo build
+        run: yarn build
 
       - name: Validate version consistency
         run: |
