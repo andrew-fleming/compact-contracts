@@ -1,10 +1,10 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/contracts-simulator';
+} from '@openzeppelin/compact-simulator';
 import {
-  ledger,
   Contract as ForwarderShielded,
+  ledger,
   type ShieldedCoinInfo,
   type ZswapCoinPublicKey,
 } from '../../../../../artifacts/ForwarderShielded/contract/index.js';
