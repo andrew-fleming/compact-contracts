@@ -9,6 +9,11 @@
   ],
   "scripts": {
     "compact": "turbo run compact --filter=@openzeppelin/compact-contracts --log-prefix=none",
+    "compact:access": "turbo run compact:access --filter=@openzeppelin/compact-contracts --log-prefix=none",
+    "compact:archive": "turbo run compact:archive --filter=@openzeppelin/compact-contracts --log-prefix=none",
+    "compact:security": "turbo run compact:security --filter=@openzeppelin/compact-contracts --log-prefix=none",
+    "compact:token": "turbo run compact:token --filter=@openzeppelin/compact-contracts --log-prefix=none",
+    "compact:utils": "turbo run compact:utils --filter=@openzeppelin/compact-contracts --log-prefix=none",
     "build": "turbo run build --log-prefix=none",
     "test": "turbo run test --filter=@openzeppelin/compact-contracts --log-prefix=none",
     "fmt-and-lint": "biome check . --changed",
