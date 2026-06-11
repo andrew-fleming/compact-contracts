@@ -32,13 +32,6 @@ runs:
       shell: bash
       run: yarn install --immutable
 
-    - name: Install Turbo Globally
-      shell: bash
-      env:
-        TURBO_MAJOR_VERSION: 2
-        TURBO_TELEMETRY_DISABLED: 1
-      run: npm install turbo@${{ env.TURBO_MAJOR_VERSION }} -g
-
     - name: Setup Compact Compiler
       if: ${{ inputs.skip-compact != 'true' }}
       uses: midnightntwrk/setup-compact-action@836895c8fffbbea6bd986af2b17e8941ff29d1f8 # v1

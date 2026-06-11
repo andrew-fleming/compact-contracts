@@ -199,7 +199,6 @@ make sure to check out the [contribution guide](CONTRIBUTING.md) in advance.
 >
 > - [Node.js](https://nodejs.org/)
 > - [Yarn](https://yarnpkg.com/getting-started/install)
-> - [Turbo](https://turborepo.com/docs/getting-started/installation)
 > - [Compact](https://docs.midnight.network/blog/compact-developer-tools)
 
 ### Set up the project
@@ -215,20 +214,20 @@ git clone git@github.com:OpenZeppelin/compact-contracts.git
 ```bash
 nvm install && \
 yarn && \
-turbo compact
+yarn compact
 ```
 
 ### Run tests
 
 ```bash
-turbo test
+yarn test
 ```
 
 ### Check/apply Biome formatter
 
 ```bash
-turbo fmt-and-lint
-turbo fmt-and-lint:fix
+yarn fmt-and-lint
+yarn fmt-and-lint:fix
 ```
 
 ### Advanced
@@ -236,8 +235,8 @@ turbo fmt-and-lint:fix
 #### Targeted compilation
 
 ```bash
-turbo compact:access
-turbo compact:archive
+yarn compact:access
+yarn compact:archive
 ...
 ```
 
@@ -246,11 +245,11 @@ turbo compact:archive
 ZK key generation is slow and usually unnecessary during development.
 
 ```bash
-# Individual module compilation (recommended for development)
-turbo compact:token  --filter=@openzeppelin/compact-contracts -- --skip-zk
-
 # Full compilation with skip-zk (use environment variable)
-SKIP_ZK=true turbo compact
+SKIP_ZK=true yarn compact
+
+# Access compilation with skip-zk (this compiles security first as a dependency)
+SKIP_ZK=true yarn compact:access
 ```
 
 #### Clean environment
@@ -258,13 +257,13 @@ SKIP_ZK=true turbo compact
 ```bash
 # WARNING!
 # These are destructive commands
-turbo clean
+yarn clean
 rm -rf .turbo/
 ```
 
 ### Troubleshooting
 
-- **Issues with turbo's cache?** Try cleaning: `turbo clean && rm -rf .turbo/`
+- **Issues with turbo's cache?** Try cleaning: `yarn clean && rm -rf .turbo/`
 - **Node version issues?** Use `nvm use` to switch to the correct version
 
 ## Security
