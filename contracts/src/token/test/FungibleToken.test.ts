@@ -138,6 +138,7 @@ describe('FungibleToken', () => {
       ['_unsafeTransferFrom', [OWNER.either, RECIPIENT.either, AMOUNT]],
       ['approve', [OWNER.either, AMOUNT]],
       ['_approve', [OWNER.either, SPENDER.either, AMOUNT]],
+      ['_spendAllowance', [OWNER.either, SPENDER.either, AMOUNT]],
       ['_transfer', [OWNER.either, RECIPIENT.either, AMOUNT]],
       ['_unsafeUncheckedTransfer', [OWNER.either, RECIPIENT.either, AMOUNT]],
       ['_mint', [OWNER.either, AMOUNT]],
@@ -148,7 +149,7 @@ describe('FungibleToken', () => {
     it.each(circuitsToFail)('%s should fail', (circuitName, args) => {
       expect(() => {
         (token[circuitName] as (...args: unknown[]) => unknown)(...args);
-      }).toThrow('Initializable: contract not initialized');
+      }).toThrow('FungibleToken: contract not initialized');
     });
   });
 

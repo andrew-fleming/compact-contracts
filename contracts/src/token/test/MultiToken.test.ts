@@ -142,7 +142,7 @@ describe('MultiToken', () => {
 
       expect(() => {
         token.initialize(URI);
-      }).toThrow('Initializable: contract already initialized');
+      }).toThrow('MultiToken: contract already initialized');
     });
   });
 
@@ -164,6 +164,7 @@ describe('MultiToken', () => {
       ['_unsafeTransfer', transferArgs],
       ['_setURI', [URI]],
       ['_mint', [OWNER.either, TOKEN_ID, AMOUNT]],
+      ['_unsafeMint', [OWNER.either, TOKEN_ID, AMOUNT]],
       ['_burn', [OWNER.either, TOKEN_ID, AMOUNT]],
       ['_setApprovalForAll', [OWNER.either, SPENDER.either, true]],
     ];
@@ -171,7 +172,7 @@ describe('MultiToken', () => {
     it.each(circuitsToFail)('%s should fail', (circuitName, args) => {
       expect(() => {
         (token[circuitName] as (...args: unknown[]) => unknown)(...args);
-      }).toThrow('Initializable: contract not initialized');
+      }).toThrow('MultiToken: contract not initialized');
     });
 
     it('should allow initialization post deployment', () => {
