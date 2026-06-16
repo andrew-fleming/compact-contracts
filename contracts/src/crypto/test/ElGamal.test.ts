@@ -105,7 +105,7 @@ describe('ElGamal', () => {
   // encrypt + assertDecryptsTo (correctness of the core scheme)
   //
   // `assertDecryptsTo` is the decryption oracle for these tests: it succeeds
-  // iff `ct` decrypts under `(pk, ek)` to the claimed value.
+  // if `ct` decrypts under `(pk, ek)` to the claimed value.
   // -------------------------------------------------------------------------
   describe('encrypt / decryption round-trip', () => {
     it('decrypts to the encrypted value', () => {
