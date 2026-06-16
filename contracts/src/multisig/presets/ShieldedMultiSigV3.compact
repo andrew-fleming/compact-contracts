@@ -318,7 +318,7 @@ circuit verifySignature(
  * The commitment is persistentHash(pk, salt, domain) where:
  * - pk: the signer's ECDSA public key (64 bytes)
  * - salt: instance-specific random value (prevents cross-contract correlation)
- * - domain: "Multisig:signer:" (domain separation)
+ * - domain: "multisig:signer:" (domain separation)
  *
  * Pure circuit — callable off-chain by the deployer to compute
  * commitments for the constructor.
@@ -334,7 +334,7 @@ export pure circuit _calculateSignerId(
   return persistentHash<SignerCommitmentInput>(SignerCommitmentInput {
     pk: pk,
     salt: salt,
-    domain: pad(32, "Multisig:signer:")
+    domain: pad(32, "multisig:signer:")
   });
 }
 
