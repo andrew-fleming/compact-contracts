@@ -40,7 +40,10 @@ const DECIMALS = 2n;
 
 let sim: ExampleCompliantDepositSimulator;
 
-const registerUser = (u: { secretKey: Uint8Array; encryptionKey: Uint8Array }) => {
+const registerUser = (u: {
+  secretKey: Uint8Array;
+  encryptionKey: Uint8Array;
+}) => {
   sim.privateState.switchIdentity(u.secretKey, u.encryptionKey);
   sim.register();
 };

@@ -28,7 +28,9 @@ import type {
  * to avoid identical memo ciphertexts) can rotate it via the simulator's
  * `privateState.setRandomnessSeed`.
  */
-export const DEFAULT_RANDOMNESS_SEED: Uint8Array = new Uint8Array(32).fill(0x2a);
+export const DEFAULT_RANDOMNESS_SEED: Uint8Array = new Uint8Array(32).fill(
+  0x2a,
+);
 
 // ---------------------------------------------------------------------------
 // Types
@@ -252,7 +254,7 @@ export const ConfidentialFungibleTokenWitnesses = <
     if (plaintext === undefined) {
       throw new Error(
         `wit_PlaintextBalance: no cached plaintext for ciphertext ${serializeCiphertext(ct)}. ` +
-          `The wallet should cache plaintexts for all ciphertexts the contract may query.`,
+          'The wallet should cache plaintexts for all ciphertexts the contract may query.',
       );
     }
     return [context.privateState, plaintext];
@@ -286,7 +288,10 @@ export const ConfidentialFungibleTokenWitnesses = <
  * @throws Always. Replace with a real implementation when memo decryption
  * is needed end-to-end.
  */
-export function recoverMemoPlaintext(_memo: Ciphertext, _ek: Uint8Array): bigint {
+export function recoverMemoPlaintext(
+  _memo: Ciphertext,
+  _ek: Uint8Array,
+): bigint {
   throw new Error(
     'recoverMemoPlaintext is not implemented. ' +
       'For tests, cache plaintexts directly via ConfidentialFungibleTokenPrivateState.cachePlaintext.',

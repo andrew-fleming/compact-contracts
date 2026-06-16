@@ -1,11 +1,14 @@
-import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';import { describe, expect, it } from 'vitest';
-import { Ledger } from '../../../../artifacts/MockConfidentialFungibleToken/contract/index.js';
+import type {
+  JubjubPoint,
+  WitnessContext,
+} from '@midnight-ntwrk/compact-runtime';
+import { describe, expect, it } from 'vitest';
+import type { Ledger } from '../../../../artifacts/MockConfidentialFungibleToken/contract/index.js';
 import {
+  type Ciphertext,
   ConfidentialFungibleTokenPrivateState,
   ConfidentialFungibleTokenWitnesses,
-  type Ciphertext,
 } from '../witnesses/ConfidentialFungibleTokenWitnesses.js';
-import type { JubjubPoint } from '@midnight-ntwrk/compact-runtime';
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -100,7 +103,10 @@ describe('ConfidentialFungibleTokenPrivateState.withSecrets', () => {
 
 describe('ConfidentialFungibleTokenPrivateState.cachePlaintext', () => {
   it('records a plaintext keyed by ciphertext identity', () => {
-    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
+    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(
+      SK_A,
+      EK_A,
+    );
     const ct = ciphertext(1n, 2n, 3n, 4n);
 
     const updated = ConfidentialFungibleTokenPrivateState.cachePlaintext(
@@ -115,7 +121,10 @@ describe('ConfidentialFungibleTokenPrivateState.cachePlaintext', () => {
   });
 
   it('does not mutate the input state', () => {
-    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
+    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(
+      SK_A,
+      EK_A,
+    );
     const ct = ciphertext(1n, 2n, 3n, 4n);
 
     ConfidentialFungibleTokenPrivateState.cachePlaintext(initial, ct, 100n);
@@ -124,7 +133,10 @@ describe('ConfidentialFungibleTokenPrivateState.cachePlaintext', () => {
   });
 
   it('preserves SK and EK in the updated state', () => {
-    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
+    const initial = ConfidentialFungibleTokenPrivateState.withSecrets(
+      SK_A,
+      EK_A,
+    );
     const ct = ciphertext(1n, 2n, 3n, 4n);
 
     const updated = ConfidentialFungibleTokenPrivateState.cachePlaintext(
@@ -142,21 +154,43 @@ describe('ConfidentialFungibleTokenPrivateState.cachePlaintext', () => {
     const ct1 = ciphertext(1n, 2n, 3n, 4n);
     const ct2 = ciphertext(5n, 6n, 7n, 8n);
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct1, 100n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct2, 200n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct1,
+      100n,
+    );
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct2,
+      200n,
+    );
 
-    expect(ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct1)).toBe(100n);
-    expect(ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct2)).toBe(200n);
+    expect(
+      ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct1),
+    ).toBe(100n);
+    expect(
+      ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct2),
+    ).toBe(200n);
   });
 
   it('overwrites an existing entry for the same ciphertext', () => {
     let state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
     const ct = ciphertext(1n, 2n, 3n, 4n);
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct, 100n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct, 250n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct,
+      100n,
+    );
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct,
+      250n,
+    );
 
-    expect(ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct)).toBe(250n);
+    expect(
+      ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct),
+    ).toBe(250n);
   });
 });
 
@@ -175,7 +209,11 @@ describe('ConfidentialFungibleTokenPrivateState.lookupPlaintext', () => {
     const ct1 = ciphertext(1n, 2n, 3n, 4n);
     const ct2 = ciphertext(5n, 6n, 7n, 8n);
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct1, 100n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct1,
+      100n,
+    );
 
     expect(
       ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct2),
@@ -187,7 +225,11 @@ describe('ConfidentialFungibleTokenPrivateState.lookupPlaintext', () => {
     const stored = ciphertext(1n, 2n, 3n, 4n);
     const queried = ciphertext(1n, 2n, 3n, 4n); // distinct object, same values
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, stored, 100n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      stored,
+      100n,
+    );
 
     expect(
       ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, queried),
@@ -199,7 +241,11 @@ describe('ConfidentialFungibleTokenPrivateState.lookupPlaintext', () => {
     const ct1 = ciphertext(1n, 2n, 3n, 4n);
     const ct2 = ciphertext(99n, 2n, 3n, 4n); // different c1.x
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct1, 100n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct1,
+      100n,
+    );
 
     expect(
       ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct2),
@@ -211,7 +257,11 @@ describe('ConfidentialFungibleTokenPrivateState.lookupPlaintext', () => {
     const ct1 = ciphertext(1n, 2n, 3n, 4n);
     const ct2 = ciphertext(1n, 2n, 3n, 99n); // different c2.y
 
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct1, 100n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct1,
+      100n,
+    );
 
     expect(
       ConfidentialFungibleTokenPrivateState.lookupPlaintext(state, ct2),
@@ -228,7 +278,9 @@ describe('wit_ConfidentialTokenSK', () => {
     const witnesses = ConfidentialFungibleTokenWitnesses();
     const state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
 
-    const [returnedState, sk] = witnesses.wit_ConfidentialTokenSK(makeContext(state));
+    const [returnedState, sk] = witnesses.wit_ConfidentialTokenSK(
+      makeContext(state),
+    );
 
     expect(sk).toEqual(SK_A);
     expect(returnedState).toBe(state);
@@ -236,8 +288,14 @@ describe('wit_ConfidentialTokenSK', () => {
 
   it('reflects SK changes between calls', () => {
     const witnesses = ConfidentialFungibleTokenWitnesses();
-    const stateA = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
-    const stateB = ConfidentialFungibleTokenPrivateState.withSecrets(SK_B, EK_B);
+    const stateA = ConfidentialFungibleTokenPrivateState.withSecrets(
+      SK_A,
+      EK_A,
+    );
+    const stateB = ConfidentialFungibleTokenPrivateState.withSecrets(
+      SK_B,
+      EK_B,
+    );
 
     const [, skA] = witnesses.wit_ConfidentialTokenSK(makeContext(stateA));
     const [, skB] = witnesses.wit_ConfidentialTokenSK(makeContext(stateB));
@@ -252,7 +310,9 @@ describe('wit_ConfidentialTokenEK', () => {
     const witnesses = ConfidentialFungibleTokenWitnesses();
     const state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
 
-    const [returnedState, ek] = witnesses.wit_ConfidentialTokenEK(makeContext(state));
+    const [returnedState, ek] = witnesses.wit_ConfidentialTokenEK(
+      makeContext(state),
+    );
 
     expect(ek).toEqual(EK_A);
     expect(returnedState).toBe(state);
@@ -275,9 +335,16 @@ describe('wit_PlaintextBalance', () => {
     const witnesses = ConfidentialFungibleTokenWitnesses();
     let state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
     const ct = ciphertext(1n, 2n, 3n, 4n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct, 500n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct,
+      500n,
+    );
 
-    const [, plaintext] = witnesses.wit_PlaintextBalance(makeContext(state), ct);
+    const [, plaintext] = witnesses.wit_PlaintextBalance(
+      makeContext(state),
+      ct,
+    );
 
     expect(plaintext).toBe(500n);
   });
@@ -296,9 +363,16 @@ describe('wit_PlaintextBalance', () => {
     const witnesses = ConfidentialFungibleTokenWitnesses();
     let state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
     const ct = ciphertext(1n, 2n, 3n, 4n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct, 500n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct,
+      500n,
+    );
 
-    const [returnedState] = witnesses.wit_PlaintextBalance(makeContext(state), ct);
+    const [returnedState] = witnesses.wit_PlaintextBalance(
+      makeContext(state),
+      ct,
+    );
 
     expect(returnedState).toBe(state);
   });
@@ -308,8 +382,16 @@ describe('wit_PlaintextBalance', () => {
     let state = ConfidentialFungibleTokenPrivateState.withSecrets(SK_A, EK_A);
     const ct1 = ciphertext(1n, 2n, 3n, 4n);
     const ct2 = ciphertext(5n, 6n, 7n, 8n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct1, 100n);
-    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(state, ct2, 200n);
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct1,
+      100n,
+    );
+    state = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+      state,
+      ct2,
+      200n,
+    );
 
     const [, p1] = witnesses.wit_PlaintextBalance(makeContext(state), ct1);
     const [, p2] = witnesses.wit_PlaintextBalance(makeContext(state), ct2);

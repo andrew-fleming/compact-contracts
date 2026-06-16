@@ -1,4 +1,5 @@
-import {  CompactTypeBytes,
+import {
+  CompactTypeBytes,
   CompactTypeVector,
   convertBytesToField,
   ecMulGenerator,
@@ -549,9 +550,9 @@ describe('ConfidentialFungibleToken: escrow allowance', () => {
 
     // An escrow entry now exists for (Alice, Bob).
     const ledger = cft.getPublicState();
-    expect(ledger.CFT__escrow.lookup(ALICE.accountId).member(BOB.accountId)).toBe(
-      true,
-    );
+    expect(
+      ledger.CFT__escrow.lookup(ALICE.accountId).member(BOB.accountId),
+    ).toBe(true);
 
     // Alice's main balance was debited by the cap: she now holds 60.
     cft.privateState.cachePlaintext(cft.balanceOf(ALICE.accountId), 60n);
@@ -723,7 +724,9 @@ describe('ConfidentialFungibleToken: metadata & views', () => {
 
   it('balanceOf returns the default ciphertext for an unregistered account', () => {
     // Sentinel value (no entry); identical for any unregistered account.
-    expect(cft.balanceOf(ALICE.accountId)).toEqual(cft.balanceOf(BOB.accountId));
+    expect(cft.balanceOf(ALICE.accountId)).toEqual(
+      cft.balanceOf(BOB.accountId),
+    );
   });
 
   it('allowance returns the default entry when no escrow exists', () => {

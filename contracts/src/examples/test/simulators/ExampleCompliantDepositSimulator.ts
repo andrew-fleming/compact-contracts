@@ -4,12 +4,13 @@ import {
 } from '@openzeppelin/compact-simulator';
 import {
   type ElGamal_Ciphertext as Ciphertext,
-  ledger,
   Contract as ExampleCompliantDeposit,
+  ledger,
 } from '../../../../artifacts/ExampleCompliantDeposit/contract/index.js';
 
 /** The owner Either as represented by the runtime (EOA = left). */
 type OwnerEither = { is_left: boolean; left: Uint8Array; right: unknown };
+
 import {
   ExampleCompliantDepositPrivateState,
   ExampleCompliantDepositWitnesses,

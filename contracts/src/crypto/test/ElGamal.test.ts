@@ -110,7 +110,9 @@ describe('ElGamal', () => {
   describe('encrypt / decryption round-trip', () => {
     it('decrypts to the encrypted value', () => {
       const ct = contract.encrypt(pkA, 100n, R1);
-      expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 100n)).not.toThrow();
+      expect(() =>
+        contract.assertDecryptsTo(ct, pkA, EK_A, 100n),
+      ).not.toThrow();
     });
 
     it('round-trips the zero value', () => {
@@ -189,7 +191,12 @@ describe('ElGamal', () => {
   // -------------------------------------------------------------------------
   describe('addEncrypted', () => {
     it('adds to the encrypted plaintext: Enc(a) + b decrypts to a + b', () => {
-      const ct = contract.addEncrypted(contract.encrypt(pkA, 40n, R1), pkA, 2n, R2);
+      const ct = contract.addEncrypted(
+        contract.encrypt(pkA, 40n, R1),
+        pkA,
+        2n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 42n)).not.toThrow();
     });
 
@@ -202,11 +209,18 @@ describe('ElGamal', () => {
       const base = contract.encrypt(pkA, 40n, R1);
       const added = contract.addEncrypted(base, pkA, 0n, R2);
       expect(added).not.toEqual(base);
-      expect(() => contract.assertDecryptsTo(added, pkA, EK_A, 40n)).not.toThrow();
+      expect(() =>
+        contract.assertDecryptsTo(added, pkA, EK_A, 40n),
+      ).not.toThrow();
     });
 
     it('rejects a wrong claimed sum', () => {
-      const ct = contract.addEncrypted(contract.encrypt(pkA, 40n, R1), pkA, 2n, R2);
+      const ct = contract.addEncrypted(
+        contract.encrypt(pkA, 40n, R1),
+        pkA,
+        2n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 43n)).toThrow(
         'ElGamal: plaintext mismatch',
       );
@@ -218,17 +232,32 @@ describe('ElGamal', () => {
   // -------------------------------------------------------------------------
   describe('subEncrypted', () => {
     it('subtracts from the encrypted plaintext: Enc(a) - b decrypts to a - b', () => {
-      const ct = contract.subEncrypted(contract.encrypt(pkA, 50n, R1), pkA, 8n, R2);
+      const ct = contract.subEncrypted(
+        contract.encrypt(pkA, 50n, R1),
+        pkA,
+        8n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 42n)).not.toThrow();
     });
 
     it('subtracting the full balance decrypts to 0', () => {
-      const ct = contract.subEncrypted(contract.encrypt(pkA, 50n, R1), pkA, 50n, R2);
+      const ct = contract.subEncrypted(
+        contract.encrypt(pkA, 50n, R1),
+        pkA,
+        50n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 0n)).not.toThrow();
     });
 
     it('rejects a wrong claimed difference', () => {
-      const ct = contract.subEncrypted(contract.encrypt(pkA, 50n, R1), pkA, 8n, R2);
+      const ct = contract.subEncrypted(
+        contract.encrypt(pkA, 50n, R1),
+        pkA,
+        8n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 41n)).toThrow(
         'ElGamal: plaintext mismatch',
       );
@@ -238,7 +267,12 @@ describe('ElGamal', () => {
       // Subtracting more than the balance produces a ciphertext of a - b taken
       // modulo the curve order — a huge value, not a clamped 0. This documents
       // the contract: callers (e.g. _debit) must assert sufficiency first.
-      const ct = contract.subEncrypted(contract.encrypt(pkA, 5n, R1), pkA, 10n, R2);
+      const ct = contract.subEncrypted(
+        contract.encrypt(pkA, 5n, R1),
+        pkA,
+        10n,
+        R2,
+      );
       expect(() => contract.assertDecryptsTo(ct, pkA, EK_A, 0n)).toThrow(
         'ElGamal: plaintext mismatch',
       );
@@ -257,7 +291,9 @@ describe('ElGamal', () => {
       bal = contract.addEncrypted(bal, pkA, 100n, R1); // credit 100
       bal = contract.addEncrypted(bal, pkA, 30n, R2); // credit 30
       bal = contract.subEncrypted(bal, pkA, 45n, R3); // debit 45
-      expect(() => contract.assertDecryptsTo(bal, pkA, EK_A, 85n)).not.toThrow();
+      expect(() =>
+        contract.assertDecryptsTo(bal, pkA, EK_A, 85n),
+      ).not.toThrow();
       // And the intermediate-wrong value is rejected.
       expect(() => contract.assertDecryptsTo(bal, pkA, EK_A, 130n)).toThrow(
         'ElGamal: plaintext mismatch',

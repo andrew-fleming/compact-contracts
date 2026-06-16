@@ -13,7 +13,9 @@ import type {
   WitnessContext,
 } from '@midnight-ntwrk/compact-runtime';
 
-export const DEFAULT_RANDOMNESS_SEED: Uint8Array = new Uint8Array(32).fill(0x2a);
+export const DEFAULT_RANDOMNESS_SEED: Uint8Array = new Uint8Array(32).fill(
+  0x2a,
+);
 
 export type Ciphertext = { c1: JubjubPoint; c2: JubjubPoint };
 

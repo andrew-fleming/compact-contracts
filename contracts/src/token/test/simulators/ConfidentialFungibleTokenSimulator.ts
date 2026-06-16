@@ -1,11 +1,12 @@
-import {  type BaseSimulatorOptions,
+import {
+  type BaseSimulatorOptions,
   createSimulator,
 } from '@openzeppelin/compact-simulator';
 import {
+  type CFT_EscrowEntry,
+  type ElGamal_Ciphertext,
   ledger,
   Contract as MockCFT,
-  type ElGamal_Ciphertext,
-  type CFT_EscrowEntry
 } from '../../../../artifacts/MockConfidentialFungibleToken/contract/index.js';
 import {
   ConfidentialFungibleTokenPrivateState,
@@ -32,11 +33,7 @@ const ConfidentialFungibleTokenSimulatorBase = createSimulator<
   contractFactory: (witnesses) =>
     new MockCFT<ConfidentialFungibleTokenPrivateState>(witnesses),
   defaultPrivateState: () => ConfidentialFungibleTokenPrivateState.generate(),
-  contractArgs: (name, symbol, decimals) => [
-    name,
-    symbol,
-    decimals,
-  ],
+  contractArgs: (name, symbol, decimals) => [name, symbol, decimals],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => ConfidentialFungibleTokenWitnesses(),
 });
@@ -104,10 +101,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param spender The public key or contract address of spender.
    * @returns The `spender`'s allowance over `owner`'s tokens.
    */
-  public allowance(
-    owner: Uint8Array,
-    spender: Uint8Array,
-  ): CFT_EscrowEntry {
+  public allowance(owner: Uint8Array, spender: Uint8Array): CFT_EscrowEntry {
     return this.circuits.impure.allowance(owner, spender);
   }
 
@@ -117,10 +111,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param to The recipient account id.
    * @param value The amount to transfer.
    */
-  public transfer(
-    to: Uint8Array,
-    value: bigint,
-  ): Uint8Array {
+  public transfer(to: Uint8Array, value: bigint): Uint8Array {
     return this.circuits.impure.transfer(to, value);
   }
 
@@ -145,10 +136,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param spender The account id that may spend on behalf of the caller.
    * @param value The amount the `spender` may spend.
    */
-  public approve(
-    spender: Uint8Array,
-    value: bigint,
-  ): Uint8Array {
+  public approve(spender: Uint8Array, value: bigint): Uint8Array {
     return this.circuits.impure.approve(spender, value);
   }
 
@@ -198,145 +186,149 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
     return this.circuits.pure.computeAccountId(secretKey);
   }
 
-public readonly privateState = {
-  /**
-   * @description Replaces SK in the private state. Used in tests to switch
-   * between different user identities or inject incorrect keys to test
-   * failure paths.
-   */
-  injectSecretKey: (newSK: Uint8Array): ConfidentialFungibleTokenPrivateState => {
-    const current = this.getPrivateState();
-    const updated = { ...current, secretKey: newSK };
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+  public readonly privateState = {
+    /**
+     * @description Replaces SK in the private state. Used in tests to switch
+     * between different user identities or inject incorrect keys to test
+     * failure paths.
+     */
+    injectSecretKey: (
+      newSK: Uint8Array,
+    ): ConfidentialFungibleTokenPrivateState => {
+      const current = this.getPrivateState();
+      const updated = { ...current, secretKey: newSK };
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Replaces EK in the private state. Used in tests to inject
-   * a wrong EK and verify the decryption-consistency assertion catches it.
-   */
-  injectEncryptionKey: (newEK: Uint8Array): ConfidentialFungibleTokenPrivateState => {
-    const current = this.getPrivateState();
-    const updated = { ...current, encryptionKey: newEK };
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+    /**
+     * @description Replaces EK in the private state. Used in tests to inject
+     * a wrong EK and verify the decryption-consistency assertion catches it.
+     */
+    injectEncryptionKey: (
+      newEK: Uint8Array,
+    ): ConfidentialFungibleTokenPrivateState => {
+      const current = this.getPrivateState();
+      const updated = { ...current, encryptionKey: newEK };
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Replaces SK, EK, and clears the plaintext cache atomically.
-   * Used to switch between user identities mid-test (e.g., Alice -> Bob)
-   * without leaving Alice's cached plaintexts in Bob's state.
-   */
-  switchIdentity: (
-    newSK: Uint8Array,
-    newEK: Uint8Array,
-  ): ConfidentialFungibleTokenPrivateState => {
-    const updated = {
-      secretKey: newSK,
-      encryptionKey: newEK,
-      plaintextCache: new Map<string, bigint>(),
-      randomnessSeed:
-        this.getPrivateState().randomnessSeed ?? DEFAULT_RANDOMNESS_SEED,
-    };
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+    /**
+     * @description Replaces SK, EK, and clears the plaintext cache atomically.
+     * Used to switch between user identities mid-test (e.g., Alice -> Bob)
+     * without leaving Alice's cached plaintexts in Bob's state.
+     */
+    switchIdentity: (
+      newSK: Uint8Array,
+      newEK: Uint8Array,
+    ): ConfidentialFungibleTokenPrivateState => {
+      const updated = {
+        secretKey: newSK,
+        encryptionKey: newEK,
+        plaintextCache: new Map<string, bigint>(),
+        randomnessSeed:
+          this.getPrivateState().randomnessSeed ?? DEFAULT_RANDOMNESS_SEED,
+      };
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Sets the randomness seed returned by `wit_RandomnessSeed`.
-   * Use to vary randomness between transactions (e.g. to avoid producing
-   * identical ciphertexts when repeating the same operation).
-   */
-  setRandomnessSeed: (
-    seed: Uint8Array,
-  ): ConfidentialFungibleTokenPrivateState => {
-    const updated = { ...this.getPrivateState(), randomnessSeed: seed };
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+    /**
+     * @description Sets the randomness seed returned by `wit_RandomnessSeed`.
+     * Use to vary randomness between transactions (e.g. to avoid producing
+     * identical ciphertexts when repeating the same operation).
+     */
+    setRandomnessSeed: (
+      seed: Uint8Array,
+    ): ConfidentialFungibleTokenPrivateState => {
+      const updated = { ...this.getPrivateState(), randomnessSeed: seed };
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Returns the current SK.
-   */
-  getCurrentSecretKey: (): Uint8Array => {
-    const sk = this.getPrivateState().secretKey;
-    if (typeof sk === 'undefined') {
-      throw new Error('Missing secret key');
-    }
-    return sk;
-  },
+    /**
+     * @description Returns the current SK.
+     */
+    getCurrentSecretKey: (): Uint8Array => {
+      const sk = this.getPrivateState().secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
+      }
+      return sk;
+    },
 
-  /**
-   * @description Returns the current EK.
-   */
-  getCurrentEncryptionKey: (): Uint8Array => {
-    const ek = this.getPrivateState().encryptionKey;
-    if (typeof ek === 'undefined') {
-      throw new Error('Missing encryption key');
-    }
-    return ek;
-  },
+    /**
+     * @description Returns the current EK.
+     */
+    getCurrentEncryptionKey: (): Uint8Array => {
+      const ek = this.getPrivateState().encryptionKey;
+      if (typeof ek === 'undefined') {
+        throw new Error('Missing encryption key');
+      }
+      return ek;
+    },
 
-  /**
-   * @description Records a known plaintext for a ciphertext in the wallet's
-   * cache. Tests call this after any operation that changes a balance
-   * ciphertext, since the wallet would normally do this automatically as
-   * part of constructing the transaction.
-   */
-  cachePlaintext: (
-    ct: ElGamal_Ciphertext,
-    plaintext: bigint,
-  ): ConfidentialFungibleTokenPrivateState => {
-    const current = this.getPrivateState();
-    const updated = ConfidentialFungibleTokenPrivateState.cachePlaintext(
-      current,
-      ct,
-      plaintext,
-    );
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+    /**
+     * @description Records a known plaintext for a ciphertext in the wallet's
+     * cache. Tests call this after any operation that changes a balance
+     * ciphertext, since the wallet would normally do this automatically as
+     * part of constructing the transaction.
+     */
+    cachePlaintext: (
+      ct: ElGamal_Ciphertext,
+      plaintext: bigint,
+    ): ConfidentialFungibleTokenPrivateState => {
+      const current = this.getPrivateState();
+      const updated = ConfidentialFungibleTokenPrivateState.cachePlaintext(
+        current,
+        ct,
+        plaintext,
+      );
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Looks up a cached plaintext by ciphertext. Returns
-   * undefined if not cached.
-   */
-  lookupPlaintext: (ct: ElGamal_Ciphertext): bigint | undefined => {
-    return ConfidentialFungibleTokenPrivateState.lookupPlaintext(
-      this.getPrivateState(),
-      ct,
-    );
-  },
+    /**
+     * @description Looks up a cached plaintext by ciphertext. Returns
+     * undefined if not cached.
+     */
+    lookupPlaintext: (ct: ElGamal_Ciphertext): bigint | undefined => {
+      return ConfidentialFungibleTokenPrivateState.lookupPlaintext(
+        this.getPrivateState(),
+        ct,
+      );
+    },
 
-  /**
-   * @description Returns the entire plaintext cache. Useful for assertions
-   * about cache contents in tests.
-   */
-  getCache: (): Map<string, bigint> => {
-    return new Map(this.getPrivateState().plaintextCache);
-  },
+    /**
+     * @description Returns the entire plaintext cache. Useful for assertions
+     * about cache contents in tests.
+     */
+    getCache: (): Map<string, bigint> => {
+      return new Map(this.getPrivateState().plaintextCache);
+    },
 
-  /**
-   * @description Clears the plaintext cache without changing SK/EK. Used in
-   * tests that simulate cache loss while preserving identity.
-   */
-  clearCache: (): ConfidentialFungibleTokenPrivateState => {
-    const current = this.getPrivateState();
-    const updated = { ...current, plaintextCache: new Map<string, bigint>() };
-    this.circuitContextManager.updatePrivateState(updated);
-    return updated;
-  },
+    /**
+     * @description Clears the plaintext cache without changing SK/EK. Used in
+     * tests that simulate cache loss while preserving identity.
+     */
+    clearCache: (): ConfidentialFungibleTokenPrivateState => {
+      const current = this.getPrivateState();
+      const updated = { ...current, plaintextCache: new Map<string, bigint>() };
+      this.circuitContextManager.updatePrivateState(updated);
+      return updated;
+    },
 
-  /**
-   * @description Returns the accountId derived from the current SK. Wraps
-   * the contract's pure `computeAccountId` for convenience in tests.
-   */
-  getCurrentAccountId: (): Uint8Array => {
-    const sk = this.getPrivateState().secretKey;
-    if (typeof sk === 'undefined') {
-      throw new Error('Missing secret key');
-    }
-    return this.circuits.pure.computeAccountId(sk);
-  },
-};
+    /**
+     * @description Returns the accountId derived from the current SK. Wraps
+     * the contract's pure `computeAccountId` for convenience in tests.
+     */
+    getCurrentAccountId: (): Uint8Array => {
+      const sk = this.getPrivateState().secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
+      }
+      return this.circuits.pure.computeAccountId(sk);
+    },
+  };
 }

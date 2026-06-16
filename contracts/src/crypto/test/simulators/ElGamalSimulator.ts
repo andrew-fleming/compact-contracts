@@ -27,7 +27,8 @@ const ElGamalSimulatorBase = createSimulator<
   MockElGamal<ElGamalPrivateState>,
   ElGamalArgs
 >({
-  contractFactory: (witnesses) => new MockElGamal<ElGamalPrivateState>(witnesses),
+  contractFactory: (witnesses) =>
+    new MockElGamal<ElGamalPrivateState>(witnesses),
   defaultPrivateState: () => ElGamalPrivateState,
   contractArgs: () => [],
   ledgerExtractor: (state) => ledger(state),
