@@ -63,16 +63,24 @@ pragma language_version >= 0.23.0;
  *    transfer.
  *
  * @dev Per-transfer value bound. All value-bearing circuits assert
- * `value <= MAX_TRANSFER_VALUE()` (2^48). This bound is what makes wallet-
- * side discrete-log recovery on memo ciphertexts tractable. Balances
+ * `value <= MAX_TRANSFER_VALUE()` (`2^48 - 1`, i.e. amounts occupy `[0, 2^48)`).
+ * This bound is what makes wallet-side discrete-log recovery on memo ciphertexts
+ * tractable, and matches the range the wallet's table covers. Balances
  * themselves remain Uint<128>.
  *
- * @dev Value delivery via memo channel. Every value-bearing operation that
- * credits an account pushes an encrypted memo to the recipient's
+ * @dev Value delivery via memo channel. Every credit made through `_credit`
+ * (mint / transfer / transferFrom) pushes an encrypted memo to the recipient's
  * per-account memo list. The recipient's wallet scans only its own list,
- * decrypts each new entry, brute-forces the bounded value with discrete-
- * log recovery, and updates its local plaintext balance cache. No
- * out-of-band coordination required.
+ * decrypts each new entry, brute-forces the bounded value with discrete-log
+ * recovery, and updates its local plaintext balance cache.
+ *
+ * Two caveats. (1) Memos record CREDITS only: debits (sends, approvals, burns)
+ * move value with no memo and a hidden amount, so summing memos OVERCOUNTS a
+ * balance that has ever been spent from. The wallet's running plaintext cache,
+ * not memo replay, is the authoritative balance; replay-from-chain alone only
+ * reconstructs a never-spent account. (2) The owner self-refund in
+ * `_refundPriorEscrow` (re-approve) credits the owner with no memo; the owner
+ * observes it by initiating that transaction.
  *
  * @dev Hash function discipline. Every hash in this design is built on
  * `persistentHash` (there is no direct use of `transientHash`). `accountId`
@@ -174,10 +182,12 @@ module ConfidentialFungibleToken {
 
   /**
    * @description Maximum allowed value per single transfer / mint / burn /
-   * approve. 2^48 (~281 trillion units). See module header for rationale.
+   * approve: `2^48 - 1`. Amounts therefore occupy `[0, 2^48)`, which is exactly
+   * the range the wallet's discrete-log table covers (an amount of `2^48` would
+   * pass on-chain checks but be undecodable by the recipient). See module header.
    */
   export pure circuit MAX_TRANSFER_VALUE(): Uint<128> {
-    return 281474976710656; // 1 << 48
+    return 281474976710655; // 2^48 - 1
   }
 
   // ---------------------------------------------------------------------------
