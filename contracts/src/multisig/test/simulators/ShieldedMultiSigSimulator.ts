@@ -1,7 +1,7 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/contracts-simulator';
+} from '@openzeppelin/compact-simulator';
 import {
   type Ledger,
   ledger,
@@ -10,7 +10,7 @@ import {
 import {
   ShieldedMultiSigPrivateState,
   ShieldedMultiSigWitnesses,
-} from '../../witnesses/ShieldedMultiSigWitnesses.js';
+} from '../witnesses/ShieldedMultiSigWitnesses.js';
 
 type EitherPKAddress = {
   is_left: boolean;

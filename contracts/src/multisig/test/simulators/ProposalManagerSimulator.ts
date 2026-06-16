@@ -1,7 +1,7 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/contracts-simulator';
+} from '@openzeppelin/compact-simulator';
 import {
   ledger,
   Contract as MockProposalManager,
@@ -10,7 +10,7 @@ import {
 import {
   ProposalManagerPrivateState,
   ProposalManagerWitnesses,
-} from '../../witnesses/ProposalManagerWitnesses.js';
+} from '../witnesses/ProposalManagerWitnesses.js';
 
 type Recipient = { kind: number; address: Uint8Array };
 type Proposal = {

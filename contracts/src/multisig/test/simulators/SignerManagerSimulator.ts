@@ -1,7 +1,7 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/contracts-simulator';
+} from '@openzeppelin/compact-simulator';
 import {
   type ContractAddress,
   type Either,
@@ -12,7 +12,7 @@ import {
 import {
   SignerManagerPrivateState,
   SignerManagerWitnesses,
-} from '../../witnesses/SignerManagerWitnesses.js';
+} from '../witnesses/SignerManagerWitnesses.js';
 
 /**
  * A fixed set of exactly three signers, matching the

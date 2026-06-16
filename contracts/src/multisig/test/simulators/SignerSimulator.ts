@@ -1,7 +1,7 @@
 import {
   type BaseSimulatorOptions,
   createSimulator,
-} from '@openzeppelin-compact/contracts-simulator';
+} from '@openzeppelin/compact-simulator';
 import {
   ledger,
   Contract as MockSigner,
@@ -9,7 +9,7 @@ import {
 import {
   SignerPrivateState,
   SignerWitnesses,
-} from '../../witnesses/SignerWitnesses.js';
+} from '../witnesses/SignerWitnesses.js';
 
 /**
  * Type constructor args
