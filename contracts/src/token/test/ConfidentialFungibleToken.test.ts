@@ -781,12 +781,21 @@ describe('ConfidentialFungibleToken: value bound', () => {
     cft = new ConfidentialFungibleTokenSimulator(NAME, SYMBOL, DECIMALS);
   });
 
-  it('accepts a value exactly at MAX_TRANSFER_VALUE (2^48)', () => {
-    const MAX = 1n << 48n;
+  it('accepts a value exactly at MAX_TRANSFER_VALUE (2^48 - 1)', () => {
+    const MAX = (1n << 48n) - 1n;
     cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
     cft.register();
 
     cft._mint(ALICE.accountId, MAX);
     expect(cft.totalSupply()).toBe(MAX);
+  });
+
+  it('rejects 2^48 (one above the bound; undecodable by the wallet table)', () => {
+    cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    cft.register();
+
+    expect(() => cft._mint(ALICE.accountId, 1n << 48n)).toThrow(
+      'ConfidentialFungibleToken: value exceeds bound',
+    );
   });
 });
