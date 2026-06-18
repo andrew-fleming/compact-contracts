@@ -68,14 +68,14 @@ describe('ForwarderPrivate module', () => {
 
     it('should fail deposit when not initialized', () => {
       expect(() => mock.deposit(makeCoin(COLOR, AMOUNT))).toThrow(
-        'Initializable: contract not initialized',
+        'ForwarderPrivate: contract not initialized',
       );
     });
 
     it('should fail drain when not initialized', () => {
       expect(() =>
         mock.drain(makeQualifiedCoin(COLOR, AMOUNT, 0n), PARENT, OP_SECRET, AMOUNT),
-      ).toThrow('Initializable: contract not initialized');
+      ).toThrow('ForwarderPrivate: contract not initialized');
     });
   });
 

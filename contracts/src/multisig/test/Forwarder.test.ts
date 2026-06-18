@@ -42,13 +42,13 @@ describe('Forwarder module', () => {
 
     it('should fail depositShielded when not initialized', () => {
       expect(() => mock.depositShielded(makeCoin(COLOR, AMOUNT))).toThrow(
-        'Initializable: contract not initialized',
+        'Forwarder: contract not initialized',
       );
     });
 
     it('should fail depositUnshielded when not initialized', () => {
       expect(() => mock.depositUnshielded(COLOR, AMOUNT)).toThrow(
-        'Initializable: contract not initialized',
+        'Forwarder: contract not initialized',
       );
     });
   });
