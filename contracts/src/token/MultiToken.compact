@@ -609,7 +609,7 @@ module MultiToken {
                    ): [] {
     assertInitialized();
     assert(!Utils_isTargetZero(to), "MultiToken: invalid receiver");
-    _update(Utils_ZERO(), to, id, value);
+    _update(Utils_zeroAccount(), to, id, value);
   }
 
   /**
@@ -634,7 +634,7 @@ module MultiToken {
                        ): [] {
     assertInitialized();
     assert(!Utils_isTargetZero(fromAddress), "MultiToken: invalid sender");
-    _update(fromAddress, Utils_ZERO(), id, value);
+    _update(fromAddress, Utils_zeroAccount(), id, value);
   }
 
   /**

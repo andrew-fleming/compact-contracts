@@ -97,13 +97,18 @@ module Utils {
   }
 
   /**
-   * @description Returns a canonical zero `Either<Bytes<32>, ContractAddress>` value.
-   * This circuit returns the left variant (`Bytes<32>`) to avoid misleading
-   * contract-to-contract error messages.
+   * @description Returns the canonical zero `Either<Bytes<32>, ContractAddress>` value: the
+   * left variant (`Bytes<32>`) set to zero. Used as the sentinel for mint/burn operations
+   * (a zero `from` signals a mint, a zero `to` signals a burn) and for cleared approvals.
    *
-   * @return {Either<Bytes<32>, ContractAddress>} - The zero value.
+   * The left variant is chosen so that `isTargetZero` checks against `default<Bytes<32>>`,
+   * and to avoid triggering contract-address guards (e.g. circuits that check `!to.is_left`
+   * before delegating to an `_unsafe` variant). A right variant with `default<ContractAddress>`
+   * would also pass `isTargetZero`, but the left variant keeps guards and error messages consistent.
+   *
+   * @return {Either<Bytes<32>, ContractAddress>} - The canonical zero value.
    */
-  export pure circuit ZERO(): Either<Bytes<32>, ContractAddress> {
+  export pure circuit zeroAccount(): Either<Bytes<32>, ContractAddress> {
     return Either<Bytes<32>, ContractAddress> {
       is_left: true, left: default<Bytes<32>>, right: default<ContractAddress>
     };

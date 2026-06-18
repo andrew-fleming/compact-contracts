@@ -677,7 +677,7 @@ describe('NonFungibleToken', () => {
 
       token.transferFrom(OWNER.either, RECIPIENT.either, TOKENID_1);
 
-      // _update calls _approve(ZERO(), tokenId, ZERO()) internally,
+      // _update calls _approve(zeroAccount(), tokenId, zeroAccount()) internally,
       // which should store the left-variant zero
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
     });
@@ -757,17 +757,17 @@ describe('NonFungibleToken', () => {
       expect(token.getApproved(TOKENID_1)).toEqual(SPENDER.either);
     });
 
-    it('should normalize right-variant zero to ZERO()', () => {
+    it('should normalize right-variant zero to zeroAccount()', () => {
       token._mint(OWNER.either, TOKENID_1);
 
       // Approve with a right-variant zero (contract address zero)
       token._approve(ZERO_CONTRACT, TOKENID_1, OWNER.either);
 
-      // getApproved should return the left-variant ZERO, not the right-variant
+      // getApproved should return the left-variant zeroAccount, not the right-variant
       expect(token.getApproved(TOKENID_1)).toEqual(ZERO_ACCOUNT);
     });
 
-    it('should normalize left-variant zero to ZERO()', () => {
+    it('should normalize left-variant zero to zeroAccount()', () => {
       token._mint(OWNER.either, TOKENID_1);
 
       // First set a real approval

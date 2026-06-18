@@ -203,13 +203,13 @@ describe('Utils', () => {
     });
   });
 
-  describe('ZERO', () => {
+  describe('zeroAccount', () => {
     it('should return a left variant', () => {
-      expect(contract.ZERO().is_left).toBe(true);
+      expect(contract.zeroAccount().is_left).toBe(true);
     });
 
     it('should have zero left and right branches', () => {
-      const zero = contract.ZERO();
+      const zero = contract.zeroAccount();
       expect(zero.left).toEqual(zeroBytes);
       expect(zero.right).toEqual({ bytes: zeroBytes });
     });
@@ -217,7 +217,7 @@ describe('Utils', () => {
 
   describe('isTargetZero', () => {
     it('should return true for the canonical zero account', () => {
-      expect(contract.isTargetZero(contract.ZERO())).toBe(true);
+      expect(contract.isTargetZero(contract.zeroAccount())).toBe(true);
     });
 
     it('should return true for a zero right-variant (contract)', () => {

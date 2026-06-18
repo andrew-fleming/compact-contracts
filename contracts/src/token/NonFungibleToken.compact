@@ -523,7 +523,7 @@ module NonFungibleToken {
   export circuit _ownerOf(tokenId: Uint<128>): Either<Bytes<32>, ContractAddress> {
     assertInitialized();
     if (!_owners.member(disclose(tokenId))) {
-      return Utils_ZERO();
+      return Utils_zeroAccount();
     }
 
     return _owners.lookup(disclose(tokenId));
@@ -544,7 +544,7 @@ module NonFungibleToken {
   export circuit _getApproved(tokenId: Uint<128>): Either<Bytes<32>, ContractAddress> {
     assertInitialized();
     if (!_tokenApprovals.member(disclose(tokenId))) {
-      return Utils_ZERO();
+      return Utils_zeroAccount();
     }
     return _tokenApprovals.lookup(disclose(tokenId));
   }
@@ -644,7 +644,7 @@ module NonFungibleToken {
     // Execute the update
     if (!Utils_isTargetZero(disclose(fromAddress))) {
       // Clear approval. No need to re-authorize
-      _approve(Utils_ZERO(), tokenId, Utils_ZERO());
+      _approve(Utils_zeroAccount(), tokenId, Utils_zeroAccount());
       const canonFrom = Utils_canonicalize<Bytes<32>, ContractAddress>(fromAddress);
       const newBalance = _balances.lookup(disclose(canonFrom)) - 1 as Uint<128>;
       _balances.insert(disclose(canonFrom), disclose(newBalance));
@@ -713,7 +713,7 @@ module NonFungibleToken {
     assertInitialized();
     assert(!Utils_isTargetZero(to), "NonFungibleToken: invalid receiver");
 
-    const previousOwner = _update(to, tokenId, Utils_ZERO());
+    const previousOwner = _update(to, tokenId, Utils_zeroAccount());
 
     assert(Utils_isTargetZero(previousOwner), "NonFungibleToken: invalid sender");
   }
@@ -735,7 +735,7 @@ module NonFungibleToken {
    */
   export circuit _burn(tokenId: Uint<128>): [] {
     assertInitialized();
-    const previousOwner = _update(Utils_ZERO(), tokenId, Utils_ZERO());
+    const previousOwner = _update(Utils_zeroAccount(), tokenId, Utils_zeroAccount());
     assert(!Utils_isTargetZero(previousOwner), "NonFungibleToken: invalid sender");
     _tokenURIs.remove(disclose(tokenId));
   }
@@ -804,7 +804,7 @@ module NonFungibleToken {
     assertInitialized();
     assert(!Utils_isTargetZero(to), "NonFungibleToken: invalid receiver");
 
-    const previousOwner = _update(to, tokenId, Utils_ZERO());
+    const previousOwner = _update(to, tokenId, Utils_zeroAccount());
 
     assert(!Utils_isTargetZero(previousOwner), "NonFungibleToken: nonexistent token");
 
@@ -836,7 +836,7 @@ module NonFungibleToken {
     assertInitialized();
     // Canonicalize + normalize `to`
     const canonTo = Utils_canonicalize<Bytes<32>, ContractAddress>(to);
-    const normalizedTo = Utils_isTargetZero(canonTo) ? Utils_ZERO() : canonTo;
+    const normalizedTo = Utils_isTargetZero(canonTo) ? Utils_zeroAccount() : canonTo;
 
     // Canonicalize auth
     const canonAuth = Utils_canonicalize<Bytes<32>, ContractAddress>(auth);

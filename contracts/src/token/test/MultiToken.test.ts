@@ -870,7 +870,7 @@ describe('MultiToken', () => {
           it('should fail with transfer from zero', () => {
             // With witness-based identity, the caller is H(sk) which is
             // always non-zero. Transferring from ZERO_ACCOUNT means
-            // canonFrom != caller → isApprovedForAll(ZERO, caller) → false
+            // canonFrom != caller → isApprovedForAll(zeroAccount, caller) → false
             // → "unauthorized operator"
             expect(() => {
               token._unsafeTransferFrom(

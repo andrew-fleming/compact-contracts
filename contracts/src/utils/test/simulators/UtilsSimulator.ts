@@ -130,12 +130,12 @@ export class UtilsSimulator extends UtilsSimulatorBase {
   }
 
   /**
-   * @description Returns a canonical zero `Either<Bytes<32>, ContractAddress>` value
+   * @description Returns the canonical zero `Either<Bytes<32>, ContractAddress>` value
    * (left variant with zero `Bytes<32>`).
-   * @returns The zero value.
+   * @returns The canonical zero value.
    */
-  public ZERO(): Either<Uint8Array, ContractAddress> {
-    return this.circuits.pure.ZERO();
+  public zeroAccount(): Either<Uint8Array, ContractAddress> {
+    return this.circuits.pure.zeroAccount();
   }
 
   /**

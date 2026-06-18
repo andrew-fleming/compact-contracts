@@ -598,7 +598,7 @@ module FungibleToken {
                    ): [] {
     assertInitialized();
     assert(!Utils_isTargetZero(account), "FungibleToken: invalid receiver");
-    _update(Utils_ZERO(), account, value);
+    _update(Utils_zeroAccount(), account, value);
   }
 
   /**
@@ -620,7 +620,7 @@ module FungibleToken {
   export circuit _burn(account: Either<Bytes<32>, ContractAddress>, value: Uint<128>): [] {
     assertInitialized();
     assert(!Utils_isTargetZero(account), "FungibleToken: invalid sender");
-    _update(account, Utils_ZERO(), value);
+    _update(account, Utils_zeroAccount(), value);
   }
 
   /**
