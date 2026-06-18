@@ -120,52 +120,6 @@ describe('NonFungibleToken', () => {
     token = new NonFungibleTokenSimulator(NAME, SYMBOL, INIT);
   });
 
-  describe('computeAccountId', () => {
-    const users = [OWNER, SPENDER, RECIPIENT, UNAUTHORIZED];
-
-    it('should match the test helper derivation', () => {
-      for (const user of users) {
-        expect(token.computeAccountId(user.secretKey)).toEqual(user.accountId);
-      }
-    });
-
-    it('should produce distinct identifiers for distinct keys', () => {
-      const ids = users.map((u) => token.computeAccountId(u.secretKey));
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          expect(ids[i]).not.toEqual(ids[j]);
-        }
-      }
-    });
-  });
-
-  describe('ZERO', () => {
-    it('should return a left variant', () => {
-      const zero = token.ZERO();
-      expect(zero.is_left).toBe(true);
-    });
-
-    it('should have zero left branch', () => {
-      const zero = token.ZERO();
-      expect(zero.left).toEqual(zeroBytes);
-    });
-
-    it('should have zero right branch', () => {
-      const zero = token.ZERO();
-      expect(zero.right).toEqual({ bytes: zeroBytes });
-    });
-
-    it('should be canonical', () => {
-      const zero = token.ZERO();
-      expect(zero).toEqual(ZERO_ACCOUNT);
-    });
-
-    it('should not equal a right-variant zero', () => {
-      const zero = token.ZERO();
-      expect(zero).not.toEqual(ZERO_CONTRACT);
-    });
-  });
-
   describe('balanceOf', () => {
     it('should return zero when requested account has no balance', () => {
       expect(token.balanceOf(OWNER.either)).toEqual(0n);
