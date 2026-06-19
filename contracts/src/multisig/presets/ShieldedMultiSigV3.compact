@@ -80,7 +80,7 @@ export sealed ledger _tokenDomain: Bytes<32>;
 
 /**
  * @description Deploys the contract with 3 signer commitments and
- * a threshold.
+ * a threshold of 2.
  *
  * Each commitment is computed off-chain as:
  *   `persistentHash(SignerCommitmentInput { pk, instanceSalt, domain })`
@@ -95,7 +95,6 @@ export sealed ledger _tokenDomain: Bytes<32>;
  *
  * Requirements:
  *
- * - `thresh` must be > 0 and <= 2.
  * - `signerCommitments` must not contain duplicates.
  * - `instanceSalt` and `initCoinNonce` should be cryptographically random.
  *
@@ -103,7 +102,6 @@ export sealed ledger _tokenDomain: Bytes<32>;
  * @param {Bytes<32>} initCoinNonce - Initial coin nonce seed.
  * @param {Bytes<32>} tokenDomain - Domain string used to derive this contract's token color.
  * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
- * @param {Uint<8>} thresh - Minimum approvals required.
  */
 constructor(
   instanceSalt: Bytes<32>,
@@ -273,10 +271,10 @@ export circuit burn(
  * salt, checks for duplicates against the previous commitment, verifies
  * registry membership, and validates the ECDSA signature.
  *
- * @notice Circuit signatures are fixed at Vector<2, ...>.
- * This contract supports at most 2-of-N threshold configurations.
- * 3-of-N or higher requires a separate contract variant with a larger vector and a
- * different duplicate detection mechanism (sorted commitments or bitmap).
+ * @notice Circuit signatures are fixed at Vector<2, ...>, so this contract
+ * supports only a fixed 2-of-3 configuration. Supporting more signatures
+ * (e.g. 3-of-N) requires a separate variant with a larger vector and a
+ * different duplicate-detection mechanism (sorted commitments or bitmap).
  *
  * @param {VerificationState} state - Accumulator threaded through fold.
  * @param {Bytes<64>} pubkey - The signer's ECDSA public key.
