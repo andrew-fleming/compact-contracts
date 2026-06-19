@@ -50,51 +50,15 @@ let multisig: ShieldedMultiSigV3Simulator;
 
 describe('ShieldedMultiSigV3', () => {
   describe('constructor', () => {
-    it('should initialize with 2-of-3 threshold', () => {
+    it('should initialize', () => {
       multisig = new ShieldedMultiSigV3Simulator(
         INSTANCE_SALT,
         INIT_COIN_NONCE,
         TOKEN_DOMAIN,
         SIGNER_COMMITMENTS,
-        2n,
       );
       expect(multisig.getSignerCount()).toEqual(3n);
       expect(multisig.getThreshold()).toEqual(2n);
-    });
-
-    it('should initialize with 1-of-3 threshold', () => {
-      multisig = new ShieldedMultiSigV3Simulator(
-        INSTANCE_SALT,
-        INIT_COIN_NONCE,
-        TOKEN_DOMAIN,
-        SIGNER_COMMITMENTS,
-        1n,
-      );
-      expect(multisig.getThreshold()).toEqual(1n);
-    });
-
-    it('should fail with zero threshold', () => {
-      expect(() => {
-        new ShieldedMultiSigV3Simulator(
-          INSTANCE_SALT,
-          INIT_COIN_NONCE,
-          TOKEN_DOMAIN,
-          SIGNER_COMMITMENTS,
-          0n,
-        );
-      }).toThrow('Signer: threshold must not be zero');
-    });
-
-    it('should fail with threshold greater than 2', () => {
-      expect(() => {
-        new ShieldedMultiSigV3Simulator(
-          INSTANCE_SALT,
-          INIT_COIN_NONCE,
-          TOKEN_DOMAIN,
-          SIGNER_COMMITMENTS,
-          3n,
-        );
-      }).toThrow('Multisig: threshold cannot exceed 2');
     });
 
     it('should register all signer commitments', () => {
@@ -103,7 +67,6 @@ describe('ShieldedMultiSigV3', () => {
         INIT_COIN_NONCE,
         TOKEN_DOMAIN,
         SIGNER_COMMITMENTS,
-        2n,
       );
       for (const commitment of SIGNER_COMMITMENTS) {
         expect(multisig.isSigner(commitment)).toEqual(true);
@@ -116,7 +79,6 @@ describe('ShieldedMultiSigV3', () => {
         INIT_COIN_NONCE,
         TOKEN_DOMAIN,
         SIGNER_COMMITMENTS,
-        2n,
       );
       const unknown = multisig._calculateSignerId(NON_SIGNER_PK, INSTANCE_SALT);
       expect(multisig.isSigner(unknown)).toEqual(false);
@@ -129,7 +91,6 @@ describe('ShieldedMultiSigV3', () => {
           INIT_COIN_NONCE,
           TOKEN_DOMAIN,
           [COMMITMENT1, COMMITMENT1, COMMITMENT2],
-          2n,
         );
       }).toThrow('Signer: signer already active');
     });
@@ -140,7 +101,6 @@ describe('ShieldedMultiSigV3', () => {
         INIT_COIN_NONCE,
         TOKEN_DOMAIN,
         SIGNER_COMMITMENTS,
-        2n,
       );
       expect(multisig.getTokenDomain()).toEqual(TOKEN_DOMAIN);
     });
@@ -153,7 +113,6 @@ describe('ShieldedMultiSigV3', () => {
         INIT_COIN_NONCE,
         TOKEN_DOMAIN,
         SIGNER_COMMITMENTS,
-        2n,
       );
     });
 
@@ -423,7 +382,6 @@ describe('ShieldedMultiSigV3', () => {
           INIT_COIN_NONCE,
           altDomain,
           SIGNER_COMMITMENTS,
-          2n,
         );
 
         expect(multisig.getTokenType()).not.toEqual(alt.getTokenType());
@@ -450,7 +408,6 @@ describe('ShieldedMultiSigV3', () => {
           INIT_COIN_NONCE,
           TOKEN_DOMAIN,
           SIGNER_COMMITMENTS,
-          2n,
         );
 
         // With stub verification, both succeed independently.

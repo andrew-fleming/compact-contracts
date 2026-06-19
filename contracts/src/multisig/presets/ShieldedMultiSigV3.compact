@@ -110,16 +110,11 @@ constructor(
   initCoinNonce: Bytes<32>,
   tokenDomain: Bytes<32>,
   signerCommitments: Vector<3, Bytes<32>>,
-  thresh: Uint<8>,
 ) {
-  assert(
-    thresh <= 2,
-    "Multisig: threshold cannot exceed 2 (circuits verify at most 2 signatures)"
-  );
   _instanceSalt = disclose(instanceSalt);
   _coinNonce = disclose(initCoinNonce);
   _tokenDomain = disclose(tokenDomain);
-  Signer_initialize<3>(signerCommitments, thresh);
+  Signer_initialize<3>(signerCommitments, 2);
 }
 
 // ─── Mint ───────────────────────────────────────────────────────

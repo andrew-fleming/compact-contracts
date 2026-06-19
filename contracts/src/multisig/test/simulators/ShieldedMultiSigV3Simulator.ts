@@ -18,7 +18,6 @@ type ShieldedMultiSigV3Args = readonly [
   initCoinNonce: Uint8Array,
   tokenDomain: Uint8Array,
   signerCommitments: Uint8Array[],
-  thresh: bigint,
 ];
 
 const ShieldedMultiSigV3SimulatorBase = createSimulator<
@@ -36,8 +35,7 @@ const ShieldedMultiSigV3SimulatorBase = createSimulator<
     initCoinNonce,
     tokenDomain,
     signerCommitments,
-    thresh,
-  ) => [instanceSalt, initCoinNonce, tokenDomain, signerCommitments, thresh],
+  ) => [instanceSalt, initCoinNonce, tokenDomain, signerCommitments],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => ShieldedMultiSigV3Witnesses(),
 });
@@ -48,14 +46,13 @@ export class ShieldedMultiSigV3Simulator extends ShieldedMultiSigV3SimulatorBase
     initCoinNonce: Uint8Array,
     tokenDomain: Uint8Array,
     signerCommitments: Uint8Array[],
-    thresh: bigint,
     options: BaseSimulatorOptions<
       ShieldedMultiSigV3PrivateState,
       ReturnType<typeof ShieldedMultiSigV3Witnesses>
     > = {},
   ) {
     super(
-      [instanceSalt, initCoinNonce, tokenDomain, signerCommitments, thresh],
+      [instanceSalt, initCoinNonce, tokenDomain, signerCommitments],
       options,
     );
   }
