@@ -110,7 +110,7 @@ export class ShieldedMultiSigV3Simulator extends ShieldedMultiSigV3SimulatorBase
 }
 
 // Computes signer commitment from `pk`, `salt`, and
-// domain ("Multisig:signer:"). Pure standalone circuit so commitments can be
+// domain ("multisig:signer:"). Pure standalone circuit so commitments can be
 // calculated before contract instantiation.
 export function calculateSignerId(
   pk: Uint8Array,
