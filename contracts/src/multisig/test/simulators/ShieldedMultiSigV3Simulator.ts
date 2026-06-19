@@ -11,7 +11,7 @@ import {
 import {
   ShieldedMultiSigV3PrivateState,
   ShieldedMultiSigV3Witnesses,
-} from '../../witnesses/ShieldedMultiSigV3Witnesses.js';
+} from '../witnesses/ShieldedMultiSigV3Witnesses.js';
 
 type ShieldedMultiSigV3Args = readonly [
   instanceSalt: Uint8Array,
