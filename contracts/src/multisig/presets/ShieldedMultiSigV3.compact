@@ -182,6 +182,8 @@ export circuit mint(
   };
 
   const finalState = fold(verifySignature, initialState, pubkeys, signatures);
+  // Thresh check not needed as it will always be 2
+  // Leaving it as defense-in-depth
   Signer_assertThresholdMet(finalState.validCount);
 
   _coinNonce = evolveNonce(_counter, _coinNonce);
@@ -252,6 +254,8 @@ export circuit burn(
   };
 
   const finalState = fold(verifySignature, initialState, pubkeys, signatures);
+  // Thresh check not needed as it will always be 2
+  // Leaving it as defense-in-depth
   Signer_assertThresholdMet(finalState.validCount);
 
   assert(coin.color == tokenType(_tokenDomain, kernel.self()), "Multisig: coin not from this contract");
