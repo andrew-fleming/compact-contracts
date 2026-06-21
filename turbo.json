@@ -4,7 +4,7 @@
     "compact:crypto": {
       "dependsOn": ["^build"],
       "env": ["COMPACT_HOME", "SKIP_ZK"],
-      "inputs": ["src/utils/**/*.compact"],
+      "inputs": ["src/crypto/**/*.compact"],
       "outputLogs": "new-only",
       "outputs": ["artifacts/**/"]
     },
