@@ -96,11 +96,11 @@ export pure circuit rerandomize(
   return ElGamal_rerandomize(ct, pk, r);
 }
 
-export circuit assertKeyPair(pk: JubjubPoint, ek: Bytes<32>): [] {
+export pure circuit assertKeyPair(pk: JubjubPoint, ek: Bytes<32>): [] {
   ElGamal_assertKeyPair(pk, ek);
 }
 
-export circuit assertDecryptsToPoint(
+export pure circuit assertDecryptsToPoint(
                  ct: ElGamal_Ciphertext,
                  pk: JubjubPoint,
                  ek: Bytes<32>,
@@ -109,7 +109,7 @@ export circuit assertDecryptsToPoint(
   ElGamal_assertDecryptsToPoint(ct, pk, ek, m);
 }
 
-export circuit assertDecryptsTo(
+export pure circuit assertDecryptsTo(
                  ct: ElGamal_Ciphertext,
                  pk: JubjubPoint,
                  ek: Bytes<32>,
