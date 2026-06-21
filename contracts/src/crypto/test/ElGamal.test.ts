@@ -196,6 +196,18 @@ describe('ElGamal', () => {
       );
     });
 
+    it('rejects encryption under the identity public key (non-hiding weak key)', () => {
+      // encryptZero().c1 is g^0 = the curve identity, a valid subgroup point.
+      const idPk = contract.encryptZero().c1;
+      expect(() => contract.encryptPoint(idPk, m1, R1)).toThrow(
+        'ElGamal: identity pk',
+      );
+      // The lifted path routes through encryptPoint, so it is guarded too.
+      expect(() => contract.encrypt(idPk, 100n, R1)).toThrow(
+        'ElGamal: identity pk',
+      );
+    });
+
     it('lifted encrypt is the special case encryptPoint(pk, g^value, r)', () => {
       // g^0 is the curve identity, which encryptZero exposes as its c1.
       const idPoint = contract.encryptZero().c1;
