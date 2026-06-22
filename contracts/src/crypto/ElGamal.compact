@@ -350,7 +350,7 @@ module ElGamal {
    * @param pk - The public key to check.
    * @param ek - The secret claimed to correspond to `pk`.
    */
-  export circuit assertKeyPair(pk: JubjubPoint, ek: Bytes<32>): [] {
+  export pure circuit assertKeyPair(pk: JubjubPoint, ek: Bytes<32>): [] {
     assert(derivePk(ek) == pk,
            "ElGamal: ek/pk mismatch");
   }
@@ -366,7 +366,7 @@ module ElGamal {
    * @param ek - The secret claimed to correspond to `pk`.
    * @param m - The message point `ct` is claimed to encrypt.
    */
-  export circuit assertDecryptsToPoint(
+  export pure circuit assertDecryptsToPoint(
                    ct: Ciphertext,
                    pk: JubjubPoint,
                    ek: Bytes<32>,
@@ -402,7 +402,7 @@ module ElGamal {
    * @param ek - The secret claimed to correspond to `pk`.
    * @param claimedValue - The plaintext `ct` is claimed to encrypt.
    */
-  export circuit assertDecryptsTo(
+  export pure circuit assertDecryptsTo(
                    ct: Ciphertext,
                    pk: JubjubPoint,
                    ek: Bytes<32>,
