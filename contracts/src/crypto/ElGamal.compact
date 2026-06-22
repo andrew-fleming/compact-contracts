@@ -189,6 +189,11 @@ module ElGamal {
    * small-exponent point; the caller owns that concern (the lifted `encrypt`
    * bounds it via the discrete-log range).
    *
+   * Requirements:
+   *
+   * - `pk` is not the identity point.
+   * - `r` is non-zero.
+   *
    * @param pk - The recipient public key.
    * @param m - The message point to encrypt.
    * @param r - The encryption randomness.
@@ -208,6 +213,11 @@ module ElGamal {
    * randomness `r`, lifting `value` to the point `g^value`. Randomness is taken
    * as a `Field` directly to avoid a redundant `Bytes<32> -> Field` conversion
    * at every call site; `expandRandomness` produces `Field` for the same reason.
+   *
+   * Requirements:
+   *
+   * - `pk` is not the identity point.
+   * - `r` is non-zero.
    *
    * @param pk - The recipient public key.
    * @param value - The plaintext value to encrypt.
@@ -294,6 +304,11 @@ module ElGamal {
    * `old`, producing a fresh ciphertext under `pk` with new randomness `r`.
    * Convenience over `add` for folding a known plaintext into a ciphertext:
    * `add(old, encrypt(pk, value, r))`.
+   *
+   * Requirements:
+   *
+   * - `pk` is not the identity point.
+   * - `r` is non-zero.
    */
   export pure circuit addEncrypted(
                         old: Ciphertext,
@@ -312,6 +327,11 @@ module ElGamal {
    * not underflow; this circuit cannot check it. Callers verify sufficiency by
    * reading the plaintext via their own witness and asserting it with
    * `assertDecryptsTo` before calling.
+   *
+   * Requirements:
+   *
+   * - `pk` is not the identity point.
+   * - `r` is non-zero.
    */
   export pure circuit subEncrypted(
                         old: Ciphertext,
@@ -335,6 +355,11 @@ module ElGamal {
    * the plaintext (the result no longer decrypts to the original value). Pass
    * fresh randomness and the matching `pk`.
    *
+   * Requirements:
+   *
+   * - `pk` is not the identity point.
+   * - `r` is non-zero.
+   *
    * @param ct - The ciphertext to rerandomize.
    * @param pk - The recipient public key `ct` is encrypted under.
    * @param r - Fresh, nonzero randomness for the rerandomization.
@@ -353,6 +378,10 @@ module ElGamal {
    * `derivePk(ek) == pk`. Lets a caller prove ownership of a public key
    * without touching any ciphertext or plaintext.
    *
+   * Requirements:
+   *
+   * - `ek` is the secret for `pk` (`derivePk(ek) == pk`).
+   *
    * @param pk - The public key to check.
    * @param ek - The secret claimed to correspond to `pk`.
    */
@@ -366,6 +395,11 @@ module ElGamal {
    * point `m`, and that `ek` is the secret for `pk`. This is the general
    * (non-lifted) verification; `assertDecryptsTo` is the lifted special case
    * with `m = g^claimedValue`.
+   *
+   * Requirements:
+   *
+   * - `ek` is the secret for `pk`.
+   * - `ct` decrypts under `(pk, ek)` to `m`.
    *
    * @param ct - The ciphertext to verify.
    * @param pk - The public key `ct` is expected to be encrypted under.
@@ -402,6 +436,11 @@ module ElGamal {
    * plaintext to publicly stored state: a wrong `ek` fails the key check, a
    * wrong plaintext fails the decryption check. Lifted special case of
    * `assertDecryptsToPoint` with the message point `g^claimedValue`.
+   *
+   * Requirements:
+   *
+   * - `ek` is the secret for `pk`.
+   * - `ct` decrypts under `(pk, ek)` to `claimedValue`.
    *
    * @param ct - The ciphertext to verify.
    * @param pk - The public key `ct` is expected to be encrypted under.
