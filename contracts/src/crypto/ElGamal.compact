@@ -6,14 +6,18 @@ pragma language_version >= 0.23.0;
 /**
  * @module ElGamal
  * @description Stateless, single-receiver ElGamal primitives over the Jubjub
- * curve, exponential (lifted) variant.
+ * curve. Provides general point encryption (`encryptPoint` / `assertDecryptsToPoint`)
+ * and the exponential (lifted) variant (`encrypt` / `assertDecryptsTo`) for
+ * bounded scalar values.
  *
- * A value `v` is encrypted as a point `g^v`, so the scheme is additively
- * homomorphic in the exponent: ciphertexts of `a` and `b` combine into a
- * ciphertext of `a + b`. Recovering `v` from `g^v` requires a discrete-log
- * search, so this variant is only usable when `v` is bounded; the caller is
- * responsible for enforcing that bound (e.g. capping each encrypted value to a
- * range a discrete-log search can clear).
+ * In the lifted variant a value `v` is encrypted as the point `g^v`, so the
+ * scheme is additively homomorphic in the exponent: ciphertexts of `a` and `b`
+ * combine into a ciphertext of `a + b`. Recovering `v` from `g^v` requires a
+ * discrete-log search, so the lifted variant is only usable when `v` is bounded;
+ * the caller is responsible for enforcing that bound (e.g. capping each encrypted
+ * value to a range a discrete-log search can clear). The general point form
+ * carries an arbitrary message point and sidesteps the bound, at the cost of
+ * decryption recovering only a point (not a scalar).
  *
  * @notice This module holds NO ledger state and declares NO witnesses. Every
  * circuit takes its keys, plaintexts, and randomness as explicit arguments so
@@ -45,8 +49,10 @@ pragma language_version >= 0.23.0;
  * masking (the plaintext is exposed), and the identity is a valid subgroup
  * point so the runtime subgroup guarantee does NOT catch it. `encryptPoint`
  * therefore asserts `pk != identity`, and every encryption path routes through
- * it. Importing modules should still reject an identity `pk` where keys enter
- * the system — checking once at registration is cheaper than per encryption.
+ * it, so confidentiality is protected regardless of the importer. An importing
+ * module MAY additionally reject an identity `pk` where keys enter the system
+ * (e.g. at registration) to fail fast with a clear error rather than at first
+ * encryption — a UX nicety, not a confidentiality requirement.
  *
  * @dev Randomness. `encryptPoint` asserts `r != 0` — like `pk = identity`,
  * `r = 0` zeros the mask (`r*pk = O`), yielding the non-hiding `(O, m)`; it is
@@ -68,7 +74,7 @@ module ElGamal {
   /**
    * @description Single-receiver ElGamal ciphertext over Jubjub.
    *   c1 = g^r
-   *   c2 = pk^r * g^v
+   *   c2 = pk^r * m   (lifted: m = g^v)
    */
   export struct Ciphertext {
     c1: JubjubPoint;
@@ -379,7 +385,7 @@ module ElGamal {
     assert(ecMulGenerator(ekField) == pk,
            "ElGamal: ek/pk mismatch");
 
-    // m = c2 - ek*c1. ek*c1 is negated via ecNeg (coordinate negation) rather
+    // m = c2 - ek*c1. ek*c1 is negated via ecNeg (scalar mul by ℓ-1) rather
     // than ecMul by a negative scalar, which would exceed the Jubjub scalar
     // field. ekField < ℓ (the subgroup order), so ecMul(ct.c1, ekField) is a
     // valid scalar mul.
