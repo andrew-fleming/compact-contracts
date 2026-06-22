@@ -208,6 +208,21 @@ describe('ElGamal', () => {
       );
     });
 
+    it('rejects zero randomness (mask vanishes, non-hiding)', () => {
+      expect(() => contract.encryptPoint(pkA, m1, 0n)).toThrow(
+        'ElGamal: zero randomness',
+      );
+      expect(() => contract.encrypt(pkA, 100n, 0n)).toThrow(
+        'ElGamal: zero randomness',
+      );
+      // rerandomize routes through encryptPoint, so r=0 hard-fails (no longer a
+      // silent no-op).
+      const ct = contract.encrypt(pkA, 40n, R1);
+      expect(() => contract.rerandomize(ct, pkA, 0n)).toThrow(
+        'ElGamal: zero randomness',
+      );
+    });
+
     it('lifted encrypt is the special case encryptPoint(pk, g^value, r)', () => {
       // g^0 is the curve identity, which encryptZero exposes as its c1.
       const idPoint = contract.encryptZero().c1;

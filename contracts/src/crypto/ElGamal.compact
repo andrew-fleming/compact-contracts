@@ -48,11 +48,15 @@ pragma language_version >= 0.23.0;
  * it. Importing modules should still reject an identity `pk` where keys enter
  * the system — checking once at registration is cheaper than per encryption.
  *
- * @dev Randomness (caller obligation, not enforced). Every `r` MUST be a valid
- * Jubjub scalar (`< ℓ`, the subgroup order; larger values fault `ecMul`), and
- * MUST be fresh and secret. Reusing an `r` under the same `pk` leaks the
- * difference of the two plaintexts (`c1` collides, so `c2 - c2' = m - m'`).
- * Prefer `expandRandomness` with a distinct tag per encryption.
+ * @dev Randomness. `encryptPoint` asserts `r != 0` — like `pk = identity`,
+ * `r = 0` zeros the mask (`r*pk = O`), yielding the non-hiding `(O, m)`; it is
+ * the unique mask-zeroing randomness, so the two asserts together guarantee a
+ * non-trivial mask. The remaining obligations the circuit CANNOT enforce:
+ * every `r` MUST be a valid Jubjub scalar (`< ℓ`, the subgroup order; larger
+ * values fault `ecMul`), and MUST be fresh and secret. Reusing an `r` under the
+ * same `pk` leaks the difference of the two plaintexts (`c1` collides, so
+ * `c2 - c2' = m - m'`). Prefer `expandRandomness` with a distinct tag per
+ * encryption.
  */
 module ElGamal {
   import CompactStandardLibrary;
@@ -173,11 +177,11 @@ module ElGamal {
    *
    * @notice `m` (like `pk`) is constrained into the prime-order subgroup by the
    * runtime (see the module-level subgroup note), so no in-circuit membership
-   * check is performed. `pk` is asserted to be non-identity (encrypting under
-   * the identity point would not hide `m`; see the weak-keys note). Decrypting
-   * `m` is only feasible when it is a known or small-exponent point; the caller
-   * owns that concern (the lifted `encrypt` bounds it via the discrete-log
-   * range).
+   * check is performed. `pk` is asserted non-identity and `r` non-zero — the
+   * two inputs that would zero the mask and expose `m` (see the weak-keys and
+   * randomness notes). Decrypting `m` is only feasible when it is a known or
+   * small-exponent point; the caller owns that concern (the lifted `encrypt`
+   * bounds it via the discrete-log range).
    *
    * @param pk - The recipient public key.
    * @param m - The message point to encrypt.
@@ -186,6 +190,7 @@ module ElGamal {
    */
   export pure circuit encryptPoint(pk: JubjubPoint, m: JubjubPoint, r: Field): Ciphertext {
     assert(pk != ecMulGenerator(0 as Field), "ElGamal: identity pk");
+    assert(r != 0 as Field, "ElGamal: zero randomness");
     const c1 = ecMulGenerator(r);
     const mask = ecMul(pk, r);
     const c2 = ecAdd(mask, m);
@@ -318,11 +323,11 @@ module ElGamal {
    * value) yet decrypts identically. Equivalent to homomorphically adding an
    * encryption of zero.
    *
-   * @notice Two silent failure modes the circuit cannot catch: `r = 0` is a
-   * no-op (returns `ct` unchanged, defeating unlinkability), and a `pk` that is
-   * not the key `ct` was encrypted under corrupts the plaintext (the result no
-   * longer decrypts to the original value). Pass fresh nonzero `r` and the
-   * matching `pk`.
+   * @notice `r = 0` is rejected (it would be a no-op via the `encryptPoint`
+   * zero-randomness assert). One silent failure mode remains that the circuit
+   * cannot catch: a `pk` that is not the key `ct` was encrypted under corrupts
+   * the plaintext (the result no longer decrypts to the original value). Pass
+   * fresh randomness and the matching `pk`.
    *
    * @param ct - The ciphertext to rerandomize.
    * @param pk - The recipient public key `ct` is encrypted under.
