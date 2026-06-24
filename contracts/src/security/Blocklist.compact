@@ -29,8 +29,8 @@ module Blocklist {
   // State
   // ---------------------------------------------------------------------------
 
-  /** @description Blocked accounts. Absent or `false` means not blocked. */
-  export ledger _blocked: Map<Bytes<32>, Boolean>;
+  /** @description Blocked accounts. Absent means not blocked. */
+  export ledger _blocked: Set<Bytes<32>>;
 
   // ---------------------------------------------------------------------------
   // Views
@@ -39,14 +39,13 @@ module Blocklist {
   /**
    * @description Returns whether `account` is currently blocked.
    *
-   * @circuitInfo k=9, rows=341
+   * @circuitInfo k=9, rows=305
    *
    * @param {Bytes<32>} account - The account to query.
    * @return {Boolean} - True if `account` is a member of the blocklist.
    */
   export circuit isBlocked(account: Bytes<32>): Boolean {
-    return _blocked.member(disclose(account)) &&
-           _blocked.lookup(disclose(account));
+    return _blocked.member(disclose(account));
   }
 
   // ---------------------------------------------------------------------------
@@ -57,7 +56,7 @@ module Blocklist {
    * @description Asserts that `account` is not blocked. The composing contract
    * decides when this gate applies.
    *
-   * @circuitInfo k=9, rows=344
+   * @circuitInfo k=9, rows=308
    *
    * Requirements:
    *
@@ -83,7 +82,7 @@ module Blocklist {
    * @return {[]} - Empty tuple.
    */
   export circuit _block(account: Bytes<32>): [] {
-    _blocked.insert(disclose(account), true);
+    _blocked.insert(disclose(account));
   }
 
   /**
@@ -95,6 +94,6 @@ module Blocklist {
    * @return {[]} - Empty tuple.
    */
   export circuit _unblock(account: Bytes<32>): [] {
-    _blocked.insert(disclose(account), false);
+    _blocked.remove(disclose(account));
   }
 }

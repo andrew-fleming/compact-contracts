@@ -52,6 +52,16 @@ describe('Blocklist', () => {
       blocklist.block(ALICE);
       expect(blocklist.isBlocked(ALICE)).toBe(true);
     });
+
+    it('clears with a single unblock after being blocked multiple times', () => {
+      blocklist.block(ALICE);
+      blocklist.block(ALICE);
+      expect(blocklist.isBlocked(ALICE)).toBe(true);
+      blocklist.unblock(ALICE);
+      // Membership is binary, not a counter: one unblock clears it regardless
+      // of how many times it was blocked.
+      expect(blocklist.isBlocked(ALICE)).toBe(false);
+    });
   });
 
   describe('unblock', () => {
@@ -106,7 +116,6 @@ describe('Blocklist', () => {
       sim.block(ALICE);
 
       expect(sim.getPublicState().Blocklist__blocked.member(ALICE)).toBe(true);
-      expect(sim.getPublicState().Blocklist__blocked.lookup(ALICE)).toBe(true);
     });
   });
 });
