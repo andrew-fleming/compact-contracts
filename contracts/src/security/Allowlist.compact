@@ -31,8 +31,8 @@ module Allowlist {
   // State
   // ---------------------------------------------------------------------------
 
-  /** @description Approved accounts. Absent or `false` means not allowed. */
-  export ledger _allowed: Map<Bytes<32>, Boolean>;
+  /** @description Approved accounts. Absent means not allowed. */
+  export ledger _allowed: Set<Bytes<32>>;
 
   // ---------------------------------------------------------------------------
   // Views
@@ -41,14 +41,13 @@ module Allowlist {
   /**
    * @description Returns whether `account` is currently allowed.
    *
-   * @circuitInfo k=9, rows=341
+   * @circuitInfo k=9, rows=305
    *
    * @param {Bytes<32>} account - The account to query.
    * @return {Boolean} - True if `account` is a member of the allowlist.
    */
   export circuit isAllowed(account: Bytes<32>): Boolean {
-    return _allowed.member(disclose(account)) &&
-           _allowed.lookup(disclose(account));
+    return _allowed.member(disclose(account));
   }
 
   // ---------------------------------------------------------------------------
@@ -59,7 +58,7 @@ module Allowlist {
    * @description Asserts that `account` is allowed. The composing contract
    * decides when this gate applies.
    *
-   * @circuitInfo k=9, rows=341
+   * @circuitInfo k=9, rows=305
    *
    * Requirements:
    *
@@ -85,7 +84,7 @@ module Allowlist {
    * @return {[]} - Empty tuple.
    */
   export circuit _allow(account: Bytes<32>): [] {
-    _allowed.insert(disclose(account), true);
+    _allowed.insert(disclose(account));
   }
 
   /**
@@ -97,6 +96,6 @@ module Allowlist {
    * @return {[]} - Empty tuple.
    */
   export circuit _disallow(account: Bytes<32>): [] {
-    _allowed.insert(disclose(account), false);
+    _allowed.remove(disclose(account));
   }
 }

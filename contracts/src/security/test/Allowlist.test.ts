@@ -52,6 +52,16 @@ describe('Allowlist', () => {
       allowlist.allow(ALICE);
       expect(allowlist.isAllowed(ALICE)).toBe(true);
     });
+
+    it('clears with a single disallow after being allowed multiple times', () => {
+      allowlist.allow(ALICE);
+      allowlist.allow(ALICE);
+      expect(allowlist.isAllowed(ALICE)).toBe(true);
+      allowlist.disallow(ALICE);
+      // Membership is binary, not a counter: one disallow clears it regardless
+      // of how many times it was allowed.
+      expect(allowlist.isAllowed(ALICE)).toBe(false);
+    });
   });
 
   describe('disallow', () => {
@@ -108,7 +118,6 @@ describe('Allowlist', () => {
       sim.allow(ALICE);
 
       expect(sim.getPublicState().Allowlist__allowed.member(ALICE)).toBe(true);
-      expect(sim.getPublicState().Allowlist__allowed.lookup(ALICE)).toBe(true);
     });
   });
 });
