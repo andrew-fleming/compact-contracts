@@ -1,6 +1,6 @@
 import {
-  type BaseSimulatorOptions,
   createSimulator,
+  type SimulatorOptions,
 } from '@openzeppelin/compact-simulator';
 import {
   ledger,
@@ -29,47 +29,49 @@ const BlocklistSimulatorBase = createSimulator<
   contractArgs: () => [],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => BlocklistWitnesses(),
+  artifactName: 'MockBlocklist',
 });
 
 /**
  * Blocklist Simulator
  */
 export class BlocklistSimulator extends BlocklistSimulatorBase {
-  constructor(
-    options: BaseSimulatorOptions<
+  static async create(
+    options: SimulatorOptions<
       BlocklistPrivateState,
       ReturnType<typeof BlocklistWitnesses>
     > = {},
-  ) {
-    super([], options);
+  ): Promise<BlocklistSimulator> {
+    // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
+    return super.create([], options) as Promise<BlocklistSimulator>;
   }
 
   /**
    * @description Returns whether `account` is currently blocked.
    * @returns True if `account` is a member of the blocklist.
    */
-  public isBlocked(account: Uint8Array): boolean {
+  public isBlocked(account: Uint8Array): Promise<boolean> {
     return this.circuits.impure.isBlocked(account);
   }
 
   /**
    * @description Asserts that `account` is not blocked.
    */
-  public assertNotBlocked(account: Uint8Array) {
-    this.circuits.impure.assertNotBlocked(account);
+  public assertNotBlocked(account: Uint8Array): Promise<[]> {
+    return this.circuits.impure.assertNotBlocked(account);
   }
 
   /**
    * @description Adds `account` to the blocklist.
    */
-  public block(account: Uint8Array) {
-    this.circuits.impure.block(account);
+  public block(account: Uint8Array): Promise<[]> {
+    return this.circuits.impure.block(account);
   }
 
   /**
    * @description Removes `account` from the blocklist.
    */
-  public unblock(account: Uint8Array) {
-    this.circuits.impure.unblock(account);
+  public unblock(account: Uint8Array): Promise<[]> {
+    return this.circuits.impure.unblock(account);
   }
 }
