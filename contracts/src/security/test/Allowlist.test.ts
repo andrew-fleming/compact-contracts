@@ -14,110 +14,114 @@ const BOB = account('BOB');
 let allowlist: AllowlistSimulator;
 
 describe('Allowlist', () => {
-  beforeEach(() => {
-    allowlist = new AllowlistSimulator();
+  beforeEach(async () => {
+    allowlist = await AllowlistSimulator.create();
   });
 
   describe('default state', () => {
-    it('is empty: no account is allowed', () => {
-      expect(allowlist.isAllowed(ALICE)).toBe(false);
-      expect(allowlist.isAllowed(BOB)).toBe(false);
+    it('is empty: no account is allowed', async () => {
+      expect(await allowlist.isAllowed(ALICE)).toBe(false);
+      expect(await allowlist.isAllowed(BOB)).toBe(false);
     });
 
-    it('assertAllowed throws for a non-member', () => {
-      expect(() => allowlist.assertAllowed(ALICE)).toThrow(
+    it('assertAllowed throws for a non-member', async () => {
+      await expect(allowlist.assertAllowed(ALICE)).rejects.toThrow(
         'Allowlist: account not allowed',
       );
     });
   });
 
   describe('allow', () => {
-    it('adds an account to the allowlist', () => {
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
+    it('adds an account to the allowlist', async () => {
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
     });
 
-    it('does not affect other accounts', () => {
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(BOB)).toBe(false);
+    it('does not affect other accounts', async () => {
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(BOB)).toBe(false);
     });
 
-    it('assertAllowed passes for a member', () => {
-      allowlist.allow(ALICE);
-      expect(() => allowlist.assertAllowed(ALICE)).not.toThrow();
+    it('assertAllowed passes for a member', async () => {
+      await allowlist.allow(ALICE);
+      await allowlist.assertAllowed(ALICE);
     });
 
-    it('is idempotent', () => {
-      allowlist.allow(ALICE);
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
+    it('is idempotent', async () => {
+      await allowlist.allow(ALICE);
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
     });
 
-    it('clears with a single disallow after being allowed multiple times', () => {
-      allowlist.allow(ALICE);
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
-      allowlist.disallow(ALICE);
+    it('clears with a single disallow after being allowed multiple times', async () => {
+      await allowlist.allow(ALICE);
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
+      await allowlist.disallow(ALICE);
       // Membership is binary, not a counter: one disallow clears it regardless
       // of how many times it was allowed.
-      expect(allowlist.isAllowed(ALICE)).toBe(false);
+      expect(await allowlist.isAllowed(ALICE)).toBe(false);
     });
   });
 
   describe('disallow', () => {
-    it('removes an account from the allowlist', () => {
-      allowlist.allow(ALICE);
-      allowlist.disallow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(false);
+    it('removes an account from the allowlist', async () => {
+      await allowlist.allow(ALICE);
+      await allowlist.disallow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(false);
     });
 
-    it('assertAllowed throws again after disallow', () => {
-      allowlist.allow(ALICE);
-      allowlist.disallow(ALICE);
-      expect(() => allowlist.assertAllowed(ALICE)).toThrow(
+    it('assertAllowed throws again after disallow', async () => {
+      await allowlist.allow(ALICE);
+      await allowlist.disallow(ALICE);
+      await expect(allowlist.assertAllowed(ALICE)).rejects.toThrow(
         'Allowlist: account not allowed',
       );
     });
 
-    it('is a no-op for a non-member', () => {
-      allowlist.disallow(BOB);
-      expect(allowlist.isAllowed(BOB)).toBe(false);
+    it('is a no-op for a non-member', async () => {
+      await allowlist.disallow(BOB);
+      expect(await allowlist.isAllowed(BOB)).toBe(false);
     });
   });
 
   describe('multiple operations', () => {
-    it('handles allow -> disallow -> allow', () => {
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
+    it('handles allow -> disallow -> allow', async () => {
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
 
-      allowlist.disallow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(false);
+      await allowlist.disallow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(false);
 
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
     });
 
-    it('tracks several accounts independently', () => {
-      allowlist.allow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(true);
-      expect(allowlist.isAllowed(BOB)).toBe(false);
+    it('tracks several accounts independently', async () => {
+      await allowlist.allow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(true);
+      expect(await allowlist.isAllowed(BOB)).toBe(false);
 
-      allowlist.allow(BOB);
-      allowlist.disallow(ALICE);
-      expect(allowlist.isAllowed(ALICE)).toBe(false);
-      expect(allowlist.isAllowed(BOB)).toBe(true);
+      await allowlist.allow(BOB);
+      await allowlist.disallow(ALICE);
+      expect(await allowlist.isAllowed(ALICE)).toBe(false);
+      expect(await allowlist.isAllowed(BOB)).toBe(true);
     });
   });
 
   describe('simulator wiring', () => {
-    it('exposes the public ledger via getPublicState', () => {
-      const sim = new AllowlistSimulator();
+    it('exposes the public ledger via getPublicState', async () => {
+      const sim = await AllowlistSimulator.create();
 
-      expect(sim.getPublicState().Allowlist__allowed.member(ALICE)).toBe(false);
+      expect(
+        (await sim.getPublicState()).Allowlist__allowed.member(ALICE),
+      ).toBe(false);
 
-      sim.allow(ALICE);
+      await sim.allow(ALICE);
 
-      expect(sim.getPublicState().Allowlist__allowed.member(ALICE)).toBe(true);
+      expect(
+        (await sim.getPublicState()).Allowlist__allowed.member(ALICE),
+      ).toBe(true);
     });
   });
 });
