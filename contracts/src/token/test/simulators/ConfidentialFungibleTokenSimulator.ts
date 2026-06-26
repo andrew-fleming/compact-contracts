@@ -1,6 +1,6 @@
 import {
-  type BaseSimulatorOptions,
   createSimulator,
+  type SimulatorOptions,
 } from '@openzeppelin/compact-simulator';
 import {
   type CFT_EscrowEntry,
@@ -36,28 +36,33 @@ const ConfidentialFungibleTokenSimulatorBase = createSimulator<
   contractArgs: (name, symbol, decimals) => [name, symbol, decimals],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => ConfidentialFungibleTokenWitnesses(),
+  artifactName: 'MockConfidentialFungibleToken',
 });
 
 /**
  * ConfidentialFungibleToken Simulator
  */
 export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleTokenSimulatorBase {
-  constructor(
+  static async create(
     name: string,
     symbol: string,
     decimals: bigint,
-    options: BaseSimulatorOptions<
+    options: SimulatorOptions<
       ConfidentialFungibleTokenPrivateState,
       ReturnType<typeof ConfidentialFungibleTokenWitnesses>
     > = {},
-  ) {
-    super([name, symbol, decimals], options);
+  ): Promise<ConfidentialFungibleTokenSimulator> {
+    // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
+    return super.create(
+      [name, symbol, decimals],
+      options,
+    ) as Promise<ConfidentialFungibleTokenSimulator>;
   }
   /**
    * @description Returns the token name.
    * @returns The token name.
    */
-  public name(): string {
+  public name(): Promise<string> {
     return this.circuits.impure.name();
   }
 
@@ -65,7 +70,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @description Returns the symbol of the token.
    * @returns The token name.
    */
-  public symbol(): string {
+  public symbol(): Promise<string> {
     return this.circuits.impure.symbol();
   }
 
@@ -73,7 +78,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @description Returns the number of decimals used to get its user representation.
    * @returns The account's token balance.
    */
-  public decimals(): bigint {
+  public decimals(): Promise<bigint> {
     return this.circuits.impure.decimals();
   }
 
@@ -81,7 +86,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @description Returns the value of tokens in existence.
    * @returns The total supply of tokens.
    */
-  public totalSupply(): bigint {
+  public totalSupply(): Promise<bigint> {
     return this.circuits.impure.totalSupply();
   }
 
@@ -90,7 +95,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param account The public key or contract address to query.
    * @returns The account's token balance.
    */
-  public balanceOf(account: Uint8Array): ElGamal_Ciphertext {
+  public balanceOf(account: Uint8Array): Promise<ElGamal_Ciphertext> {
     return this.circuits.impure.balanceOf(account);
   }
 
@@ -101,7 +106,10 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param spender The public key or contract address of spender.
    * @returns The `spender`'s allowance over `owner`'s tokens.
    */
-  public allowance(owner: Uint8Array, spender: Uint8Array): CFT_EscrowEntry {
+  public allowance(
+    owner: Uint8Array,
+    spender: Uint8Array,
+  ): Promise<CFT_EscrowEntry> {
     return this.circuits.impure.allowance(owner, spender);
   }
 
@@ -111,7 +119,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param to The recipient account id.
    * @param value The amount to transfer.
    */
-  public transfer(to: Uint8Array, value: bigint): Uint8Array {
+  public transfer(to: Uint8Array, value: bigint): Promise<Uint8Array> {
     return this.circuits.impure.transfer(to, value);
   }
 
@@ -126,7 +134,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
     fromAddress: Uint8Array,
     to: Uint8Array,
     value: bigint,
-  ): Uint8Array {
+  ): Promise<Uint8Array> {
     return this.circuits.impure.transferFrom(fromAddress, to, value);
   }
 
@@ -136,7 +144,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param spender The account id that may spend on behalf of the caller.
    * @param value The amount the `spender` may spend.
    */
-  public approve(spender: Uint8Array, value: bigint): Uint8Array {
+  public approve(spender: Uint8Array, value: bigint): Promise<Uint8Array> {
     return this.circuits.impure.approve(spender, value);
   }
 
@@ -146,8 +154,8 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param account The recipient of tokens minted.
    * @param value The amount of tokens minted.
    */
-  public _mint(account: Uint8Array, value: bigint) {
-    this.circuits.impure._mint(account, value);
+  public _mint(account: Uint8Array, value: bigint): Promise<[]> {
+    return this.circuits.impure._mint(account, value);
   }
 
   /**
@@ -156,23 +164,26 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param account The target owner of tokens to burn.
    * @param value The amount of tokens to burn.
    */
-  public _burn(value: bigint): Uint8Array {
+  public _burn(value: bigint): Promise<Uint8Array> {
     return this.circuits.impure._burn(value);
   }
 
-  public _burnFrom(fromAddress: Uint8Array, value: bigint): Uint8Array {
+  public _burnFrom(
+    fromAddress: Uint8Array,
+    value: bigint,
+  ): Promise<Uint8Array> {
     return this.circuits.impure._burnFrom(fromAddress, value);
   }
 
   public clearMemos() {
-    this.circuits.impure.clearMemos();
+    return this.circuits.impure.clearMemos();
   }
 
-  public register(): Uint8Array {
+  public register(): Promise<Uint8Array> {
     return this.circuits.impure.register();
   }
 
-  public isRegistered(account: Uint8Array): boolean {
+  public isRegistered(account: Uint8Array): Promise<boolean> {
     return this.circuits.impure.isRegistered(account);
   }
 
@@ -182,7 +193,7 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    * @param {Bytes<32>} secretKey - A 32-byte cryptographically secure random value.
    * @returns {Bytes<32>} accountId - The computed account identifier.
    */
-  public computeAccountId(secretKey: Uint8Array): Uint8Array {
+  public computeAccountId(secretKey: Uint8Array): Promise<Uint8Array> {
     return this.circuits.pure.computeAccountId(secretKey);
   }
 
@@ -192,12 +203,12 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * between different user identities or inject incorrect keys to test
      * failure paths.
      */
-    injectSecretKey: (
+    injectSecretKey: async (
       newSK: Uint8Array,
-    ): ConfidentialFungibleTokenPrivateState => {
-      const current = this.getPrivateState();
+    ): Promise<ConfidentialFungibleTokenPrivateState> => {
+      const current = await this.getPrivateState();
       const updated = { ...current, secretKey: newSK };
-      this.circuitContextManager.updatePrivateState(updated);
+      this.setPrivateState(updated);
       return updated;
     },
 
@@ -205,12 +216,12 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * @description Replaces EK in the private state. Used in tests to inject
      * a wrong EK and verify the decryption-consistency assertion catches it.
      */
-    injectEncryptionKey: (
+    injectEncryptionKey: async (
       newEK: Uint8Array,
-    ): ConfidentialFungibleTokenPrivateState => {
-      const current = this.getPrivateState();
+    ): Promise<ConfidentialFungibleTokenPrivateState> => {
+      const current = await this.getPrivateState();
       const updated = { ...current, encryptionKey: newEK };
-      this.circuitContextManager.updatePrivateState(updated);
+      this.setPrivateState(updated);
       return updated;
     },
 
@@ -219,18 +230,19 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * Used to switch between user identities mid-test (e.g., Alice -> Bob)
      * without leaving Alice's cached plaintexts in Bob's state.
      */
-    switchIdentity: (
+    switchIdentity: async (
       newSK: Uint8Array,
       newEK: Uint8Array,
-    ): ConfidentialFungibleTokenPrivateState => {
+    ): Promise<ConfidentialFungibleTokenPrivateState> => {
       const updated = {
         secretKey: newSK,
         encryptionKey: newEK,
         plaintextCache: new Map<string, bigint>(),
         randomnessSeed:
-          this.getPrivateState().randomnessSeed ?? DEFAULT_RANDOMNESS_SEED,
+          (await this.getPrivateState()).randomnessSeed ??
+          DEFAULT_RANDOMNESS_SEED,
       };
-      this.circuitContextManager.updatePrivateState(updated);
+      this.setPrivateState(updated);
       return updated;
     },
 
@@ -239,19 +251,19 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * Use to vary randomness between transactions (e.g. to avoid producing
      * identical ciphertexts when repeating the same operation).
      */
-    setRandomnessSeed: (
+    setRandomnessSeed: async (
       seed: Uint8Array,
-    ): ConfidentialFungibleTokenPrivateState => {
-      const updated = { ...this.getPrivateState(), randomnessSeed: seed };
-      this.circuitContextManager.updatePrivateState(updated);
+    ): Promise<ConfidentialFungibleTokenPrivateState> => {
+      const updated = { ...(await this.getPrivateState()), randomnessSeed: seed };
+      this.setPrivateState(updated);
       return updated;
     },
 
     /**
      * @description Returns the current SK.
      */
-    getCurrentSecretKey: (): Uint8Array => {
-      const sk = this.getPrivateState().secretKey;
+    getCurrentSecretKey: async (): Promise<Uint8Array> => {
+      const sk = (await this.getPrivateState()).secretKey;
       if (typeof sk === 'undefined') {
         throw new Error('Missing secret key');
       }
@@ -261,8 +273,8 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
     /**
      * @description Returns the current EK.
      */
-    getCurrentEncryptionKey: (): Uint8Array => {
-      const ek = this.getPrivateState().encryptionKey;
+    getCurrentEncryptionKey: async (): Promise<Uint8Array> => {
+      const ek = (await this.getPrivateState()).encryptionKey;
       if (typeof ek === 'undefined') {
         throw new Error('Missing encryption key');
       }
@@ -275,17 +287,17 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * ciphertext, since the wallet would normally do this automatically as
      * part of constructing the transaction.
      */
-    cachePlaintext: (
+    cachePlaintext: async (
       ct: ElGamal_Ciphertext,
       plaintext: bigint,
-    ): ConfidentialFungibleTokenPrivateState => {
-      const current = this.getPrivateState();
+    ): Promise<ConfidentialFungibleTokenPrivateState> => {
+      const current = await this.getPrivateState();
       const updated = ConfidentialFungibleTokenPrivateState.cachePlaintext(
         current,
         ct,
         plaintext,
       );
-      this.circuitContextManager.updatePrivateState(updated);
+      this.setPrivateState(updated);
       return updated;
     },
 
@@ -293,9 +305,11 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * @description Looks up a cached plaintext by ciphertext. Returns
      * undefined if not cached.
      */
-    lookupPlaintext: (ct: ElGamal_Ciphertext): bigint | undefined => {
+    lookupPlaintext: async (
+      ct: ElGamal_Ciphertext,
+    ): Promise<bigint | undefined> => {
       return ConfidentialFungibleTokenPrivateState.lookupPlaintext(
-        this.getPrivateState(),
+        await this.getPrivateState(),
         ct,
       );
     },
@@ -304,18 +318,18 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * @description Returns the entire plaintext cache. Useful for assertions
      * about cache contents in tests.
      */
-    getCache: (): Map<string, bigint> => {
-      return new Map(this.getPrivateState().plaintextCache);
+    getCache: async (): Promise<Map<string, bigint>> => {
+      return new Map((await this.getPrivateState()).plaintextCache);
     },
 
     /**
      * @description Clears the plaintext cache without changing SK/EK. Used in
      * tests that simulate cache loss while preserving identity.
      */
-    clearCache: (): ConfidentialFungibleTokenPrivateState => {
-      const current = this.getPrivateState();
+    clearCache: async (): Promise<ConfidentialFungibleTokenPrivateState> => {
+      const current = await this.getPrivateState();
       const updated = { ...current, plaintextCache: new Map<string, bigint>() };
-      this.circuitContextManager.updatePrivateState(updated);
+      this.setPrivateState(updated);
       return updated;
     },
 
@@ -323,8 +337,8 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
      * @description Returns the accountId derived from the current SK. Wraps
      * the contract's pure `computeAccountId` for convenience in tests.
      */
-    getCurrentAccountId: (): Uint8Array => {
-      const sk = this.getPrivateState().secretKey;
+    getCurrentAccountId: async (): Promise<Uint8Array> => {
+      const sk = (await this.getPrivateState()).secretKey;
       if (typeof sk === 'undefined') {
         throw new Error('Missing secret key');
       }
