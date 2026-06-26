@@ -536,7 +536,7 @@ module ConfidentialFungibleToken {
    * credits `to`, and pushes an encrypted memo to `to`. The amount is hidden;
    * the (sender, recipient) pair is public.
    *
-   * @circuitInfo k=15, rows=25858
+   * @circuitInfo k=15, rows=27565
    *
    * @notice Returns the caller's (sender's) `accountId` for caller-side gating.
    * The sender is derived from the same authentication `_debit` performs, so the
@@ -574,7 +574,7 @@ module ConfidentialFungibleToken {
    * refunds any prior escrow, so allowances replace rather than stack. The cap
    * is not public.
    *
-   * @circuitInfo k=16, rows=36115
+   * @circuitInfo k=16, rows=38397
    *
    * @notice Returns the caller's (approver's) `accountId` for caller-side gating.
    *
@@ -644,7 +644,7 @@ module ConfidentialFungibleToken {
    * caller via `approve`) and credits it to `to`, reducing both escrow copies by
    * `value`. The amount is hidden.
    *
-   * @circuitInfo k=15, rows=32736
+   * @circuitInfo k=16, rows=35147
    *
    * @notice Returns the caller's (spender's) `accountId` for caller-side gating.
    *
@@ -693,7 +693,7 @@ module ConfidentialFungibleToken {
    * increases `totalSupply` by `value`. The minted amount is disclosed via the
    * supply delta; intended to be gated to an issuer by the composing contract.
    *
-   * @circuitInfo k=14, rows=12185
+   * @circuitInfo k=14, rows=13323
    *
    * Requirements:
    *
@@ -725,7 +725,7 @@ module ConfidentialFungibleToken {
    * @description Burns `value` from the caller's own balance and decreases
    * `totalSupply` by `value`. The burned amount is disclosed via the supply delta.
    *
-   * @circuitInfo k=14, rows=14150
+   * @circuitInfo k=14, rows=14719
    *
    * @notice Returns the caller's `accountId` (the account burned from).
    *
@@ -753,7 +753,7 @@ module ConfidentialFungibleToken {
    * `approve`. Mirrors `transferFrom` exactly, except the spent value is removed
    * from `totalSupply` instead of credited to a recipient.
    *
-   * @circuitInfo k=15, rows=21174
+   * @circuitInfo k=15, rows=22312
    *
    * @notice Use case: redemption flows where a user pre-authorizes an issuer to
    * burn from their account in exchange for off-chain settlement. Returns the
