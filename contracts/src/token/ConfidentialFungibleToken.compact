@@ -1,4 +1,8 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (token/ConfidentialFungibleToken.compact)
+
 pragma language_version >= 0.23.0;
+
 /**
  * @module ConfidentialFungibleToken
  * @description An account-based confidential fungible token module.
