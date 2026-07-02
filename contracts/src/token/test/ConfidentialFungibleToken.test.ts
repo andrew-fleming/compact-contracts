@@ -666,6 +666,44 @@ describe('ConfidentialFungibleToken: escrow allowance', () => {
     expect(await cft.totalSupply()).toBe(75n);
   });
 
+  it('transferFrom pushes a memo to the recipient', async () => {
+    await approveBob(100n, 40n);
+
+    await cft.privateState.switchIdentity(BOB.secretKey, BOB.encryptionKey);
+    await cft.privateState.cachePlaintext(
+      (await cft.allowance(ALICE.accountId, BOB.accountId)).spenderCt,
+      40n,
+    );
+
+    await cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 25n);
+
+    const charlieMemos = (await cft.getPublicState()).CFT__memos.lookup(
+      CHARLIE.accountId,
+    );
+    expect(charlieMemos.length()).toBe(1n);
+  });
+
+  it('reduces the allowance by the spent amount on a partial transferFrom', async () => {
+    await approveBob(100n, 40n);
+
+    await cft.privateState.switchIdentity(BOB.secretKey, BOB.encryptionKey);
+    let escrow = await cft.allowance(ALICE.accountId, BOB.accountId);
+    await cft.privateState.cachePlaintext(escrow.spenderCt, 40n);
+
+    await cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 25n);
+
+    // Remaining allowance is 15: cache the reduced spender copy.
+    escrow = await cft.allowance(ALICE.accountId, BOB.accountId);
+    await cft.privateState.cachePlaintext(escrow.spenderCt, 15n);
+
+    // Spending 16 (over the remaining 15) fails; exactly 15 succeeds.
+    await expect(
+      cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 16n),
+    ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');
+    await cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 15n);
+    expect(await cft.totalSupply()).toBe(100n);
+  });
+
   it('rejects transferFrom with no escrow', async () => {
     await registerAll();
     // Bob never received an approval from Alice.
@@ -819,11 +857,15 @@ describe('ConfidentialFungibleToken: metadata & views', () => {
     expect(await cft.decimals()).toBe(DECIMALS);
   });
 
-  it('balanceOf returns the default ciphertext for an unregistered account', async () => {
-    // Sentinel value (no entry); identical for any unregistered account.
-    expect(await cft.balanceOf(ALICE.accountId)).toEqual(
-      await cft.balanceOf(BOB.accountId),
-    );
+  it('balanceOf returns Enc(0) for an unregistered account', async () => {
+    // Unregistered accounts hold zero: balanceOf returns a well-formed Enc(0)
+    // (identity, identity) — identical for any unregistered account and
+    // matching a registered account's fresh balance.
+    const bal = await cft.balanceOf(ALICE.accountId);
+    const identity = identityPoint();
+    expect(bal.c1).toEqual(identity);
+    expect(bal.c2).toEqual(identity);
+    expect(bal).toEqual(await cft.balanceOf(BOB.accountId));
   });
 
   it('allowance returns the default entry when no escrow exists', async () => {

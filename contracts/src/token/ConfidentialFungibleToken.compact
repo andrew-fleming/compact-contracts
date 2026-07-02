@@ -331,7 +331,7 @@ module ConfidentialFungibleToken {
    * ciphertext if the account is unregistered. The amount is encrypted; only the
    * account (or an authorized viewer) can decrypt it.
    *
-   * @circuitInfo k=9, rows=437
+   * @circuitInfo k=10, rows=989
    *
    * Requirements:
    *
@@ -343,7 +343,10 @@ module ConfidentialFungibleToken {
   export circuit balanceOf(account: Bytes<32>): ElGamal_Ciphertext {
     assertInitialized();
     if (!_balances.member(disclose(account))) {
-      return default<ElGamal_Ciphertext>;
+      // Unregistered accounts hold zero. Return a well-formed Enc(0) rather than
+      // `default<ElGamal_Ciphertext>`, whose zeroed points are not guaranteed to
+      // be valid curve points; this matches a registered account's fresh balance.
+      return ElGamal_encryptZero();
     }
     return _balances.lookup(disclose(account));
   }
@@ -729,7 +732,7 @@ module ConfidentialFungibleToken {
    * @description Burns `value` from the caller's own balance and decreases
    * `totalSupply` by `value`. The burned amount is disclosed via the supply delta.
    *
-   * @circuitInfo k=14, rows=14719
+   * @circuitInfo k=14, rows=14761
    *
    * @notice Returns the caller's `accountId` (the account burned from).
    *
@@ -747,6 +750,8 @@ module ConfidentialFungibleToken {
     _assertValueInBound(value);
 
     const accountId = _debit(value);
+    assert(_totalSupply >= value,
+           "ConfidentialFungibleToken: supply underflow");
     _totalSupply = disclose(_totalSupply - value as Uint<128>);
     return accountId;
   }
@@ -757,7 +762,7 @@ module ConfidentialFungibleToken {
    * `approve`. Mirrors `transferFrom` exactly, except the spent value is removed
    * from `totalSupply` instead of credited to a recipient.
    *
-   * @circuitInfo k=15, rows=22312
+   * @circuitInfo k=15, rows=22354
    *
    * @notice Use case: redemption flows where a user pre-authorizes an issuer to
    * burn from their account in exchange for off-chain settlement. Returns the
@@ -782,6 +787,8 @@ module ConfidentialFungibleToken {
     _assertValueInBound(value);
 
     const spenderId = _spendEscrow(fromAddress, value);
+    assert(_totalSupply >= value,
+           "ConfidentialFungibleToken: supply underflow");
     _totalSupply = disclose(_totalSupply - value as Uint<128>);
     return spenderId;
   }
