@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (crypto/EcdhMask.compact)
+
+pragma language_version >= 0.23.0;
+
+/**
+ * @module EcdhMask
+ * @description Stateless ECDH hybrid encryption of a single field element to a
+ * Jubjub public key. Delivers a value to whoever holds the secret behind a
+ * Jubjub public key WITHOUT encoding it in the exponent, so recovery needs no
+ * discrete-log search and the value is unbounded within `Uint<128>`. This is the
+ * direct-decrypt counterpart to the homomorphic `crypto/ElGamal`: use ElGamal to
+ * accumulate ciphertexts, use this to hand a recipient the plaintext.
+ *
+ * Construction (recipient key `pk = g^ek`, ephemeral scalar `e` fresh per call):
+ *   E    = g^e                      (ephemeral public key)
+ *   S    = pk^e = g^{ek*e}          (ECDH shared secret point)
+ *   mask = KDF(S)                   (domain-separated Field, see `kdf`)
+ *   ct   = value + mask             (field one-time-pad)
+ * Recipient recovers: S = E^ek, mask = KDF(S), value = ct - mask.
+ *
+ * @dev Freshness precondition (CRITICAL). `e` MUST be unique per call to the same
+ * recipient, even across circuit invocations that reuse a randomness seed. The
+ * mask is a one-time pad: a repeated `e` repeats `S` and `mask`, and reusing a
+ * pad is catastrophic (subtracting two ciphertexts recovers both values). The
+ * caller supplies `e` and is responsible for its freshness, e.g. by binding a
+ * per-recipient-unique nonce (a monotonic index) into the randomness expansion.
+ * This is stronger than exponential ElGamal's requirement (there, reuse merely
+ * leaks plaintext equality); do not treat `e` as "any randomness."
+ *
+ * @dev Integrity. The pad is malleable and NO authentication is added here. This
+ * is safe in the intended on-chain use, where the ciphertext is computed
+ * in-circuit from a value the same circuit commits to elsewhere (a producer
+ * cannot desync the two) and is immutable once written (no in-transit attacker).
+ * A corrupted ciphertext could only fail the recipient's own later proof, never
+ * enable theft. Consumers with a different threat model (mutable storage,
+ * in-transit tampering) MUST add their own authentication.
+ *
+ * @dev No ledger state, no witnesses. Every circuit is pure and takes its keys,
+ * value, and randomness as explicit arguments. `decrypt` is exposed as a pure
+ * circuit for wallet/off-chain use (recovering a received value needs no proof);
+ * the on-chain path only ever calls `encrypt`.
+ */
+module EcdhMask {
+  import CompactStandardLibrary;
+
+  /**
+   * @description An ECDH one-time-pad ciphertext: the ephemeral public key and
+   * the field-masked value.
+   */
+  export struct Ciphertext {
+    ephemeralPk: JubjubPoint;
+    ct: Field;
+  }
+
+  /**
+   * @description Derives the field mask from the ECDH shared secret point,
+   * domain-separated by a caller-supplied `domain` tag. Hashes the point to
+   * `Bytes<32>`, then re-hashes it with the domain tag and truncates into the
+   * field via `degradeToTransient`. The consumer chooses `domain` (so this
+   * module is not tied to any one protocol) and MUST use the same value on
+   * encrypt and decrypt.
+   *
+   * @dev Uses `persistentHash` deliberately: the recipient reproduces this mask
+   * to decrypt, possibly across a platform upgrade, so it must be upgrade-stable.
+   *
+   * @param sShared - The ECDH shared secret point (`pk^e` for the sender,
+   *                  `E^ek` for the recipient; equal by construction).
+   * @param domain - The consumer's domain-separation tag.
+   * @return The field mask.
+   */
+  export pure circuit kdf(sShared: JubjubPoint, domain: Bytes<32>): Field {
+    const pointHash = persistentHash<JubjubPoint>(sShared);
+    return degradeToTransient(
+      persistentHash<Vector<2, Bytes<32>>>([pointHash, domain])
+    );
+  }
+
+  /**
+   * @description Encrypts `value` to `recipientPk` under ephemeral scalar `e`.
+   *
+   * @notice `e` MUST be fresh per call (see the module freshness precondition).
+   *
+   * @param recipientPk - The recipient's Jubjub public key (`g^ek`).
+   * @param value - The value to deliver (any `Uint<128>`; no `2^48` bound).
+   * @param e - A fresh ephemeral scalar.
+   * @param domain - The consumer's domain-separation tag (must match decrypt).
+   * @return The ciphertext `{ ephemeralPk = g^e, ct = value + KDF(pk^e) }`.
+   */
+  export pure circuit encrypt(
+                        recipientPk: JubjubPoint,
+                        value: Uint<128>,
+                        e: Field,
+                        domain: Bytes<32>
+                        ): Ciphertext {
+    const ephemeralPk = ecMulGenerator(e);
+    const sShared = ecMul(recipientPk, e);
+    const mask = kdf(sShared, domain);
+    return Ciphertext { ephemeralPk: ephemeralPk, ct: (value as Field) + mask };
+  }
+
+  /**
+   * @description Recovers the value from a ciphertext using the recipient's
+   * secret scalar. Pure and off-chain (no proof needed to read a received value).
+   *
+   * @param ciphertext - The ciphertext to decrypt.
+   * @param ekScalar - The recipient's secret scalar (`secretToScalar(EK)`).
+   * @param domain - The consumer's domain-separation tag (must match encrypt).
+   * @return The recovered value as a `Field` (equal to the original `value`,
+   *         which is `< 2^128`).
+   */
+  export pure circuit decrypt(ciphertext: Ciphertext, ekScalar: Field, domain: Bytes<32>): Field {
+    const sShared = ecMul(ciphertext.ephemeralPk, ekScalar);
+    const mask = kdf(sShared, domain);
+    return ciphertext.ct - mask;
+  }
+}

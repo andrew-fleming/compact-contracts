@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 // post-refund balance in `approve`) so its plaintext can be cached ahead of the
 // witness query. They are pure (no proof), so this is cheap.
 import { pureCircuits as elgamal } from '../../../artifacts/MockElGamal/contract/index.js';
+import { pureCircuits as ecdhMask } from '../../../artifacts/MockEcdhMask/contract/index.js';
 import { ConfidentialFungibleTokenSimulator } from './simulators/ConfidentialFungibleTokenSimulator.js';
 import { DEFAULT_RANDOMNESS_SEED } from './witnesses/ConfidentialFungibleTokenWitnesses.js';
 
@@ -345,19 +346,6 @@ describe('ConfidentialFungibleToken: registration', () => {
         await expect(cft._mint(ALICE.accountId, 100n)).rejects.toThrow();
       });
 
-      it('should fail when value exceeds MAX_TRANSFER_VALUE', async () => {
-        await cft.privateState.switchIdentity(
-          ALICE.secretKey,
-          ALICE.encryptionKey,
-        );
-        await cft.register();
-
-        const overBound = (1n << 48n) + 1n;
-        await expect(cft._mint(ALICE.accountId, overBound)).rejects.toThrow(
-          'ConfidentialFungibleToken: value exceeds bound',
-        );
-      });
-
       it('should treat a zero-value mint as a no-op (no semantic restriction)', async () => {
         // The module does not prohibit value=0; _mint(account, 0) credits 0
         // and increments totalSupply by 0 (both no-ops). Documented explicitly.
@@ -439,19 +427,6 @@ describe('ConfidentialFungibleToken: registration', () => {
         // Alice does not register.
 
         await expect(cft._burn(50n)).rejects.toThrow();
-      });
-
-      it('should fail when value exceeds MAX_TRANSFER_VALUE', async () => {
-        await cft.privateState.switchIdentity(
-          ALICE.secretKey,
-          ALICE.encryptionKey,
-        );
-        await cft.register();
-
-        const overBound = (1n << 48n) + 1n;
-        await expect(cft._burn(overBound)).rejects.toThrow(
-          'ConfidentialFungibleToken: value exceeds bound',
-        );
       });
 
       it('should fail with a hostile plaintext witness', async () => {
@@ -582,12 +557,6 @@ describe('ConfidentialFungibleToken: transfer', () => {
     );
   });
 
-  it('rejects a transfer above MAX_TRANSFER_VALUE', async () => {
-    await fundAlice(100n);
-    await expect(
-      cft.transfer(BOB.accountId, (1n << 48n) + 1n),
-    ).rejects.toThrow('ConfidentialFungibleToken: value exceeds bound');
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -762,12 +731,6 @@ describe('ConfidentialFungibleToken: escrow allowance', () => {
     );
   });
 
-  it('rejects approve above MAX_TRANSFER_VALUE', async () => {
-    await approveBob(100n, 40n); // registers all + leaves Alice active with cache
-    await expect(
-      cft.approve(BOB.accountId, (1n << 48n) + 1n),
-    ).rejects.toThrow('ConfidentialFungibleToken: value exceeds bound');
-  });
 
   it('rejects transferFrom to the zero account', async () => {
     await approveBob(100n, 40n);
@@ -918,6 +881,70 @@ describe('ConfidentialFungibleToken: memos', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Memo value delivery (ECDH one-time pad; no discrete-log recovery)
+// ---------------------------------------------------------------------------
+
+describe('ConfidentialFungibleToken: memo value delivery', () => {
+  beforeEach(async () => {
+    cft = await ConfidentialFungibleTokenSimulator.create(
+      NAME,
+      SYMBOL,
+      DECIMALS,
+    );
+  });
+
+  it('recipient recovers the transferred value from the on-chain memo', async () => {
+    for (const u of [ALICE, BOB]) {
+      await cft.privateState.switchIdentity(u.secretKey, u.encryptionKey);
+      await cft.register();
+    }
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft._mint(ALICE.accountId, 1000n);
+    await cft.privateState.cachePlaintext(
+      await cft.balanceOf(ALICE.accountId),
+      1000n,
+    );
+    await cft.transfer(BOB.accountId, 250n);
+
+    // Bob reads his newest on-chain memo (pushFront => index 0) and decrypts it
+    // with his EK scalar — recovering the value directly, no BSGS.
+    const memoList = (await cft.getPublicState()).CFT__memos.lookup(
+      BOB.accountId,
+    );
+    const memos = [...memoList];
+    expect(memos.length).toBe(1);
+
+    const bobEk = elgamal.secretToScalar(BOB.encryptionKey);
+    expect(
+      ecdhMask.decrypt(memos[0], bobEk, padTag('OZ_CFT_ecdh_memo_v1')),
+    ).toBe(250n);
+  });
+
+  it('delivers a value far above 2^48 via the memo (no discrete-log bound)', async () => {
+    for (const u of [ALICE, BOB]) {
+      await cft.privateState.switchIdentity(u.secretKey, u.encryptionKey);
+      await cft.register();
+    }
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    const big = 1n << 80n;
+    await cft._mint(ALICE.accountId, big);
+    await cft.privateState.cachePlaintext(
+      await cft.balanceOf(ALICE.accountId),
+      big,
+    );
+    await cft.transfer(BOB.accountId, big);
+
+    const memoList = (await cft.getPublicState()).CFT__memos.lookup(
+      BOB.accountId,
+    );
+    const bobEk = elgamal.secretToScalar(BOB.encryptionKey);
+    expect(
+      ecdhMask.decrypt([...memoList][0], bobEk, padTag('OZ_CFT_ecdh_memo_v1')),
+    ).toBe(big);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Per-operation value bound (boundary)
 // ---------------------------------------------------------------------------
 
@@ -930,21 +957,23 @@ describe('ConfidentialFungibleToken: value bound', () => {
     );
   });
 
-  it('accepts a value exactly at MAX_TRANSFER_VALUE (2^48 - 1)', async () => {
-    const MAX = (1n << 48n) - 1n;
+  it('accepts values above the former 2^48 cap (ECDH memo removes the bound)', async () => {
     await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
     await cft.register();
 
-    await cft._mint(ALICE.accountId, MAX);
-    expect(await cft.totalSupply()).toBe(MAX);
+    const large = 1n << 100n; // far above the old 2^48 cap
+    await cft._mint(ALICE.accountId, large);
+    expect(await cft.totalSupply()).toBe(large);
   });
 
-  it('rejects 2^48 (one above the bound; undecodable by the wallet table)', async () => {
+  it('still rejects a mint that overflows totalSupply', async () => {
     await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
     await cft.register();
 
-    await expect(cft._mint(ALICE.accountId, 1n << 48n)).rejects.toThrow(
-      'ConfidentialFungibleToken: value exceeds bound',
+    const MAX_UINT128 = (1n << 128n) - 1n;
+    await cft._mint(ALICE.accountId, MAX_UINT128);
+    await expect(cft._mint(ALICE.accountId, 1n)).rejects.toThrow(
+      'ConfidentialFungibleToken: overflow',
     );
   });
 });
