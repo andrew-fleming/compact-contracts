@@ -881,6 +881,113 @@ describe('ConfidentialFungibleToken: memos', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Dual-balance grief fix (spendable vs pending; owner-only sweep)
+// ---------------------------------------------------------------------------
+
+describe('ConfidentialFungibleToken: dual-balance grief fix', () => {
+  beforeEach(async () => {
+    cft = await ConfidentialFungibleTokenSimulator.create(
+      NAME,
+      SYMBOL,
+      DECIMALS,
+    );
+  });
+
+  const registerBoth = async () => {
+    for (const u of [ALICE, BOB]) {
+      await cft.privateState.switchIdentity(u.secretKey, u.encryptionKey);
+      await cft.register();
+    }
+  };
+
+  it('credits land in pending, and only sweep() moves them into spendable', async () => {
+    const id = identityPoint();
+    await registerBoth();
+
+    // Mint to Alice: value lands in PENDING; spendable stays Enc(0).
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft._mint(ALICE.accountId, 1000n);
+    expect((await cft.balanceOf(ALICE.accountId)).c1).toEqual(id); // spendable Enc(0)
+    expect((await cft.pendingOf(ALICE.accountId)).c1).not.toEqual(id); // pending funded
+
+    // Alice sweeps: pending -> spendable, pending reset to Enc(0).
+    await cft.sweep();
+    expect((await cft.pendingOf(ALICE.accountId)).c1).toEqual(id); // pending reset
+    expect((await cft.balanceOf(ALICE.accountId)).c1).not.toEqual(id); // spendable funded
+
+    // The swept balance is genuinely spendable: a transfer whose _debit asserts
+    // the cached plaintext decrypts the spendable ciphertext must succeed.
+    await cft.privateState.cachePlaintext(
+      await cft.balanceOf(ALICE.accountId),
+      1000n,
+    );
+    await cft.transfer(BOB.accountId, 400n);
+
+    // Bob's received value is in PENDING, not spendable.
+    expect((await cft.balanceOf(BOB.accountId)).c1).toEqual(id);
+    expect((await cft.pendingOf(BOB.accountId)).c1).not.toEqual(id);
+
+    // Bob sweeps and can spend it (a successful transfer back proves it).
+    await cft.privateState.switchIdentity(BOB.secretKey, BOB.encryptionKey);
+    await cft.sweep();
+    expect((await cft.pendingOf(BOB.accountId)).c1).toEqual(id);
+    await cft.privateState.cachePlaintext(
+      await cft.balanceOf(BOB.accountId),
+      400n,
+    );
+    await cft.transfer(ALICE.accountId, 400n); // succeeds => spendable
+  });
+
+  it('an incoming credit never changes the victim’s spendable ciphertext', async () => {
+    // The grief-resistance invariant: a third party pushing value to you lands
+    // in pending, so your spendable ciphertext is byte-identical and any
+    // in-flight spend proof against it stays valid.
+    await registerBoth();
+
+    // Fund Alice's spendable, and fund Bob so he can push a dust credit.
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft._mint(ALICE.accountId, 500n);
+    await cft.sweep();
+    const spendableBefore = await cft.balanceOf(ALICE.accountId);
+
+    await cft.privateState.switchIdentity(BOB.secretKey, BOB.encryptionKey);
+    await cft._mint(BOB.accountId, 10n);
+    await cft.sweep();
+    await cft.privateState.cachePlaintext(await cft.balanceOf(BOB.accountId), 10n);
+
+    // Bob spams a dust credit to Alice.
+    await cft.transfer(ALICE.accountId, 1n);
+
+    // Alice's spendable is unchanged; the dust sits in her pending.
+    const spendableAfter = await cft.balanceOf(ALICE.accountId);
+    expect(spendableAfter).toEqual(spendableBefore);
+    expect((await cft.pendingOf(ALICE.accountId)).c1).not.toEqual(
+      identityPoint(),
+    );
+  });
+
+  it('_move conserves: moves value without touching supply', async () => {
+    const id = identityPoint();
+    await registerBoth();
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft._mint(ALICE.accountId, 1000n);
+    await cft.sweep();
+    await cft.privateState.cachePlaintext(
+      await cft.balanceOf(ALICE.accountId),
+      1000n,
+    );
+    const supplyBefore = await cft.totalSupply();
+
+    await cft._move(BOB.accountId, 400n);
+
+    // Conserving primitive: total supply is untouched, value simply moved.
+    expect(await cft.totalSupply()).toBe(supplyBefore);
+    expect((await cft.balanceOf(BOB.accountId)).c1).toEqual(id); // spendable still 0
+    expect((await cft.pendingOf(BOB.accountId)).c1).not.toEqual(id); // pending funded
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Memo value delivery (ECDH one-time pad; no discrete-log recovery)
 // ---------------------------------------------------------------------------
 

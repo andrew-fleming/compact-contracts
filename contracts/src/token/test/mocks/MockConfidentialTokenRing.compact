@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+import "../../ConfidentialTokenRing" prefix CftRing_;
+import "../../../crypto/ElGamal" prefix ElGamal_;
+
+export circuit register(): [] {
+  return CftRing_register();
+}
+
+export circuit mint(account: Bytes<32>, value: Uint<128>): [] {
+  return CftRing_mint(account, value);
+}
+
+export circuit ringTransfer(ring: Vector<4, Bytes<32>>, to: Bytes<32>): [] {
+  return CftRing_ringTransfer(ring, to);
+}
+
+export circuit balanceOf(account: Bytes<32>): ElGamal_Ciphertext {
+  return CftRing_balanceOf(account);
+}

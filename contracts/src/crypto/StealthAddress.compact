@@ -1,0 +1,156 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (crypto/StealthAddress.compact)
+
+pragma language_version >= 0.23.0;
+
+/**
+ * @module StealthAddress
+ * @description EXPLORATORY tier-2 primitive: dual-key stealth addresses over Jubjub.
+ * A recipient publishes a meta-address (a scan key and a spend key). A sender
+ * derives a fresh ONE-TIME address per payment that is unlinkable to the
+ * meta-address, so the recipient of a payment is hidden. Only the scan secret can
+ * DETECT a payment; only the spend secret can SPEND it.
+ *
+ * Keys (recipient): scan secret `s`, scan pubkey `S = g^s`; spend secret `b`,
+ * spend pubkey `B = g^b`.
+ *
+ * Construction (sender picks a fresh ephemeral scalar `r`):
+ *   E   = g^r                         (ephemeral, published as the announcement)
+ *   c   = H(S^r) = H(g^{sr})          (shared-secret scalar, see `sharedScalar`)
+ *   P   = g^c * B                     (the one-time address pubkey)
+ * Recipient detects with the scan secret: c = H(E^s) = H(g^{rs}), recompute
+ * `g^c * B` and match. Recipient spends with the one-time secret `p = c + b`,
+ * since `g^p = g^c * g^b = g^c * B = P`.
+ *
+ * @dev SCALAR-REDUCTION CAVEAT (the tier-2 lesson). The spend scalar `p = c + b`
+ * is a Field addition, but `ecMulGenerator` requires a valid Jubjub scalar
+ * (`< l`, the subgroup order). `c` is a `degradeToTransient` output (`< 2^248`)
+ * and `b < l ~= 2^252`, so `c + b` can EXCEED `l` and fault `ecMulGenerator`.
+ * Compact 0.31 has no mod-`l` reduction. `spendPkReduced` sidesteps this with a
+ * witness-assisted reduction: the caller supplies `(q, p)` with `p = (c + b) mod l`
+ * and quotient `q`, and the circuit verifies `q in {0,1}` and `q*l + p == c + b`
+ * (exact in-field, since both sides are `< 2l < r_BLS`), with `ecMulGenerator(p)`
+ * enforcing `p < l`. So an arbitrary spend key works. The unreduced `spendScalar`
+ * / `spendPk` remain only for the modest-key case.
+ *
+ * @dev No ledger state, no witnesses. Pure circuits; keys/randomness are explicit
+ * arguments. `scan`/`spendScalar` are for wallet/off-chain use.
+ */
+module StealthAddress {
+  import CompactStandardLibrary;
+
+  /**
+   * @description A recipient's published meta-address: the scan and spend pubkeys.
+   */
+  export struct MetaAddress {
+    scanPk: JubjubPoint;
+    spendPk: JubjubPoint;
+  }
+
+  /**
+   * @description A derived one-time address and its announcement ephemeral.
+   */
+  export struct OneTime {
+    oneTimePk: JubjubPoint;
+    ephemeral: JubjubPoint;
+  }
+
+  /**
+   * @description Hashes the ECDH shared secret point into a Jubjub scalar.
+   * @param shared - The shared secret point (`S^r` for the sender, `E^s` for the
+   *                 recipient; equal by construction).
+   * @return The shared-secret scalar `c`.
+   */
+  export pure circuit sharedScalar(shared: JubjubPoint): Field {
+    return degradeToTransient(persistentHash<JubjubPoint>(shared));
+  }
+
+  /**
+   * @description Sender-side: derive the one-time address for `meta` under a fresh
+   * ephemeral scalar `r`.
+   * @param meta - The recipient's meta-address.
+   * @param r - A fresh ephemeral scalar.
+   * @return The one-time address `{ oneTimePk = g^c * B, ephemeral = g^r }`.
+   */
+  export pure circuit deriveOneTime(meta: MetaAddress, r: Field): OneTime {
+    const ephemeral = ecMulGenerator(r);
+    const shared = ecMul(meta.scanPk, r);
+    const c = sharedScalar(shared);
+    const oneTimePk = ecAdd(ecMulGenerator(c), meta.spendPk);
+    return OneTime { oneTimePk: oneTimePk, ephemeral: ephemeral };
+  }
+
+  /**
+   * @description Recipient-side detection: recompute the one-time pubkey from the
+   * announcement `ephemeral`, the scan secret, and the spend pubkey. Equals the
+   * sender's `oneTimePk` iff this payment is for this recipient.
+   * @param ephemeral - The announced ephemeral `E`.
+   * @param scanSecret - The recipient's scan secret `s`.
+   * @param spendPk - The recipient's spend pubkey `B`.
+   * @return The recomputed one-time pubkey.
+   */
+  export pure circuit scan(ephemeral: JubjubPoint, scanSecret: Field, spendPk: JubjubPoint): JubjubPoint {
+    const shared = ecMul(ephemeral, scanSecret);
+    const c = sharedScalar(shared);
+    return ecAdd(ecMulGenerator(c), spendPk);
+  }
+
+  /**
+   * @description Recipient-side: derive the one-time spend scalar `p = c + b`.
+   * `g^p == oneTimePk`, so `p` is the secret key for the one-time address.
+   * @notice See the module scalar-reduction caveat: `c + b` may exceed `l`.
+   * @param ephemeral - The announced ephemeral `E`.
+   * @param scanSecret - The recipient's scan secret `s`.
+   * @param spendSecret - The recipient's spend secret `b`.
+   * @return The one-time spend scalar `p`.
+   */
+  export pure circuit spendScalar(ephemeral: JubjubPoint, scanSecret: Field, spendSecret: Field): Field {
+    const shared = ecMul(ephemeral, scanSecret);
+    const c = sharedScalar(shared);
+    return c + spendSecret;
+  }
+
+  /**
+   * @description Convenience: the one-time pubkey `g^p` recomputed from the spend
+   * scalar, for verifying `g^p == oneTimePk`. Will fault if `p >= l` (see caveat).
+   */
+  export pure circuit spendPk(ephemeral: JubjubPoint, scanSecret: Field, spendSecret: Field): JubjubPoint {
+    return ecMulGenerator(spendScalar(ephemeral, scanSecret, spendSecret));
+  }
+
+  /**
+   * @description The Jubjub prime-order subgroup order `l`. Exposed for the
+   * witness-assisted reduction below.
+   */
+  export pure circuit L(): Field {
+    return 6554484396890773809930967563523245729705921265872317281365359162392183254199 as Field;
+  }
+
+  /**
+   * @description Exposes the shared-secret scalar `c = H(E^s)` for `(ephemeral,
+   * scanSecret)`, so a wallet can compute the reduced spend scalar off-chain.
+   */
+  export pure circuit sharedScalarFor(ephemeral: JubjubPoint, scanSecret: Field): Field {
+    return sharedScalar(ecMul(ephemeral, scanSecret));
+  }
+
+  /**
+   * @description Witness-assisted spend pubkey `g^((c + b) mod l)`, valid for ANY
+   * spend key. The caller supplies the reduction `(q, p)`; the circuit verifies
+   * `q in {0,1}` and `q*l + p == c + b`, and `ecMulGenerator(p)` enforces `p < l`,
+   * so `(q, p)` is forced to the unique division result. In a token, `q`/`p` come
+   * from witnesses (the wallet), not parameters.
+   */
+  export pure circuit spendPkReduced(
+      ephemeral: JubjubPoint,
+      scanSecret: Field,
+      spendSecret: Field,
+      q: Field,
+      p: Field
+      ): JubjubPoint {
+    const c = sharedScalar(ecMul(ephemeral, scanSecret));
+    assert(q * (q - 1) == 0, "StealthAddress: quotient not 0 or 1");
+    assert((q * L() + p) == (c + spendSecret), "StealthAddress: bad reduction");
+    return ecMulGenerator(p);
+  }
+}

@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (token/ConfidentialTokenRing.compact)
+
+pragma language_version >= 0.23.0;
+
+/**
+ * @module ConfidentialTokenRing
+ * @description EXPLORATORY tier-3 variant: a confidential token whose `ringTransfer`
+ * hides WHICH of a fixed-size decoy set (the "ring") is the real sender, on top of
+ * the hidden amount the account model already provides. This is the sender-anonymity
+ * axis; the recipient is left public here (full tier 3 would compose this with a
+ * tier-2 stealth recipient).
+ *
+ * @dev Why it looks the way it does (the tier-3 lesson, in code). Sender-hiding on a
+ * mutable-balance account model fights the language on three fronts, all visible below:
+ *
+ *  1. Map lookups disclose their key, so the sender's balance/pk can NEVER be looked
+ *     up by `senderAccountId` (that would leak the sender). Every candidate is fetched
+ *     by its PUBLIC ring accountId, and the sender's row is picked out by a private
+ *     one-hot selector that is never disclosed and never used as a key.
+ *  2. There are no mutable locals in Compact 0.31 (`var` is reserved), and a ledger
+ *     accumulator would leak the sender's position via its partial sums. So the ring
+ *     size is fixed at compile time and the selection is fully unrolled in `const`s.
+ *  3. To hide which balance actually moved, ALL `RING_SIZE` balances are re-encrypted
+ *     every transfer (the real one debited by `value`, the decoys by `0`), so every
+ *     ciphertext changes. That is the `O(RING_SIZE)` cost per transfer, and it buys
+ *     only a size-`RING_SIZE` anonymity set. A notes/Merkle design gets a whole-pool
+ *     anonymity set for `O(log)` work, which is why this construction is dominated.
+ *
+ * @dev Conservation. Exactly one ring member matches the sender (enforced by the
+ * one-hot sum), so total debited == `value` == credited; supply is unchanged.
+ *
+ * @dev NOT audited, NOT production. Built to see the shape and measure the cost.
+ */
+module ConfidentialTokenRing {
+  import CompactStandardLibrary;
+  import "../crypto/ElGamal" prefix ElGamal_;
+  import "../crypto/EcdhMask" prefix EcdhMask_;
+
+  // Fixed anonymity-set size. Larger = stronger set but linearly more work per
+  // transfer (every member's balance is re-encrypted). Unrolled, so it is a
+  // compile-time constant, not a parameter.
+  export ledger _balances: Map<Bytes<32>, ElGamal_Ciphertext>;
+  export ledger _encryptionKeys: Map<Bytes<32>, JubjubPoint>;
+  export ledger _totalSupply: Uint<128>;
+  export ledger _memos: Map<Bytes<32>, List<EcdhMask_Ciphertext>>;
+
+  // Sender's identity secret. accountId = persistentHash([sk]); pk = derivePk(sk).
+  witness wit_SenderSecret(): Bytes<32>;
+  // Sender's current plaintext balance, verified against the selected ciphertext.
+  witness wit_SenderBalance(): Uint<128>;
+  // The amount to send (private; the recipient learns it via the memo).
+  witness wit_TransferValue(): Uint<128>;
+  // A per-invocation randomness seed (must be fresh + secret; see EcdhMask).
+  witness wit_RandomnessSeed(): Bytes<32>;
+
+  /**
+   * @description Registers the caller's account: binds accountId -> pk and seeds a
+   * zero balance. accountId and pk are both derived from the caller's secret.
+   */
+  export circuit register(): [] {
+    const sk = wit_SenderSecret();
+    const accountId = persistentHash<Vector<1, Bytes<32>>>([sk]);
+    const pk = ElGamal_derivePk(sk);
+    assert(!_encryptionKeys.member(disclose(accountId)),
+           "ConfidentialTokenRing: already registered");
+    _encryptionKeys.insert(disclose(accountId), disclose(pk));
+    _balances.insert(disclose(accountId), ElGamal_encryptZero());
+    _memos.insert(disclose(accountId), default<List<EcdhMask_Ciphertext>>);
+  }
+
+  /**
+   * @description Mints `value` to `account` (permissionless in this demo). Credits
+   * the balance, bumps supply, and delivers the amount via a memo.
+   */
+  export circuit mint(account: Bytes<32>, value: Uint<128>): [] {
+    assert(_encryptionKeys.member(disclose(account)),
+           "ConfidentialTokenRing: unregistered");
+    const pk = _encryptionKeys.lookup(disclose(account));
+    const seed = wit_RandomnessSeed();
+    const r = ElGamal_expandRandomness(seed, pad(32, "ring_mint"));
+    const newCt = ElGamal_addEncrypted(_balances.lookup(disclose(account)), pk, value, r);
+    _balances.insert(disclose(account), disclose(newCt));
+    _totalSupply = disclose(_totalSupply + value as Uint<128>);
+    _pushMemo(account, pk, value, seed);
+  }
+
+  /**
+   * @description Hidden-sender transfer. The caller proves (privately) that they own
+   * one of the `ring` accounts and that its balance covers `value`, then debits that
+   * account without revealing which. Every ring balance is re-encrypted so the moved
+   * one is indistinguishable. The recipient `to` is public.
+   *
+   * Requirements:
+   *
+   * - The caller's account is exactly one member of `ring`.
+   * - The caller's balance is >= `value`.
+   * - `to` is registered.
+   */
+  export circuit ringTransfer(ring: Vector<4, Bytes<32>>, to: Bytes<32>): [] {
+    const sk = wit_SenderSecret();
+    const senderAccountId = persistentHash<Vector<1, Bytes<32>>>([sk]);
+    const senderPk = ElGamal_derivePk(sk);
+    const value = wit_TransferValue();
+    const balance = wit_SenderBalance();
+    assert(balance >= value, "ConfidentialTokenRing: insufficient balance");
+
+    // Fetch every candidate by its PUBLIC accountId (no sender disclosure).
+    const pk0 = _encryptionKeys.lookup(disclose(ring[0]));
+    const pk1 = _encryptionKeys.lookup(disclose(ring[1]));
+    const pk2 = _encryptionKeys.lookup(disclose(ring[2]));
+    const pk3 = _encryptionKeys.lookup(disclose(ring[3]));
+    const ct0 = _balances.lookup(disclose(ring[0]));
+    const ct1 = _balances.lookup(disclose(ring[1]));
+    const ct2 = _balances.lookup(disclose(ring[2]));
+    const ct3 = _balances.lookup(disclose(ring[3]));
+
+    // Private one-hot: which ring slot is the real sender. Never disclosed.
+    const b0 = (ring[0] == senderAccountId) ? (1 as Field) : (0 as Field);
+    const b1 = (ring[1] == senderAccountId) ? (1 as Field) : (0 as Field);
+    const b2 = (ring[2] == senderAccountId) ? (1 as Field) : (0 as Field);
+    const b3 = (ring[3] == senderAccountId) ? (1 as Field) : (0 as Field);
+    assert((b0 + b1 + b2 + b3) == (1 as Field),
+           "ConfidentialTokenRing: sender not uniquely in ring");
+
+    // Select the sender's pk and balance ciphertext via the one-hot (0/1 scalars).
+    const selPk = ecAdd(ecAdd(ecMul(pk0, b0), ecMul(pk1, b1)),
+                        ecAdd(ecMul(pk2, b2), ecMul(pk3, b3)));
+    assert(selPk == senderPk, "ConfidentialTokenRing: not the owner");
+    const selCt = ElGamal_add(
+                    ElGamal_add(ElGamal_scalarMul(ct0, b0), ElGamal_scalarMul(ct1, b1)),
+                    ElGamal_add(ElGamal_scalarMul(ct2, b2), ElGamal_scalarMul(ct3, b3)));
+    // Bind the witness balance to the selected ciphertext (solvency is now sound).
+    ElGamal_assertDecryptsTo(selCt, senderPk, sk, balance);
+
+    // Touch ALL balances: real one debited by `value`, decoys by 0, all re-encrypted.
+    const seed = wit_RandomnessSeed();
+    const d0 = (ring[0] == senderAccountId) ? value : (0 as Uint<128>);
+    const d1 = (ring[1] == senderAccountId) ? value : (0 as Uint<128>);
+    const d2 = (ring[2] == senderAccountId) ? value : (0 as Uint<128>);
+    const d3 = (ring[3] == senderAccountId) ? value : (0 as Uint<128>);
+    _balances.insert(disclose(ring[0]),
+      disclose(ElGamal_subEncrypted(ct0, pk0, d0, ElGamal_expandRandomness(seed, ring[0]))));
+    _balances.insert(disclose(ring[1]),
+      disclose(ElGamal_subEncrypted(ct1, pk1, d1, ElGamal_expandRandomness(seed, ring[1]))));
+    _balances.insert(disclose(ring[2]),
+      disclose(ElGamal_subEncrypted(ct2, pk2, d2, ElGamal_expandRandomness(seed, ring[2]))));
+    _balances.insert(disclose(ring[3]),
+      disclose(ElGamal_subEncrypted(ct3, pk3, d3, ElGamal_expandRandomness(seed, ring[3]))));
+
+    // Credit the (public) recipient and deliver the amount via a memo.
+    assert(_encryptionKeys.member(disclose(to)), "ConfidentialTokenRing: unregistered recipient");
+    const toPk = _encryptionKeys.lookup(disclose(to));
+    const rCredit = ElGamal_expandRandomness(seed, pad(32, "ring_credit"));
+    const newTo = ElGamal_addEncrypted(_balances.lookup(disclose(to)), toPk, value, rCredit);
+    _balances.insert(disclose(to), disclose(newTo));
+    _pushMemo(to, toPk, value, seed);
+  }
+
+  /**
+   * @description Returns `account`'s balance ciphertext (or Enc(0) if unregistered).
+   */
+  export circuit balanceOf(account: Bytes<32>): ElGamal_Ciphertext {
+    if (!_balances.member(disclose(account))) {
+      return ElGamal_encryptZero();
+    }
+    return _balances.lookup(disclose(account));
+  }
+
+  // Pushes an ECDH-mask memo delivering `value` to `account`. The per-recipient memo
+  // count is the freshness nonce, so a reused seed cannot reuse the one-time pad.
+  circuit _pushMemo(account: Bytes<32>, pk: JubjubPoint, value: Uint<128>, seed: Bytes<32>): [] {
+    if (!_memos.member(disclose(account))) {
+      _memos.insert(disclose(account), default<List<EcdhMask_Ciphertext>>);
+    }
+    const count = _memos.lookup(disclose(account)).length() as Field;
+    const countHash = persistentHash<JubjubPoint>(ecMulGenerator(count));
+    const e = degradeToTransient(
+      persistentHash<Vector<3, Bytes<32>>>([seed, pad(32, "ring_memo"), countHash as Bytes<32>]));
+    const memo = EcdhMask_encrypt(pk, value, e, pad(32, "OZ_ring_memo_v1"));
+    _memos.lookup(disclose(account)).pushFront(disclose(memo));
+  }
+}

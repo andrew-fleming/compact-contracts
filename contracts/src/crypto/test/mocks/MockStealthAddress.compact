@@ -1,0 +1,49 @@
+// SPDX-License-Identifier: MIT
+
+// WARNING: FOR TESTING PURPOSES ONLY.
+// Exposes the StealthAddress module's pure circuits for off-chain tests.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+import "../../StealthAddress" prefix Stealth_;
+
+export { Stealth_MetaAddress, Stealth_OneTime }
+
+export pure circuit sharedScalar(shared: JubjubPoint): Field {
+  return Stealth_sharedScalar(shared);
+}
+
+export pure circuit deriveOneTime(meta: Stealth_MetaAddress, r: Field): Stealth_OneTime {
+  return Stealth_deriveOneTime(meta, r);
+}
+
+export pure circuit scan(ephemeral: JubjubPoint, scanSecret: Field, spendPk: JubjubPoint): JubjubPoint {
+  return Stealth_scan(ephemeral, scanSecret, spendPk);
+}
+
+export pure circuit spendScalar(ephemeral: JubjubPoint, scanSecret: Field, spendSecret: Field): Field {
+  return Stealth_spendScalar(ephemeral, scanSecret, spendSecret);
+}
+
+export pure circuit spendPk(ephemeral: JubjubPoint, scanSecret: Field, spendSecret: Field): JubjubPoint {
+  return Stealth_spendPk(ephemeral, scanSecret, spendSecret);
+}
+
+export pure circuit L(): Field {
+  return Stealth_L();
+}
+
+export pure circuit sharedScalarFor(ephemeral: JubjubPoint, scanSecret: Field): Field {
+  return Stealth_sharedScalarFor(ephemeral, scanSecret);
+}
+
+export pure circuit spendPkReduced(
+    ephemeral: JubjubPoint,
+    scanSecret: Field,
+    spendSecret: Field,
+    q: Field,
+    p: Field
+    ): JubjubPoint {
+  return Stealth_spendPkReduced(ephemeral, scanSecret, spendSecret, q, p);
+}

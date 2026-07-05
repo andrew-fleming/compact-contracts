@@ -1,0 +1,240 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (token/HybridConfidentialToken.compact)
+
+pragma language_version >= 0.23.0;
+
+/**
+ * @module HybridConfidentialToken
+ * @description EXPLORATORY tier-4 core: a note/UTXO-based confidential token with
+ * FULL graph privacy (sender and recipient hidden). Value lives as note
+ * commitments in a Merkle tree; a spend proves membership of an input note
+ * without revealing which, nullifies it, and creates output notes. Amounts and
+ * both counterparties are hidden. Modeled on Midnight's `zerocash` example,
+ * extended with value + conservation.
+ *
+ * A note is `(value, nonce)` owned by `pk = H(sk)`. Commitment
+ * `cm = H(domain, value, nonce, pk)` goes in the tree; nullifier
+ * `nf = H(domain, nonce, sk)` marks it spent. A transfer consumes one input note
+ * and creates two outputs (recipient + change), asserting
+ * `value_in == value_out + value_change`.
+ *
+ * @dev De-risking build. Confirms the value-carrying shielded pool compiles on
+ * the native `HistoricMerkleTree` / `Set` primitives. The regulated-seizure path
+ * (owner-OR-authority spend + shared nullifier + escrowed keys) is the next
+ * increment and the real compliance question for this architecture.
+ *
+ * @dev NOT audited, NOT production.
+ */
+module HybridConfidentialToken {
+  import CompactStandardLibrary;
+  import "../crypto/EcdhMask" prefix EcdhMask_;
+
+  // A note's spent value and its unique nonce. Ownership is a separate pk.
+  export struct Note {
+    value: Uint<128>;
+    nonce: Bytes<32>;
+  }
+
+  // Commitment/nullifier hash preimages (domain-separated).
+  struct CommitPreimage {
+    domain: Bytes<32>;
+    value: Uint<128>;
+    nonce: Bytes<32>;
+    pk: Bytes<32>;
+  }
+  // Nullifier preimage is the nonce alone (no secret), so BOTH the owner and the
+  // seizure authority derive the SAME nullifier for a note. Spending is gated by a
+  // separate authorization proof (owner knows sk behind the committed pk, or the
+  // authority proves the authority key), so a shared nullifier is safe and makes
+  // owner-spend and seizure mutually exclusive.
+  struct NullifierPreimage {
+    domain: Bytes<32>;
+    nonce: Bytes<32>;
+  }
+
+  export ledger _commitments: HistoricMerkleTree<32, Bytes<32>>;
+  export ledger _nullifiers: Set<Bytes<32>>;
+  export ledger _totalSupply: Uint<128>;
+  // Global seizure authority (governance-gated in a real deployment) and an
+  // auditable count of seizures performed. `_authorityPk == default` means unset.
+  export ledger _authorityPk: Bytes<32>;
+  export ledger _seizureCount: Uint<64>;
+  // Mandatory auditor viewing: each output emits an EcdhMask ciphertext of its
+  // value to `_auditKey`, so the regulator can read amounts (never spend). The
+  // amount stays hidden from everyone else; only the audit-key holder decrypts.
+  export ledger _auditKey: JubjubPoint;
+  export ledger _auditSet: Boolean;
+  export ledger _auditViewings: List<EcdhMask_Ciphertext>;
+
+  // Owner's spend secret (pk = H(sk)).
+  witness wit_SecretKey(): Bytes<32>;
+  // The input note being spent, and its Merkle path.
+  witness wit_InputNote(): Note;
+  witness wit_Path(cm: Bytes<32>): MerkleTreePath<32, Bytes<32>>;
+  // Fresh nonces for the recipient and change output notes.
+  witness wit_OutNonce(): Bytes<32>;
+  witness wit_ChangeNonce(): Bytes<32>;
+  // The seizure authority's secret (authorityPk = H(authoritySecret)).
+  witness wit_AuthoritySecret(): Bytes<32>;
+  // Randomness seed for audit-viewing ephemerals (must be fresh + secret).
+  witness wit_RandomnessSeed(): Bytes<32>;
+
+  // pk = H(sk).
+  circuit derivePk(sk: Bytes<32>): Bytes<32> {
+    return persistentHash<Bytes<32>>(sk);
+  }
+
+  // cm = H(domain, value, nonce, pk).
+  circuit commitOf(note: Note, pk: Bytes<32>): Bytes<32> {
+    return persistentHash<CommitPreimage>(CommitPreimage {
+      domain: pad(32, "OZ:hybrid:commit"),
+      value: note.value,
+      nonce: note.nonce,
+      pk: pk
+    });
+  }
+
+  // nf = H(domain, nonce) — shared between owner and authority.
+  circuit nullifierOf(note: Note): Bytes<32> {
+    return persistentHash<NullifierPreimage>(NullifierPreimage {
+      domain: pad(32, "OZ:hybrid:null"),
+      nonce: note.nonce
+    });
+  }
+
+  /**
+   * @description Mints a note of `value` to `recipientPk`: inserts a fresh
+   * commitment and raises supply. Value is public here (supply delta); a private
+   * issuance variant is a separate concern.
+   */
+  export circuit mint(recipientPk: Bytes<32>, value: Uint<128>): [] {
+    const note = Note { value: value, nonce: wit_OutNonce() };
+    _commitments.insert(disclose(commitOf(note, recipientPk)));
+    _totalSupply = disclose(_totalSupply + value as Uint<128>);
+    if (_auditSet) { emitAuditViewing(value, note.nonce); }
+  }
+
+  /**
+   * @description Fully-private transfer: spends the caller's input note (proving
+   * membership without revealing which, and nullifying it) and creates a
+   * recipient note of `value` plus a change note, conserving value. Sender and
+   * recipient are both hidden; only the nullifier and two new commitments appear.
+   *
+   * Requirements:
+   *
+   * - The input note is committed in the tree and unspent.
+   * - `value <= input.value`.
+   */
+  export circuit transfer(recipientPk: Bytes<32>, value: Uint<128>): [] {
+    const sk = wit_SecretKey();
+    const pk = derivePk(sk);
+    const input = wit_InputNote();
+
+    // Membership: the input commitment is in the tree (at some historical root).
+    const inCm = commitOf(input, pk);
+    const path = wit_Path(inCm);
+    // The root is public (it must equal a historical tree root); disclosing it
+    // reveals nothing about which leaf, since the path itself stays witness.
+    const root = disclose(merkleTreePathRoot<32, Bytes<32>>(path));
+    assert(_commitments.checkRoot(root),
+           "HybridConfidentialToken: input root not recognized");
+    assert(inCm == path.leaf,
+           "HybridConfidentialToken: path does not match input commitment");
+
+    // Nullify: prevent double-spend.
+    const nf = nullifierOf(input);
+    assert(!_nullifiers.member(disclose(nf)),
+           "HybridConfidentialToken: note already spent");
+    _nullifiers.insert(disclose(nf));
+
+    // Conservation: input value splits into recipient value + change.
+    assert(input.value >= value,
+           "HybridConfidentialToken: insufficient note value");
+    const changeValue = (input.value - value) as Uint<128>;
+
+    // Outputs: recipient note + change note back to the sender.
+    const outNote = Note { value: value, nonce: wit_OutNonce() };
+    const changeNote = Note { value: changeValue, nonce: wit_ChangeNonce() };
+    _commitments.insert(disclose(commitOf(outNote, recipientPk)));
+    _commitments.insert(disclose(commitOf(changeNote, pk)));
+
+    if (_auditSet) {
+      emitAuditViewing(value, outNote.nonce);
+      emitAuditViewing(changeValue, changeNote.nonce);
+    }
+  }
+
+  /**
+   * @description Sets the global seizure authority once. `authorityPk` is the
+   * hash-derived public key `H(authoritySecret)` the authority proves against.
+   */
+  export circuit initializeAuthority(authorityPk: Bytes<32>): [] {
+    assert(_authorityPk == default<Bytes<32>>,
+           "HybridConfidentialToken: authority already set");
+    _authorityPk = disclose(authorityPk);
+  }
+
+  /**
+   * @description Sets the global auditor viewing key once. Outputs thereafter
+   * emit an EcdhMask ciphertext of their value to this key, readable only by the
+   * auditor (who holds the matching secret) and no one else.
+   */
+  export circuit initializeAudit(auditKey: JubjubPoint): [] {
+    assert(!_auditSet, "HybridConfidentialToken: audit key already set");
+    _auditKey = disclose(auditKey);
+    _auditSet = true;
+  }
+
+  // Emits an audit-viewing ciphertext of `value`, keyed to `_auditKey`. `tag` (a
+  // per-output nonce) makes the EcdhMask ephemeral fresh per emission.
+  circuit emitAuditViewing(value: Uint<128>, tag: Bytes<32>): [] {
+    const e = degradeToTransient(persistentHash<Vector<3, Bytes<32>>>(
+      [wit_RandomnessSeed(), pad(32, "audit"), tag]));
+    _auditViewings.pushFront(
+      disclose(EcdhMask_encrypt(_auditKey, value, e, pad(32, "OZ:hybrid:audit"))));
+  }
+
+  /**
+   * @description Regulated clawback: the authority consumes a target note it has
+   * learned via mandatory viewing (supplied as witnesses) and re-mints the full
+   * value to `recoveryPk`. The nullifier is the SHARED `H(domain, nonce)`, so a
+   * seizure and the owner's own spend are mutually exclusive (first to land wins);
+   * the authority never needs the owner's spend secret. Supply is conserved, and
+   * `_seizureCount` records the action for audit.
+   *
+   * In production the authority key is governance-gated (multisig), and per-user
+   * recovery keys would replace this single global key for least privilege.
+   *
+   * Requirements:
+   *
+   * - The caller proves the authority secret (`H(secret) == _authorityPk`).
+   * - The target note (owner pk + value + nonce) is committed and unspent.
+   */
+  export circuit seize(targetOwnerPk: Bytes<32>, recoveryPk: Bytes<32>): [] {
+    const authSecret = wit_AuthoritySecret();
+    assert(derivePk(authSecret) == _authorityPk,
+           "HybridConfidentialToken: not the authority");
+
+    // The target note, learned via mandatory viewing (no owner secret needed).
+    const target = wit_InputNote();
+    const cm = commitOf(target, targetOwnerPk);
+    const path = wit_Path(cm);
+    const root = disclose(merkleTreePathRoot<32, Bytes<32>>(path));
+    assert(_commitments.checkRoot(root),
+           "HybridConfidentialToken: target root not recognized");
+    assert(cm == path.leaf,
+           "HybridConfidentialToken: path does not match target commitment");
+
+    // Shared nullifier: identical to what the owner would compute.
+    const nf = nullifierOf(target);
+    assert(!_nullifiers.member(disclose(nf)),
+           "HybridConfidentialToken: note already spent");
+    _nullifiers.insert(disclose(nf));
+
+    // Re-mint the seized value to recovery. Supply conserved.
+    const recoveryNote = Note { value: target.value, nonce: wit_OutNonce() };
+    _commitments.insert(disclose(commitOf(recoveryNote, recoveryPk)));
+
+    _seizureCount = disclose(_seizureCount + 1 as Uint<64>);
+  }
+}

@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.3.0-alpha (token/StealthConfidentialToken.compact)
+
+pragma language_version >= 0.23.0;
+
+/**
+ * @module StealthConfidentialToken
+ * @description EXPLORATORY tier-2 variant: a confidential token whose recipients are
+ * HIDDEN via stealth addresses. A recipient publishes a meta-address (scan + spend
+ * pubkeys); each payment creates a fresh ONE-TIME address unlinkable to the
+ * meta-address, so an observer cannot tell who received. Amounts are hidden by the
+ * ElGamal balance (as in the base CFT); the sender here is public (full graph
+ * privacy is the tier-4 notes track).
+ *
+ * Flow: `registerMeta` (recipient publishes scan/spend pubkeys) -> `stealthMint`
+ * (create a one-time output + announcement) -> off-chain scan (recipient detects
+ * its outputs) -> `stealthClaim` (recipient proves ownership and spends).
+ *
+ * @dev Scalar reduction avoided by construction. The one-time spend scalar is
+ * `p = c + b`. Both `c` (a `degradeToTransient` hash, `< 2^248`) and `b`
+ * (`secretToScalar` of the spend seed, `< 2^248`) are small, so `p < 2^249 < l`
+ * and `ecMulGenerator(p)` never faults. Full-range spend keys would need the
+ * witness-assisted reduction in `crypto/StealthAddress` (`spendPkReduced`).
+ *
+ * @dev Spend uses a SCALAR-native ElGamal decrypt. A one-time balance is held
+ * under `P = g^p` where `p` is a computed scalar (no `Bytes<32>` preimage), so the
+ * claim verifies solvency with `ElGamal_assertDecryptsToScalar`, not the ek-based
+ * path.
+ *
+ * @dev NOT audited, NOT production. Built to see tier-2 recipient-hiding concretely.
+ */
+module StealthConfidentialToken {
+  import CompactStandardLibrary;
+  import "../crypto/ElGamal" prefix ElGamal_;
+  import "../crypto/EcdhMask" prefix EcdhMask_;
+  import "../crypto/StealthAddress" prefix Stealth_;
+
+  // An on-chain stealth output: the announcement ephemeral, the one-time account
+  // it funded, and the value one-time-pad (recipient recovers value off-chain).
+  export struct StealthOutput {
+    ephemeral: JubjubPoint;
+    accountId: Bytes<32>;
+    valueCt: Field;
+  }
+
+  export ledger _balances: Map<Bytes<32>, ElGamal_Ciphertext>;
+  export ledger _pubkeys: Map<Bytes<32>, JubjubPoint>;
+  export ledger _metaScan: Map<Bytes<32>, JubjubPoint>;
+  export ledger _metaSpend: Map<Bytes<32>, JubjubPoint>;
+  export ledger _outputs: List<StealthOutput>;
+  export ledger _totalSupply: Uint<128>;
+
+  // Recipient's meta-address seeds (scan detects, spend authorizes).
+  witness wit_ScanSeed(): Bytes<32>;
+  witness wit_SpendSeed(): Bytes<32>;
+  // Sender's per-payment ephemeral seed.
+  witness wit_EphemeralSeed(): Bytes<32>;
+  // Balance-encryption randomness.
+  witness wit_RandomnessSeed(): Bytes<32>;
+  // Wallet's cached plaintext for a ciphertext (verified in-circuit).
+  witness wit_PlaintextBalance(ct: ElGamal_Ciphertext): Uint<128>;
+
+  /**
+   * @description Publishes the caller's stealth meta-address (scan + spend
+   * pubkeys, derived from their seeds). Returns the meta-address id senders use.
+   */
+  export circuit registerMeta(): Bytes<32> {
+    const scanPk = ElGamal_derivePk(wit_ScanSeed());
+    const spendPk = ElGamal_derivePk(wit_SpendSeed());
+    const metaId = persistentHash<Vector<2, Bytes<32>>>(
+      [persistentHash<JubjubPoint>(scanPk), persistentHash<JubjubPoint>(spendPk)]);
+    assert(!_metaScan.member(disclose(metaId)),
+           "StealthConfidentialToken: meta already registered");
+    _metaScan.insert(disclose(metaId), disclose(scanPk));
+    _metaSpend.insert(disclose(metaId), disclose(spendPk));
+    return disclose(metaId);
+  }
+
+  /**
+   * @description Mints `value` to the meta-address `metaId` as a fresh stealth
+   * output: derives a one-time address `P = g^c * B` (unlinkable to the meta),
+   * credits `H(P)` under `P`, and appends an announcement (ephemeral + value pad)
+   * the recipient scans. Permissionless in this demo.
+   */
+  export circuit stealthMint(metaId: Bytes<32>, value: Uint<128>): [] {
+    assert(_metaScan.member(disclose(metaId)),
+           "StealthConfidentialToken: unknown meta-address");
+    const scanPk = _metaScan.lookup(disclose(metaId));
+    const spendPk = _metaSpend.lookup(disclose(metaId));
+
+    const r = ElGamal_secretToScalar(wit_EphemeralSeed());
+    const ephemeral = ecMulGenerator(r);
+    const shared = ecMul(scanPk, r);                 // S^r
+    const c = Stealth_sharedScalar(shared);
+    const oneTimePk = ecAdd(ecMulGenerator(c), spendPk);   // g^c * B
+    const accountId = persistentHash<JubjubPoint>(oneTimePk);
+
+    const rBal = ElGamal_expandRandomness(wit_RandomnessSeed(), pad(32, "stealth_mint"));
+    _balances.insert(disclose(accountId), disclose(ElGamal_encrypt(oneTimePk, value, rBal)));
+    _pubkeys.insert(disclose(accountId), disclose(oneTimePk));
+
+    // Value one-time-pad over the SAME shared secret (domain-separated from `c`).
+    const valueMask = EcdhMask_kdf(shared, pad(32, "OZ_stealth_value_v1"));
+    const output = StealthOutput {
+      ephemeral: ephemeral,
+      accountId: accountId,
+      valueCt: (value as Field) + valueMask
+    };
+    _outputs.pushFront(disclose(output));
+    _totalSupply = disclose(_totalSupply + value as Uint<128>);
+  }
+
+  /**
+   * @description Returns `accountId`'s balance ciphertext, or Enc(0) if none.
+   */
+  export circuit balanceOf(accountId: Bytes<32>): ElGamal_Ciphertext {
+    if (!_balances.member(disclose(accountId))) {
+      return ElGamal_encryptZero();
+    }
+    return _balances.lookup(disclose(accountId));
+  }
+
+  /**
+   * @description Claims (spends) a stealth output the caller owns: recomputes the
+   * one-time key from the caller's meta-secrets + the output's `ephemeral`, proves
+   * `H(oneTimePk) == accountId` (ownership) and that the balance decrypts to
+   * `value` (solvency, scalar-native), then burns it (zeroes the balance, lowers
+   * supply). Burning stands in for a full spend; it proves spend authority over a
+   * hidden one-time output.
+   *
+   * Requirements:
+   *
+   * - The caller's meta-secrets derive the one-time key for `accountId`.
+   * - `accountId` has a balance decrypting to the caller's cached plaintext.
+   */
+  export circuit stealthClaim(ephemeral: JubjubPoint, accountId: Bytes<32>): [] {
+    const scanSecret = ElGamal_secretToScalar(wit_ScanSeed());
+    const spendSecret = ElGamal_secretToScalar(wit_SpendSeed());
+    const shared = ecMul(ephemeral, scanSecret);     // E^s == S^r
+    const c = Stealth_sharedScalar(shared);
+    const p = c + spendSecret;                        // < l (both terms < 2^248)
+    const oneTimePk = ecMulGenerator(p);              // g^{c+b} == P
+
+    // Ownership: this output's accountId must be H(our recomputed one-time key).
+    assert(persistentHash<JubjubPoint>(oneTimePk) == accountId,
+           "StealthConfidentialToken: not the owner");
+
+    // Solvency: the balance decrypts to the cached plaintext under (P, p).
+    const ct = _balances.lookup(disclose(accountId));
+    const value = wit_PlaintextBalance(ct);
+    ElGamal_assertDecryptsToScalar(ct, oneTimePk, p, value);
+
+    // Burn the output.
+    assert(_totalSupply >= value,
+           "StealthConfidentialToken: supply underflow");
+    _balances.insert(disclose(accountId), disclose(ElGamal_encryptZero()));
+    _totalSupply = disclose(_totalSupply - value as Uint<128>);
+  }
+}

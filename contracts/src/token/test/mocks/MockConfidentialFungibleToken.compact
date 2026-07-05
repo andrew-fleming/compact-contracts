@@ -7,6 +7,7 @@ export { CFT_EscrowEntry, ElGamal_Ciphertext };
 
 export {
   CFT__balances,
+  CFT__pending,
   CFT__encryptionKeys,
   CFT__memos,
   CFT__escrow,
@@ -44,6 +45,14 @@ export circuit balanceOf(account: Bytes<32>): ElGamal_Ciphertext {
   return CFT_balanceOf(account);
 }
 
+export circuit pendingOf(account: Bytes<32>): ElGamal_Ciphertext {
+  return CFT_pendingOf(account);
+}
+
+export circuit sweep(): Bytes<32> {
+  return CFT_sweep();
+}
+
 export circuit allowance(account: Bytes<32>, spender: Bytes<32>): CFT_EscrowEntry {
   return CFT_allowance(account, spender);
 }
@@ -58,6 +67,10 @@ export circuit register(): Bytes<32> {
 
 export circuit transfer(to: Bytes<32>, value: Uint<128>): Bytes<32> {
   return CFT_transfer(to, value);
+}
+
+export circuit _move(to: Bytes<32>, value: Uint<128>): Bytes<32> {
+  return CFT__move(to, value);
 }
 
 export circuit approve(spender: Bytes<32>, value: Uint<128>): Bytes<32> {

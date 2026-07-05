@@ -1,0 +1,36 @@
+// SPDX-License-Identifier: MIT
+
+// WARNING: FOR TESTING PURPOSES ONLY.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+import "../../StealthConfidentialToken" prefix SCT_;
+import "../../../crypto/ElGamal" prefix ElGamal_;
+
+export { SCT_StealthOutput, ElGamal_Ciphertext };
+
+export {
+  SCT__balances,
+  SCT__pubkeys,
+  SCT__metaScan,
+  SCT__metaSpend,
+  SCT__outputs,
+  SCT__totalSupply
+};
+
+export circuit registerMeta(): Bytes<32> {
+  return SCT_registerMeta();
+}
+
+export circuit stealthMint(metaId: Bytes<32>, value: Uint<128>): [] {
+  return SCT_stealthMint(metaId, value);
+}
+
+export circuit balanceOf(accountId: Bytes<32>): ElGamal_Ciphertext {
+  return SCT_balanceOf(accountId);
+}
+
+export circuit stealthClaim(ephemeral: JubjubPoint, accountId: Bytes<32>): [] {
+  return SCT_stealthClaim(ephemeral, accountId);
+}

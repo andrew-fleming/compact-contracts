@@ -171,7 +171,14 @@ module ConfidentialFungibleToken {
   // Ledger state
   // ---------------------------------------------------------------------------
 
+  // Dual-balance grief fix. `_balances` is the SPENDABLE (confirmed) balance that
+  // debits draw from; `_pending` is the incoming pool that credits land in. Only
+  // the owner moves pending -> spendable, via `sweep()`. So a third party spamming
+  // dust credits cannot churn a victim's spendable ciphertext and invalidate the
+  // victim's in-flight spend proofs (a liveness grief). A wallet's total balance
+  // is `balanceOf` (spendable) + `pendingOf` (pending).
   export ledger _balances: Map<Bytes<32>, ElGamal_Ciphertext>;
+  export ledger _pending: Map<Bytes<32>, ElGamal_Ciphertext>;
   export ledger _encryptionKeys: Map<Bytes<32>, JubjubPoint>;
   export ledger _memos: Map<Bytes<32>, List<EcdhMask_Ciphertext>>;
   export ledger _escrow: Map<Bytes<32>, Map<Bytes<32>, EscrowEntry>>;
@@ -365,6 +372,27 @@ module ConfidentialFungibleToken {
   }
 
   /**
+   * @description Returns `account`'s PENDING balance ciphertext (incoming credits
+   * not yet swept into spendable), or Enc(0) if unregistered. The spendable
+   * balance is `balanceOf`; a wallet's total is the sum of the two. See the
+   * dual-balance note on the ledger declarations.
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   *
+   * @param {Bytes<32>} account - The account to query.
+   * @return {ElGamal_Ciphertext} - The encrypted pending balance.
+   */
+  export circuit pendingOf(account: Bytes<32>): ElGamal_Ciphertext {
+    assertInitialized();
+    if (!_pending.member(disclose(account))) {
+      return ElGamal_encryptZero();
+    }
+    return _pending.lookup(disclose(account));
+  }
+
+  /**
    * @description Returns the escrow entry (the encrypted allowance) that `owner`
    * granted `spender`, or the default entry if none exists. The cap is
    * encrypted, not public.
@@ -428,6 +456,7 @@ module ConfidentialFungibleToken {
 
     _encryptionKeys.insert(disclose(accountId), disclose(pk));
     _balances.insert(disclose(accountId), disclose(ElGamal_encryptZero()));
+    _pending.insert(disclose(accountId), disclose(ElGamal_encryptZero()));
     return disclose(accountId);
   }
 
@@ -555,10 +584,11 @@ module ConfidentialFungibleToken {
       persistentHash<Vector<4, Bytes<32>>>([seed, pad(32, "credit_memo"), account, countHash])
     );
 
-    // Update balance ciphertext.
-    const oldCt = _balances.lookup(disclose(account));
+    // Credit lands in the recipient's PENDING pool (not spendable), so incoming
+    // value never churns their spendable ciphertext; they sweep it when ready.
+    const oldCt = _pending.lookup(disclose(account));
     const newCt = ElGamal_addEncrypted(oldCt, recipientPk, value, rBalance);
-    _balances.insert(disclose(account), disclose(newCt));
+    _pending.insert(disclose(account), disclose(newCt));
 
     // Push the ECDH-OTP memo (delivers `value` directly; recipient decrypts with
     // its EK, no discrete-log search).
@@ -601,6 +631,67 @@ module ConfidentialFungibleToken {
 
     _credit(to, value);
     return senderId;
+  }
+
+  /**
+   * @description The conserving value-movement primitive: debits the caller and
+   * credits `to` by the same `value`, net zero. It NEVER touches `_totalSupply`,
+   * so it is the safe surface for composition and the primitive a supply-free base
+   * would expose. `transfer` is `_move` plus a self-transfer guard; the
+   * supply-changing operations (`_mint`/`_burn`) live outside this conserving
+   * surface, and only they may break conservation.
+   *
+   * @notice Like `transfer`, the credit lands in the recipient's pending pool
+   * (see the dual-balance note); the caller sweeps their own incoming value.
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - The caller is registered with a spendable balance of at least `value`.
+   * - `to` is registered.
+   *
+   * @param {Bytes<32>} to - The recipient account id.
+   * @param {Uint<128>} value - The amount to move.
+   * @return {Bytes<32>} - The caller's accountId (for caller-side gating).
+   */
+  export circuit _move(to: Bytes<32>, value: Uint<128>): Bytes<32> {
+    assertInitialized();
+    const senderId = _debit(value);
+    _credit(to, value);
+    return senderId;
+  }
+
+  /**
+   * @description Sweeps the caller's incoming `pending` pool into their
+   * `spendable` balance. Credits land in `pending` (see the dual-balance note);
+   * this `sweep` is the ONLY path from pending into spendable, and only the owner
+   * can invoke it (the account is derived from the caller's witness secret). So a
+   * third party spamming credits cannot force a victim's spendable ciphertext to
+   * change, which is what would otherwise invalidate the victim's in-flight spend
+   * proofs (a liveness grief).
+   *
+   * @notice Purely homomorphic: adds the two ciphertexts (same key) and resets
+   * pending to Enc(0). No plaintext is needed; the wallet already learned the
+   * pending amounts from its memos.
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - The caller is registered.
+   *
+   * @return {Bytes<32>} - The caller's accountId.
+   */
+  export circuit sweep(): Bytes<32> {
+    assertInitialized();
+    const accountId = _computeAccountId();
+    assert(_encryptionKeys.member(disclose(accountId)),
+           "ConfidentialFungibleToken: not registered");
+    const newSpendable = ElGamal_add(
+      _balances.lookup(disclose(accountId)),
+      _pending.lookup(disclose(accountId)));
+    _balances.insert(disclose(accountId), disclose(newSpendable));
+    _pending.insert(disclose(accountId), disclose(ElGamal_encryptZero()));
+    return disclose(accountId);
   }
 
   /**

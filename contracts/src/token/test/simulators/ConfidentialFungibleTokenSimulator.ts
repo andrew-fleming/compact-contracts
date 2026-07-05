@@ -100,6 +100,23 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
   }
 
   /**
+   * @description Returns the pending (incoming, not-yet-swept) balance ciphertext
+   * for `account`. A wallet's total is `balanceOf` (spendable) + `pendingOf`.
+   * @param account The account id to query.
+   */
+  public pendingOf(account: Uint8Array): Promise<ElGamal_Ciphertext> {
+    return this.circuits.impure.pendingOf(account);
+  }
+
+  /**
+   * @description Sweeps the caller's pending pool into their spendable balance.
+   * Only the owner can call it (account derived from the caller's secret).
+   */
+  public sweep(): Promise<Uint8Array> {
+    return this.circuits.impure.sweep();
+  }
+
+  /**
    * @description Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner`
    * through `transferFrom`. This value changes when `approve` or `transferFrom` are called.
    * @param owner The public key or contract address of approver.
@@ -121,6 +138,14 @@ export class ConfidentialFungibleTokenSimulator extends ConfidentialFungibleToke
    */
   public transfer(to: Uint8Array, value: bigint): Promise<Uint8Array> {
     return this.circuits.impure.transfer(to, value);
+  }
+
+  /**
+   * @description The conserving value-movement primitive: debits the caller and
+   * credits `to`, net zero, never touching supply.
+   */
+  public _move(to: Uint8Array, value: bigint): Promise<Uint8Array> {
+    return this.circuits.impure._move(to, value);
   }
 
   /**

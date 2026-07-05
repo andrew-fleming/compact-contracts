@@ -1,0 +1,42 @@
+// SPDX-License-Identifier: MIT
+
+// WARNING: FOR TESTING PURPOSES ONLY.
+
+pragma language_version >= 0.23.0;
+
+import CompactStandardLibrary;
+import "../../HybridConfidentialToken" prefix HCT_;
+import "../../../crypto/EcdhMask" prefix EcdhMask_;
+
+export { HCT_Note, EcdhMask_Ciphertext }
+
+export {
+  HCT__commitments,
+  HCT__nullifiers,
+  HCT__totalSupply,
+  HCT__authorityPk,
+  HCT__seizureCount,
+  HCT__auditKey,
+  HCT__auditSet,
+  HCT__auditViewings
+};
+
+export circuit mint(recipientPk: Bytes<32>, value: Uint<128>): [] {
+  return HCT_mint(recipientPk, value);
+}
+
+export circuit transfer(recipientPk: Bytes<32>, value: Uint<128>): [] {
+  return HCT_transfer(recipientPk, value);
+}
+
+export circuit initializeAuthority(authorityPk: Bytes<32>): [] {
+  return HCT_initializeAuthority(authorityPk);
+}
+
+export circuit seize(targetOwnerPk: Bytes<32>, recoveryPk: Bytes<32>): [] {
+  return HCT_seize(targetOwnerPk, recoveryPk);
+}
+
+export circuit initializeAudit(auditKey: JubjubPoint): [] {
+  return HCT_initializeAudit(auditKey);
+}
