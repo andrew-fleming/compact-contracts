@@ -94,7 +94,7 @@ custody/privacy spectrum.
 
 ---
 
-## Benchmarks (compiler constraint rows, SKIP_ZK)
+## Benchmarks (compiler constraint rows)
 
 | Circuit | Model | rows | Note |
 |---------|-------|------|------|
