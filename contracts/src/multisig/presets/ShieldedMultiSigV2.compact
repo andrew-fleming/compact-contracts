@@ -131,7 +131,7 @@ export circuit deposit(coin: ShieldedCoinInfo): [] {
  * is verified against the message hash. Duplicate signers are rejected
  * via inequality check on adjacent commitments.
  *
- * @notice Signatures are verified with real secp256k1 ECDSA
+ * @notice Signatures are verified with secp256k1 ECDSA
  * (`secp256k1EcdsaVerify`) over the persistentHash message digest.
  *
  * @notice Duplicate detection via != only works for exactly 2 signers.

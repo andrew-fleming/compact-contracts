@@ -33,7 +33,7 @@ pragma language_version >= 0.23.0;
  * hash prevent signatures for one operation type from being replayed as
  * the other.
  *
- * @notice Threshold authorization is enforced with real secp256k1 ECDSA
+ * @notice Threshold authorization is enforced with secp256k1 ECDSA
  * verification (`secp256k1EcdsaVerify`), and all operation/commitment hashing
  * uses `keccak256` to match the custodian's Ethereum-style HSM signing format.
  */
