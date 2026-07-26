@@ -35,7 +35,7 @@ pragma language_version >= 0.23.0;
  *
  * @notice Threshold authorization is enforced with secp256k1 ECDSA
  * verification (`secp256k1EcdsaVerify`), and all operation/commitment hashing
- * uses `keccak256` to match the custodian's Ethereum-style HSM signing format.
+ * uses `keccak256`.
  */
 
 import CompactStandardLibrary;
@@ -140,9 +140,8 @@ constructor(
  * after the counter has been incremented, binding each mint's nonce to a
  * distinct counter value.
  *
- * @notice The message hash is computed with `keccak256` to match the
- * custodian's Ethereum-style HSM signing format, and each signature is
- * checked with `secp256k1EcdsaVerify`.
+ * @notice The message hash is computed with `keccak256` and each
+ * signature is checked with `secp256k1EcdsaVerify`.
  *
  * Requirements:
  *
@@ -215,9 +214,8 @@ export circuit mint(
  * The "multisig:burn:" domain prefix ensures burn signatures cannot be replayed
  * as mint operations for the same parameters.
  *
- * @notice The message hash is computed with `keccak256` to match the
- * custodian's Ethereum-style HSM signing format, and each signature is
- * checked with `secp256k1EcdsaVerify`.
+ * @notice The message hash is computed with `keccak256` and each
+ * signature is checked with `secp256k1EcdsaVerify`.
  *
  * Requirements:
  *
