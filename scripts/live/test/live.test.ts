@@ -12,7 +12,7 @@ import type { LiveStack } from '../LiveStack.ts';
 import { round2Report } from '../paths.ts';
 import type { Reporter } from '../Reporter.ts';
 import { RunLock } from '../RunLock.ts';
-import { resolvePlan } from '../targets.ts';
+import { listTargets, resolvePlan } from '../targets.ts';
 import { VitestRunner } from '../VitestRunner.ts';
 
 /**
@@ -34,6 +34,20 @@ vi.mock('../shell.ts', async (importOriginal) => ({
 /** `liveCategories()` reads `src/`, so every case passes this explicitly to keep
  * the tests independent of the on-disk category set. */
 const CATEGORIES = ['multisig', 'token'] as const;
+
+describe('listTargets', () => {
+  it('lists the live-ready categories plus the integration target', () => {
+    // CI builds its matrix from this (`test:live --list`), so a dropped entry
+    // would surface only as a silently missing job — a live target nobody runs.
+    expect(listTargets(CATEGORIES)).toStrictEqual(['multisig', 'integration']);
+  });
+
+  it('still offers the integration target when no category is live-ready', () => {
+    // `integration` is not a `src/` category, so it does not depend on
+    // LIVE_READY the way the unit categories do.
+    expect(listTargets([])).toStrictEqual(['integration']);
+  });
+});
 
 describe('resolvePlan', () => {
   it('scopes to the integration target', () => {
