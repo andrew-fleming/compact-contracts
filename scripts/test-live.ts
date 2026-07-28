@@ -91,9 +91,19 @@ async function main(): Promise<number> {
   }
 }
 
+// `process.exitCode`, not `process.exit()`: a run under CI has its stdout piped
+// into `tee`/a log collector, where writes are asynchronous, and `process.exit`
+// discards whatever is still queued. What a run prints last is the verdict block,
+// so that is precisely what would be lost. Nothing holds the loop open once
+// `main` resolves — every child is awaited to `close`, and Node unrefs signal
+// listeners — so the process still exits immediately. The signal handler in
+// `shell.ts` keeps `process.exit` on purpose: it has to leave the moment its
+// synchronous cleanup returns.
 main()
-  .then((code) => process.exit(code))
+  .then((code) => {
+    process.exitCode = code;
+  })
   .catch((e) => {
     console.log(e instanceof Error ? e.message : String(e));
-    process.exit(INFRA_ABORT);
+    process.exitCode = INFRA_ABORT;
   });
