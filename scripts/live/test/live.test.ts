@@ -1,17 +1,18 @@
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { classify } from '../LiveOrchestrator.ts';
 import { round2Report } from '../paths.ts';
 import { RunLock } from '../RunLock.ts';
 import { resolvePlan } from '../targets.ts';
+import { VitestRunner } from '../VitestRunner.ts';
 
 /**
- * Dry unit tests for the pure pieces of the live orchestrator (plan resolution,
- * target listing, flake classification, report naming) plus the run lock, which
- * is filesystem-only. Nothing here touches docker, the node, or the artifact
- * tree.
+ * Dry unit tests for the live orchestrator's pure pieces (plan resolution, flake
+ * classification, report naming) plus the two services that only touch the
+ * filesystem: the run lock, and reading back a vitest JSON report. Nothing here
+ * touches docker, the node, or the artifact tree.
  */
 
 /** `liveCategories()` reads `src/`, so every case passes this explicitly to keep
@@ -191,6 +192,63 @@ describe('RunLock', () => {
     new RunLock(lockPath).release();
 
     expect(holder()).toBe(DEAD_PID);
+  });
+});
+
+describe('VitestRunner.fileStatuses', () => {
+  let dir: string;
+  const report = (name: string, body: string): string => {
+    const p = path.join(dir, name);
+    writeFileSync(p, body);
+    return p;
+  };
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), 'live-report-'));
+  });
+
+  it('maps each file in the report to its status', () => {
+    const p = report(
+      'ok.json',
+      JSON.stringify({
+        testResults: [
+          { name: 'a.test.ts', status: 'passed' },
+          { name: 'b.test.ts', status: 'failed' },
+        ],
+      }),
+    );
+
+    expect(new VitestRunner().fileStatuses(p)).toStrictEqual(
+      new Map([
+        ['a.test.ts', 'passed'],
+        ['b.test.ts', 'failed'],
+      ]),
+    );
+  });
+
+  it('returns an empty map when the run matched no files', () => {
+    // vitest still writes a report under `--passWithNoTests`, with no results.
+    const p = report('empty.json', JSON.stringify({ testResults: [] }));
+
+    expect(new VitestRunner().fileStatuses(p)).toStrictEqual(new Map());
+  });
+
+  it('reports no result when the report is missing', () => {
+    expect(
+      new VitestRunner().fileStatuses(path.join(dir, 'absent.json')),
+    ).toBeUndefined();
+  });
+
+  it('reports no result when the report is truncated', () => {
+    // A killed vitest leaves a partial file that still exists, so parsing has to
+    // fail into the same graceful abort rather than throwing through the caller.
+    const p = report('partial.json', '{"testResults":[{"name":"a.test.ts"');
+    const logged = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    expect(new VitestRunner().fileStatuses(p)).toBeUndefined();
+    expect(logged.mock.calls.flat().join('\n')).toContain('partial.json');
+
+    logged.mockRestore();
   });
 });
 

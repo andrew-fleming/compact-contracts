@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { CONTRACTS, PROGRESS_REPORTER, VITEST_BIN } from './paths.ts';
+import { CONTRACTS, PROGRESS_REPORTER, rel, VITEST_BIN } from './paths.ts';
 import { run } from './shell.ts';
 import type { LiveTarget } from './targets.ts';
 
@@ -53,13 +53,28 @@ export class VitestRunner {
   /**
    * File name → status for every file in the report.
    *
-   * @returns `undefined` when no report exists at all — the run was blocked
-   *   (dirty node / lock) or crashed before writing one, which callers must treat
-   *   as an infrastructure abort rather than a test failure.
+   * @returns `undefined` when no *readable* report exists — the run was blocked
+   *   (dirty node / lock), crashed before writing one, or was killed mid-write
+   *   and left truncated JSON behind. Callers must treat that as an
+   *   infrastructure abort rather than a test failure.
    */
   fileStatuses(reportPath: string): Map<string, string> | undefined {
     if (!existsSync(reportPath)) return undefined;
-    const report = JSON.parse(readFileSync(reportPath, 'utf8')) as JsonReport;
+    let report: JsonReport;
+    try {
+      report = JSON.parse(readFileSync(reportPath, 'utf8')) as JsonReport;
+    } catch (e) {
+      // A killed vitest can leave a partial report that still passes `existsSync`,
+      // so parsing is a second way to have no result — not an exception to throw
+      // through the callers, which are written to abort gracefully on `undefined`.
+      // Named here because the caller's message ("produced no results file")
+      // would otherwise misdescribe an unreadable one.
+      console.log(
+        `\ncould not read ${rel(reportPath)}: ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      );
+      return undefined;
+    }
     return new Map(
       (report.testResults ?? []).map((r) => [r.name, r.status] as const),
     );
