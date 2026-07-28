@@ -2,18 +2,34 @@ import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { classify } from '../LiveOrchestrator.ts';
+import type { ArtifactCompiler } from '../ArtifactCompiler.ts';
+import {
+  classify,
+  INFRA_ABORT,
+  LiveOrchestrator,
+} from '../LiveOrchestrator.ts';
+import type { LiveStack } from '../LiveStack.ts';
 import { round2Report } from '../paths.ts';
+import type { Reporter } from '../Reporter.ts';
 import { RunLock } from '../RunLock.ts';
 import { resolvePlan } from '../targets.ts';
 import { VitestRunner } from '../VitestRunner.ts';
 
 /**
  * Dry unit tests for the live orchestrator's pure pieces (plan resolution, flake
- * classification, report naming) plus the two services that only touch the
- * filesystem: the run lock, and reading back a vitest JSON report. Nothing here
- * touches docker, the node, or the artifact tree.
+ * classification, report naming), the two services that only touch the filesystem
+ * (the run lock, and reading back a vitest JSON report), and a round driven
+ * through stand-in collaborators. Nothing here touches docker, the node, or the
+ * artifact tree.
  */
+
+// The one collaborator the orchestrator does not take by injection is the
+// harness-smoke spawn, so `run` is stubbed to succeed. Everything else in
+// `shell.ts` stays real (`banner` prints through the console spies below).
+vi.mock('../shell.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../shell.ts')>()),
+  run: async () => 0,
+}));
 
 /** `liveCategories()` reads `src/`, so every case passes this explicitly to keep
  * the tests independent of the on-disk category set. */
@@ -249,6 +265,72 @@ describe('VitestRunner.fileStatuses', () => {
     expect(logged.mock.calls.flat().join('\n')).toContain('partial.json');
 
     logged.mockRestore();
+  });
+});
+
+describe('LiveOrchestrator', () => {
+  // Deliberately not a real category, so clearing stale reports finds nothing.
+  const TARGET = {
+    name: 'faketarget',
+    project: 'unit-live',
+    defaultFilters: ['src/faketarget'],
+  } as const;
+
+  /** A round wired to stand-ins: every collaborator but the harness-smoke spawn
+   * is constructor-injected, so a whole round runs without docker or vitest. */
+  const roundOver = (
+    fileStatuses: () => Map<string, string> | undefined,
+    fileFilters: readonly string[] = [],
+  ): LiveOrchestrator =>
+    new LiveOrchestrator({
+      plan: { targets: [TARGET], skipped: [], fileFilters, integration: false },
+      stack: { up: async () => 0, stop: () => {} } as unknown as LiveStack,
+      compiler: {
+        compileVerified: async () => true,
+      } as unknown as ArtifactCompiler,
+      runner: { run: async () => 0, fileStatuses } as unknown as VitestRunner,
+      reporter: {
+        firstRunGreen: () => 0,
+        verdict: () => 0,
+      } as unknown as Reporter,
+    });
+
+  let logged: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    logged = vi.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    logged.mockRestore();
+  });
+
+  const output = (): string => logged.mock.calls.flat().join('\n');
+
+  it('aborts when the run matched no test file', async () => {
+    // A mistyped target is indistinguishable from a file filter, and
+    // `--passWithNoTests` makes vitest exit 0 with an empty report — so without
+    // this guard the run reports PASSED having executed nothing.
+    const code = await roundOver(() => new Map(), ['multsig']).run();
+
+    expect(code).toBe(INFRA_ABORT);
+    expect(output()).toContain('no test file matched');
+    expect(output()).toContain('filter: multsig');
+  });
+
+  it('aborts when a target wrote no report at all', async () => {
+    const code = await roundOver(() => undefined).run();
+
+    expect(code).toBe(INFRA_ABORT);
+    expect(output()).toContain('produced no results file');
+  });
+
+  it('reports the first run green when every file passed', async () => {
+    const code = await roundOver(
+      () => new Map([['a.test.ts', 'passed']]),
+    ).run();
+
+    expect(code).toBe(0);
   });
 });
 

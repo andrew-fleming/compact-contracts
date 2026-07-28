@@ -61,8 +61,8 @@ export function classify(
  * turns the build red, but it is reported loudly.
  *
  * Anything that prevents classification (no report written, a non-zero exit with
- * no failing files, a stack that will not come up) aborts with
- * {@link INFRA_ABORT} rather than being guessed at.
+ * no failing files, a run that matched no test file at all, a stack that will not
+ * come up) aborts with {@link INFRA_ABORT} rather than being guessed at.
  */
 export class LiveOrchestrator {
   readonly #plan: LivePlan;
@@ -155,6 +155,7 @@ export class LiveOrchestrator {
   async #round1(): Promise<FailedFile[] | undefined> {
     const { targets, fileFilters } = this.#plan;
     const failed: FailedFile[] = [];
+    let filesRun = 0;
 
     for (const [i, target] of targets.entries()) {
       banner(`ROUND 1 · ${target.name} (${i + 1}/${targets.length})`);
@@ -196,10 +197,23 @@ export class LiveOrchestrator {
         return undefined;
       }
 
+      filesRun += statuses.size;
       failed.push(...targetFailed.map((file) => ({ file, target })));
       console.log(
         `\n${target.name}: ${statuses.size} file(s), ${targetFailed.length} failed`,
       );
+    }
+
+    if (targets.length > 0 && filesRun === 0) {
+      console.log(
+        `\nno test file matched across ${targets.map((t) => t.name).join(', ')}` +
+          (fileFilters.length ? ` (filter: ${fileFilters.join(' ')})` : '') +
+          ' — nothing ran, so there is no result to report.\n' +
+          'A mistyped target is the usual cause: an unrecognised first argument ' +
+          'is a file filter, not an error, so it matches nothing across every ' +
+          "live-ready target. Run 'yarn test:live --list' for the target names.",
+      );
+      return undefined;
     }
     return failed;
   }

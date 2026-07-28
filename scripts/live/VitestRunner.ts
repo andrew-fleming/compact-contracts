@@ -35,7 +35,10 @@ export class VitestRunner {
         'run',
         '--project',
         project,
-        // A target filtered down to zero matching files is a pass, not an error.
+        // One target filtered down to zero matching files is a pass, not an
+        // error: a name filter may only exist under some of the targets in an
+        // unscoped run. Zero across the WHOLE run is a different thing, and
+        // `LiveOrchestrator.#round1` rejects it.
         '--passWithNoTests',
         // `default` prints one line per file (piped) plus failures/summary; the
         // progress reporter adds the worker-tagged, counted per-test line.
