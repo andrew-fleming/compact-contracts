@@ -142,11 +142,13 @@ export default defineConfig({
         },
       },
       {
-        // Same files as `integration`; `MIDNIGHT_BACKEND=live` (set by
-        // `test:live integration`) flips the `isLiveBackend()`-gated blocks —
-        // today the composed-deploy block-limit canary — on, and skips the dry
-        // functional ones. Reuses `unit-live`'s globalSetup (freshness + run
-        // lock) and setup (wallet pool + backend register) verbatim.
+        // Same files as `integration`, run with `MIDNIGHT_BACKEND=live` (set by
+        // `test:live integration`). That turns on the `isLiveBackend()`-gated
+        // blocks and skips the dry functional ones. Today the only live-gated
+        // block is the composed-deploy block-limit canary.
+        //
+        // Reuses `unit-live`'s globalSetup (freshness + run lock) and setup
+        // (wallet pool + backend register) verbatim.
         test: {
           ...NODE,
           ...LIVE_TIMEOUTS,
