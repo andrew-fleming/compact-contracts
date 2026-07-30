@@ -82,13 +82,13 @@ describe('ShieldedMultiSig', () => {
     it('should fail with zero threshold', async () => {
       await expect(
         ShieldedMultiSigSimulator.create(SIGNERS, 0n),
-      ).rejects.toThrow('SignerManager: threshold must be > 0');
+      ).rejects.toThrow('Signer: threshold must not be zero');
     });
 
     it('should fail with threshold exceeding signer count', async () => {
       await expect(
         ShieldedMultiSigSimulator.create(SIGNERS, 4n),
-      ).rejects.toThrow('SignerManager: threshold exceeds signer count');
+      ).rejects.toThrow('Signer: threshold exceeds signer count');
     });
   });
 
@@ -206,7 +206,7 @@ describe('ShieldedMultiSig', () => {
             multisig
               .as('OTHER')
               .createShieldedProposal(to, COLOR, PROPOSAL_AMOUNT),
-          ).rejects.toThrow('SignerManager: not a signer');
+          ).rejects.toThrow('Signer: not a signer');
         });
 
         it('should fail with zero amount', async () => {
@@ -273,7 +273,7 @@ describe('ShieldedMultiSig', () => {
         it('should fail for non-signer', async () => {
           await expect(
             multisig.as('OTHER').approveProposal(proposalId),
-          ).rejects.toThrow('SignerManager: not a signer');
+          ).rejects.toThrow('Signer: not a signer');
         });
 
         it('should fail for double approval', async () => {
@@ -324,7 +324,7 @@ describe('ShieldedMultiSig', () => {
         it('should fail for non-signer', async () => {
           await expect(
             multisig.as('OTHER').revokeApproval(proposalId),
-          ).rejects.toThrow('SignerManager: not a signer');
+          ).rejects.toThrow('Signer: not a signer');
         });
 
         it('should fail if not yet approved', async () => {
@@ -421,7 +421,7 @@ describe('ShieldedMultiSig', () => {
           await multisig.as('SIGNER1').approveProposal(id2);
 
           await expect(multisig.executeShieldedProposal(id2)).rejects.toThrow(
-            'SignerManager: threshold not met',
+            'Signer: threshold not met',
           );
         });
 

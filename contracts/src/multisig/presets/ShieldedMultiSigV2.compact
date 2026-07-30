@@ -24,7 +24,7 @@ import CompactStandardLibrary;
 
 import "../ProposalManager" prefix Proposal_;
 import "../ShieldedTreasuryStateless" prefix Treasury_;
-import "../SignerManager"<Bytes<32>> prefix Signer_;
+import "../Signer"<Bytes<32>> prefix Signer_;
 
 // ─── Types ──────────────────────────────────────────────────────
 
