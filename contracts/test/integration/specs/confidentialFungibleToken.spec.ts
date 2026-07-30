@@ -24,12 +24,13 @@ import { ConfidentialFungibleTokenPublicSupplySimulator } from '../fixtures/conf
  * Balances stay hidden; `totalSupply` (the public aggregate) is what we assert.
  *
  * Backend split (`--project integration` vs `integration-live`), in file order:
- *   1. The LIVE block is the block-limit canary: it asserts the composed deploy
- *      is rejected, which is what makes "no green functional live integration
- *      coverage" a verified claim rather than an assumption.
- *   2. The functional block is DRY-ONLY, because of (1) — and because it drives
- *      confidential identities through `switchIdentity` / `cachePlaintext`, which
- *      the live backend throws on.
+ *   1. The LIVE block is the block-limit canary. It asserts the composed deploy
+ *      is rejected, which turns "no green functional live integration coverage"
+ *      into a verified claim rather than an assumption. True as of ledger v8; see
+ *      the note above it.
+ *   2. The functional block is DRY-ONLY, for two reasons: the deploy in (1) is
+ *      rejected, and it drives confidential identities through `switchIdentity` /
+ *      `cachePlaintext`, which the live backend throws on.
  */
 
 // Mirrors the base suite's deterministic identity setup.
@@ -75,10 +76,11 @@ const deploy = () =>
 // larger and hits the same wall.
 //
 // Rather than skip and hide that, ASSERT the rejection. A green skip would let
-// the branch claim live coverage it does not have; this canary instead fails the
-// day a staged deploy, a smaller composition, or a looser ledger lets the
-// composed contract through — which is exactly when green functional live
-// integration coverage becomes possible, and the guards below can be inverted.
+// the branch claim live coverage it does not have.
+//
+// Scoped to ledger v8 (`@midnight-ntwrk/ledger-v8` 8.1.0). The budget is a ledger
+// property, not a contract property, so a ledger bump can move it. If this block
+// goes red, the composed deploy fits now: drop it and invert the guards below.
 // ---------------------------------------------------------------------------
 
 describe.runIf(isLiveBackend())(
@@ -95,7 +97,9 @@ describe.runIf(isLiveBackend())(
       }
       expect(
         error,
-        'expected the node to reject the oversized deploy',
+        'the composed deploy SUCCEEDED, so it no longer exceeds the block budget: ' +
+          'delete this block and invert the guards in this file, to run the ' +
+          'functional suite live instead.',
       ).toBeDefined();
       const detail = [
         (error as Error)?.message,
@@ -104,10 +108,15 @@ describe.runIf(isLiveBackend())(
       ]
         .map((x) => String(x ?? ''))
         .join(' | ');
-      // The node's exact words. Asserted in full rather than a loose
-      // `/block limits/` match, which an unrelated deploy failure could satisfy
-      // and report as a false green.
-      expect(detail).toContain(
+      // The node's exact words, as of ledger v8. Asserted in full rather than a
+      // loose `/block limits/` match, which an unrelated deploy failure could
+      // satisfy and report as a false green.
+      expect(
+        detail,
+        'the deploy was rejected, but not for the block budget. Either the cause ' +
+          'is unrelated (funding, proving, a submission bounce), or a ledger bump ' +
+          'reworded the message. Re-verify against the node before relaxing this.',
+      ).toContain(
         '1010: Invalid Transaction: Transaction would exhaust the block limits',
       );
     });
