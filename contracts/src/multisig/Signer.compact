@@ -85,8 +85,6 @@ module Signer<T> {
    * and an initial set of signers.
    * If used, it should only be called in the contract's constructor.
    *
-   * @circuitInfo k=11, rows=1815
-   *
    * Requirements:
    *
    * - If used, can only be called once (in the constructor).
@@ -116,8 +114,6 @@ module Signer<T> {
 
   /**
    * @description Asserts that the given caller is an active signer.
-   *
-   * @circuitInfo k=10, rows=585
    *
    * Requirements:
    *
@@ -189,8 +185,6 @@ module Signer<T> {
   /**
    * @description Returns whether the given account is an active signer.
    *
-   * @circuitInfo k=10, rows=605
-   *
    * @param {T} account - The account to check.
    * @returns {Boolean} True if the account is an active signer.
    */
@@ -206,8 +200,6 @@ module Signer<T> {
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
    * authorization policy.
-   *
-   * @circuitInfo k=10, rows=598
    *
    * Requirements:
    *
@@ -232,8 +224,6 @@ module Signer<T> {
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
    * authorization policy.
-   *
-   * @circuitInfo k=10, rows=612
    *
    * Requirements:
    *
