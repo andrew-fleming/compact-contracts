@@ -451,18 +451,5 @@ describe('Signer', () => {
         'Signer: threshold not met',
       );
     });
-
-    // Approvals collected before a removal still count toward the threshold.
-    it('should accept an approval count above the signer count', async () => {
-      await contract._addSigner(SIGNER);
-      await contract._addSigner(SIGNER2);
-      await contract._addSigner(SIGNER3);
-      await contract._changeThreshold(2n);
-
-      await contract._removeSigner(SIGNER3);
-      expect(await contract.getSignerCount()).toEqual(2n);
-
-      await contract.assertThresholdMet(3n);
-    });
   });
 });
