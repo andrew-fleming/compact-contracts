@@ -47,11 +47,20 @@ pragma language_version >= 0.23.0;
  * re-entry into `initialize` and nothing else. No other circuit consults it,
  * so a contract that configures signers through its own flow
  * (`_addSigner` / `_setThreshold`) is fully functional without ever calling
- * `initialize`. The unconfigured state is safe by construction rather than by
- * flag: an empty registry makes `isSigner` false for every input, so
- * `assertSigner` rejects, and a zero `_threshold` makes `assertThresholdMet`
- * reject before it compares any approval count. Contracts needing a
- * "configured" signal beyond that should track it at the contract layer.
+ * `initialize`. Provided it gates those circuits behind its own
+ * authorization policy. Leaving them ungated lets the first caller register
+ * their own signer set and take control of the contract.
+ *
+ * @notice Not asserting initialization on the guard and view circuits is a
+ * deliberate divergence from the other modules in this library, which do.
+ * Those modules gate a zero-valued identity (an owner, a role holder); this
+ * one gates an empty collection, which rejects by absence. Safety here comes
+ * from the state rather than from a flag: an empty registry makes `isSigner`
+ * false for every input, so `assertSigner` rejects every caller, and a zero
+ * `_threshold` makes `assertThresholdMet` reject before it compares any
+ * approval count — regardless of how the threshold came to be zero. Contracts
+ * needing a "configured" signal beyond that should track one at the contract
+ * layer.
  */
 module Signer<T> {
   import CompactStandardLibrary;
@@ -261,6 +270,13 @@ module Signer<T> {
    *
    * @warning This is intended for use during contract construction
    * or custom setup flows where signers may not yet be registered.
+   *
+   * Leaving `newThreshold` above the signer count is permitted and expected
+   * mid-setup, but no approval can meet the threshold until enough signers are
+   * registered. `assertThresholdMet` fails closed until then, so the state
+   * blocks operations rather than authorizing them. Lower it with
+   * `_setThreshold`; `_changeThreshold` cannot lower a threshold while the
+   * signer count is zero, because that would require a zero threshold.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
