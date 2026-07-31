@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** Remove the initialization guard from `Signer`'s `assertSigner`, `assertThresholdMet`, `getSignerCount`, and `getThreshold`. `_isInitialized` now gates only re-entry into `initialize`, so a contract that configures signers through its own flow (`_addSigner` / `_setThreshold`) can use the guard and view circuits without calling `initialize` — previously they reverted permanently with `Signer: contract not initialized` even when the module was fully configured. The unconfigured state remains safe without the flag: an empty registry makes `assertSigner` reject every caller, and a zero threshold makes `assertThresholdMet` reject every approval count. The two getters now return `0` instead of reverting. (#)
+- Remove the initialization guard from `Signer`'s `assertSigner`, `assertThresholdMet`, `getSignerCount`, and `getThreshold` (#)
 - Rename the contract-compilation scripts and Turbo tasks from `compact` / `compact:*` to `compile` / `compile:*`, and the Biome scripts from `fmt-and-lint` / `fmt-and-lint:*` to `lint` / `lint:*`. (#680)
 - Rename the native shielded token supply extensions to `NativeShieldedTokenPublicSupply` / `NativeShieldedTokenFamilyPublicSupply` (and the shared `NativeShieldedTokenPublicSupplyCore`), making explicit that they track supply on-chain and matching the `ConfidentialFungibleTokenPublicSupply` naming. (#710)
 
