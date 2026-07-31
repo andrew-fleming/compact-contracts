@@ -32,8 +32,7 @@ describe('Signer', () => {
       );
     });
 
-    // 0n is the important case: without the `_threshold != 0` check it would
-    // satisfy `approvalCount >= _threshold` and bypass authorization entirely
+    // 0n would otherwise satisfy `approvalCount >= _threshold`.
     it.each([0n, 1n, 255n])(
       'assertThresholdMet should reject an approval count of %s',
       async (approvalCount) => {
@@ -439,6 +438,31 @@ describe('Signer', () => {
       await expect(contract.assertThresholdMet(1n)).rejects.toThrow(
         'Signer: threshold not met',
       );
+    });
+
+    // Deliberate delegation, not an oversight — see `assertThresholdMet`.
+    it('should not consult the signer count', async () => {
+      await contract._setThreshold(2n);
+      expect(await contract.getSignerCount()).toEqual(0n);
+
+      await contract.assertThresholdMet(2n);
+
+      await expect(contract.assertThresholdMet(1n)).rejects.toThrow(
+        'Signer: threshold not met',
+      );
+    });
+
+    // Approvals collected before a removal still count toward the threshold.
+    it('should accept an approval count above the signer count', async () => {
+      await contract._addSigner(SIGNER);
+      await contract._addSigner(SIGNER2);
+      await contract._addSigner(SIGNER3);
+      await contract._changeThreshold(2n);
+
+      await contract._removeSigner(SIGNER3);
+      expect(await contract.getSignerCount()).toEqual(2n);
+
+      await contract.assertThresholdMet(3n);
     });
   });
 });
