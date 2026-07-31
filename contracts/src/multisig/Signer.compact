@@ -58,7 +58,7 @@ pragma language_version >= 0.23.0;
  * from the state rather than from a flag: an empty registry makes `isSigner`
  * false for every input, so `assertSigner` rejects every caller, and a zero
  * `_threshold` makes `assertThresholdMet` reject before it compares any
- * approval count — regardless of how the threshold came to be zero. Contracts
+ * approval count regardless of how the threshold came to be zero. Contracts
  * needing a "configured" signal beyond that should track one at the contract
  * layer.
  */
