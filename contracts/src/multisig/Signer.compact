@@ -133,6 +133,17 @@ module Signer<T> {
   /**
    * @description Asserts that the given approval count meets the threshold.
    *
+   * @notice `approvalCount` is supplied by the consuming contract and is
+   * compared against the threshold only. This circuit never consults the signer
+   * registry. Ensuring the count reflects distinct, currently-registered signers
+   * is the consuming contract's responsibility, and a contract whose approval
+   * accounting is not itself gated by `assertSigner` gets no protection here.
+   *
+   * The count is deliberately left unbounded by `_signerCount`: approvals
+   * collected before a signer was removed must still count toward a threshold
+   * the remaining signers satisfy, and bounding the count would reject those.
+   * See the stale-signer-set guidance in the module header.
+   *
    * @circuitInfo k=9, rows=54
    *
    * Requirements:
@@ -272,10 +283,11 @@ module Signer<T> {
    * or custom setup flows where signers may not yet be registered.
    *
    * Leaving `newThreshold` above the signer count is permitted and expected
-   * mid-setup, but no approval can meet the threshold until enough signers are
-   * registered. `assertThresholdMet` fails closed until then, so the state
-   * blocks operations rather than authorizing them. Lower it with
-   * `_setThreshold`; `_changeThreshold` cannot lower a threshold while the
+   * mid-setup, and is not self-enforcing: `assertThresholdMet` compares
+   * `approvalCount` against the threshold alone, so a caller supplying a matching
+   * count satisfies it even against an empty registry. Contracts must not gate
+   * operations on `assertThresholdMet` while setup is incomplete. Lower the
+   * threshold with `_setThreshold`; `_changeThreshold` cannot lower one while the
    * signer count is zero, because that would require a zero threshold.
    *
    * @notice Access control is NOT enforced here.
