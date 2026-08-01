@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Guard `UnshieldedTreasury` on its tracked balance instead of the protocol balance, fixing a runtime failure that made deposits revert (#)
+- Guard `UnshieldedTreasury` on its tracked balance instead of the protocol balance, fixing a runtime failure that made deposits revert (#762)
 
 ## 0.3.0-alpha (2026-06-30)
 
