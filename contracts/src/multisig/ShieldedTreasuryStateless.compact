@@ -64,14 +64,14 @@ module ShieldedTreasuryStateless {
    * received/sent accounting is tracked on the ledger.
    *
    * @warning The returned `ShieldedSendResult` holds the sent and change coins
-   * in plaintext (`nonce`, `color`, `value`). Consuming it in-circuit is safe —
-   * passing `result.change` to `sendImmediateShielded`, for instance. Returning
+   * in plaintext (`nonce`, `color`, `value`). Consuming it in-circuit is safe
+   * (passing `result.change` to `sendImmediateShielded`, for instance). Returning
    * it from your entry point, writing it to ledger, or passing it to another
-   * contract publishes those coin details, and the change value reveals the
-   * treasury's remaining holding. Note the compiler will NOT stop you: the
+   * contract publishes those coin details, including the amount left over from
+   * the coin that was spent. Note the compiler will NOT stop you: the
    * `disclose` calls below clear the witness taint, so such a return compiles
    * with no `disclose` of your own and no marker at the disclosure site. If you
-   * do not need in-circuit change handling, ignore the result — the change is
+   * do not need in-circuit change handling, ignore the result. The change is
    * recoverable off-chain from the transaction's private proving state.
    *
    * @notice Access control is NOT enforced here.
@@ -102,7 +102,7 @@ module ShieldedTreasuryStateless {
     // contract decides what to do with the returned change: retain it off-chain
     // and spend it later, or route it onward itself. The rule is only that the
     // change must never be re-spent AND still treated as held. "Retain" means
-    // off-chain — this module keeps no state, and writing the coin to ledger
+    // off-chain. This module keeps no state, and writing the coin to ledger
     // would publish its nonce, color, and value.
     return result;
   }
