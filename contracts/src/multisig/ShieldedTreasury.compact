@@ -55,10 +55,12 @@ module ShieldedTreasury {
    * The coin is then merged with any existing coin of the same color,
    * or inserted as a new entry if no coin of that color exists.
    *
-   * Zero-value deposits are permitted, but they are not a no-op: a zero-value
-   * coin is inserted into `_coins` and occupies that color's single slot until
-   * a later deposit merges into it. They may serve as signaling mechanisms
-   * when events are supported. They are not useful as privacy decoys — this
+   * Zero-value deposits are permitted and are not always a no-op. On a color the
+   * treasury does not yet hold, a zero-value coin is inserted and occupies that
+   * color's single slot until a later deposit merges into it; if a coin of that
+   * color already exists, the zero merges into it via `mergeCoinImmediate` and
+   * the stored value is unchanged. They may serve as signaling mechanisms when
+   * events are supported. They are not useful as privacy decoys, this
    * treasury's holdings are public (see the module header).
    *
    * @notice Access control is NOT enforced here.
@@ -109,8 +111,9 @@ module ShieldedTreasury {
    *
    * @notice The returned `ShieldedSendResult` carries the sent and change coins
    * in plaintext, so sinking it (returning it from an entry point, writing it
-   * to ledger, passing it cross-contract) discloses them. Here that leaks
-   * nothing new, `_coins` already publishes the change coin.
+   * to ledger, passing it cross-contract) discloses them. `_coins` publishes only
+   * the retained change coin, and nothing at all when the send leaves no change,
+   * so the sent coin's plaintext is disclosed beyond anything in public state.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
