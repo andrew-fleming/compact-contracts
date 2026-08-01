@@ -202,9 +202,11 @@ module ProposalManager {
    *
    * - A `kind` the execution rail cannot accept (an `UnshieldedUser` recipient
    *   on a shielded treasury, say) creates a proposal that passes here and then
-   *   reverts in `toShieldedRecipient` at execution, permanently `Active` and
-   *   unexecutable. `ShieldedMultiSig` guards this at its call site; a consumer
-   *   that does not is exposed.
+   *   reverts in `toShieldedRecipient` at execution. It stays `Active` and
+   *   unexecutable on that rail until `_cancelProposal` retires it — and neither
+   *   shipped preset exposes cancellation, so a consumer that omits it has no way
+   *   to retire the proposal. `ShieldedMultiSig` guards the kind at its call site
+   *   instead; a consumer that does neither is exposed.
    * - A zero or otherwise unspendable `address` is accepted, and funds sent to
    *   it on execution are unrecoverable.
    *
