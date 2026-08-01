@@ -97,9 +97,9 @@ export circuit probeBalanceLte(color: Bytes<32>, amount: Uint<128>): Boolean {
 }
 
 /**
- * @description Sends to this contract's own address. An unshielded output to a
- * contract is only valid if that contract claims it in the same transaction;
- * `_send` does not claim, so this is expected to be rejected on-chain.
+ * @description Sends to this contract's own address. Measured on a live node:
+ * the send is ACCEPTED, the funds stay credited to the contract and remain
+ * spendable, but `_send` has already zeroed the tracked balance.
  */
 export circuit sendToSelf(color: Bytes<32>, amount: Uint<128>): [] {
   return Treasury__send(
