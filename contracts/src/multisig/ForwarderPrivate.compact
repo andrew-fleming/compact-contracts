@@ -110,7 +110,7 @@ module ForwarderPrivate {
    * would defeat the private-parent guarantee. A coin public key is encrypted
    * inside the Zswap output and never appears on the public transcript.
    *
-   * @circuitInfo k=16, rows=41961
+   * @circuitInfo k=15, rows=23937
    *
    * Requirements:
    *
