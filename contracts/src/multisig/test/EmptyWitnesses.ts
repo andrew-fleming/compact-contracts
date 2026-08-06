@@ -3,8 +3,10 @@
 
 /**
  * Shared empty private state and witnesses for the multisig test simulators.
- * None of the multisig contracts declare witnesses, so every simulator imports
- * this in place of a per-contract witness module.
+ * Most multisig contracts declare no witnesses, so their simulators import this
+ * in place of a per-contract witness module. `ShieldedMultiSig` is the
+ * exception as it derives signer identity from a secret key and has its own
+ * `ShieldedMultiSigWitnesses`.
  */
 export type EmptyPrivateState = Record<string, never>;
 export const EmptyPrivateState: EmptyPrivateState = {};
