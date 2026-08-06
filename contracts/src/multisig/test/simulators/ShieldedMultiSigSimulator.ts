@@ -5,15 +5,14 @@ import {
 import {
   type Ledger,
   ledger,
+  pureCircuits,
   Contract as ShieldedMultiSig,
 } from '../../../../artifacts/ShieldedMultiSig/contract/index.js';
-import { EmptyPrivateState, emptyWitnesses } from '../EmptyWitnesses.js';
+import {
+  ShieldedMultiSigPrivateState,
+  ShieldedMultiSigWitnesses,
+} from '../witnesses/ShieldedMultiSigWitnesses.js';
 
-type EitherPKAddress = {
-  is_left: boolean;
-  left: { bytes: Uint8Array };
-  right: { bytes: Uint8Array };
-};
 type Recipient = { kind: number; address: Uint8Array };
 type ShieldedCoinInfo = { nonce: Uint8Array; color: Uint8Array; value: bigint };
 type ShieldedSendResult = {
@@ -28,40 +27,58 @@ type Proposal = {
 };
 
 type ShieldedMultiSigArgs = readonly [
-  signers: EitherPKAddress[],
+  instanceSalt: Uint8Array,
+  signerCommitments: Uint8Array[],
   thresh: bigint,
 ];
 
 const ShieldedMultiSigSimulatorBase = createSimulator<
-  EmptyPrivateState,
+  ShieldedMultiSigPrivateState,
   ReturnType<typeof ledger>,
-  ReturnType<typeof emptyWitnesses>,
-  ShieldedMultiSig<EmptyPrivateState>,
+  ReturnType<typeof ShieldedMultiSigWitnesses>,
+  ShieldedMultiSig<ShieldedMultiSigPrivateState>,
   ShieldedMultiSigArgs
 >({
   contractFactory: (witnesses) =>
-    new ShieldedMultiSig<EmptyPrivateState>(witnesses),
-  defaultPrivateState: () => EmptyPrivateState,
-  contractArgs: (signers, thresh) => [signers, thresh],
+    new ShieldedMultiSig<ShieldedMultiSigPrivateState>(witnesses),
+  defaultPrivateState: () => ShieldedMultiSigPrivateState.generate(),
+  contractArgs: (instanceSalt, signerCommitments, thresh) => [
+    instanceSalt,
+    signerCommitments,
+    thresh,
+  ],
   ledgerExtractor: (state) => ledger(state),
-  witnessesFactory: () => emptyWitnesses(),
+  witnessesFactory: () => ShieldedMultiSigWitnesses(),
   artifactName: 'ShieldedMultiSig',
 });
 
 export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
   static async create(
-    signers: EitherPKAddress[],
+    instanceSalt: Uint8Array,
+    signerCommitments: Uint8Array[],
     thresh: bigint,
     options: SimulatorOptions<
-      EmptyPrivateState,
-      ReturnType<typeof emptyWitnesses>
+      ShieldedMultiSigPrivateState,
+      ReturnType<typeof ShieldedMultiSigWitnesses>
     > = {},
   ): Promise<ShieldedMultiSigSimulator> {
     // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
     return super.create(
-      [signers, thresh],
+      [instanceSalt, signerCommitments, thresh],
       options,
     ) as Promise<ShieldedMultiSigSimulator>;
+  }
+
+  /**
+   * @description Derives a signer commitment off-chain, exactly as the contract
+   * derives it in-circuit. This is the deployer-side helper: each prospective
+   * signer computes their own commitment and shares only the result.
+   */
+  static calculateSignerId(
+    secretKey: Uint8Array,
+    salt: Uint8Array,
+  ): Uint8Array {
+    return pureCircuits.calculateSignerId(secretKey, salt);
   }
 
   // Deposit
@@ -86,6 +103,10 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
     return this.circuits.impure.revokeApproval(id);
   }
 
+  public cancelProposal(id: bigint): Promise<[]> {
+    return this.circuits.impure.cancelProposal(id);
+  }
+
   public executeShieldedProposal(id: bigint): Promise<ShieldedSendResult> {
     return this.circuits.impure.executeShieldedProposal(id);
   }
@@ -93,7 +114,7 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
   // View - Approvals
   public isProposalApprovedBySigner(
     id: bigint,
-    signer: EitherPKAddress,
+    signer: Uint8Array,
   ): Promise<boolean> {
     return this.circuits.impure.isProposalApprovedBySigner(id, signer);
   }
@@ -133,12 +154,41 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
     return this.circuits.impure.getThreshold();
   }
 
-  public isSigner(account: EitherPKAddress): Promise<boolean> {
-    return this.circuits.impure.isSigner(account);
+  public isSigner(commitment: Uint8Array): Promise<boolean> {
+    return this.circuits.impure.isSigner(commitment);
   }
 
   // Ledger access
   public getLedger(): Promise<Ledger> {
     return this.getPublicState();
   }
+
+  public readonly privateState = {
+    /**
+     * @description Replaces the secret key in the private state. Used in tests
+     * to switch between signer identities, or to inject an unregistered key to
+     * exercise the failure path.
+     * @param newSK - The new secret key to set.
+     * @returns The updated private state.
+     */
+    injectSecretKey: (
+      newSK: Uint8Array,
+    ): Promise<ShieldedMultiSigPrivateState> =>
+      this.updatePrivateState(
+        ShieldedMultiSigPrivateState.withSecretKey(newSK),
+      ),
+
+    /**
+     * @description Returns the current secret key from the private state.
+     * @returns The secret key.
+     * @throws If the secret key is undefined.
+     */
+    getCurrentSecretKey: async (): Promise<Uint8Array> => {
+      const sk = (await this.getPrivateState()).secretKey;
+      if (typeof sk === 'undefined') {
+        throw new Error('Missing secret key');
+      }
+      return Uint8Array.from(sk);
+    },
+  };
 }
