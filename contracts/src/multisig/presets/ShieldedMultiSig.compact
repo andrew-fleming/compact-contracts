@@ -10,13 +10,9 @@ pragma language_version >= 0.23.0;
  * transfer shielded tokens out of the treasury once the configured threshold
  * is met.
  *
- * Unlike `ShieldedMultiSigV2` / `V3`, which verify a batch of ECDSA signatures
- * in a single transaction, this preset accumulates approvals **on-chain across
- * transactions**: each signer approves independently, and any caller may
- * execute once the threshold is met. That asynchronous workflow is this
- * preset's reason to exist, and it is why identity is a cheap hash commitment
- * rather than an in-circuit signature verification — an approval costs one
- * SHA-256, not a ~29k-row `secp256k1EcdsaVerify`.
+ * This preset accumulates approvals **on-chain across transactions**: each
+ * signer approves independently, and any caller may execute once the threshold
+ * is met.
  *
  * ## What this preset does and does not hide
  *
@@ -37,7 +33,7 @@ pragma language_version >= 0.23.0;
  * operation rather than a transparent balance update, and that a signer's
  * commitment reveals no public key.
  *
- * This makes the preset a fit for a **transparent treasury** — a DAO or similar
+ * This makes the preset a fit for a **transparent treasury** such as a DAO or similar
  * body that wants its holdings, its spending proposals, and its approvals
  * publicly auditable, with governance enforced on-chain. It is the wrong choice
  * for a treasury whose balance or payment history must stay private. For that,
@@ -71,24 +67,9 @@ pragma language_version >= 0.23.0;
  * composability trade, not a security property** — forgery is defeated by
  * requiring a preimage of a registered commitment, which holds salted or not.
  *
- * The trade, stated honestly in both directions. Salting means a signer here
- * cannot be correlated with their identity in another deployment of this preset,
- * nor with the `accountId` used by `AccessControl` / `FungibleToken` /
- * `NonFungibleToken` (unsalted `persistentHash([secretKey])`, an intentionally
- * `msg.sender`-like global identity). The cost is the mirror image: a signer
- * cannot be *proven* to be the same entity that holds a role or a token balance
- * elsewhere in the library, so cross-contract composition on identity is off the
- * table; and because the wallet layer can already give unlinkability by using a
- * distinct `secretKey` per contract, salting here removes that choice from the
- * user rather than adding a guarantee they could not otherwise obtain.
- *
- * Note this is not a criticism of the unsalted scheme: an unsalted registry
- * would be queryable (`isSigner(someKnownAccountId)`), but `AccessControl`'s
- * `hasRole` is queryable in exactly the same way and accepts it deliberately.
- * The choice here follows `ShieldedMultiSigV2` / `V3`, which likewise derive
- * instance-scoped signer commitments. Deployments that want signers to carry
- * their library-wide `accountId` should derive commitments with
- * `Utils_computeAccountId` instead.
+ * Salting scopes a signer's identity to this deployment: the same `secretKey`
+ * produces a different commitment in another instance, so the two cannot be
+ * correlated. That suits a standalone, ready-to-deploy preset.
  *
  * Deployers derive commitments with the `calculateSignerId` pure circuit, which
  * is callable off-chain. Each prospective signer should compute their own
@@ -109,6 +90,14 @@ pragma language_version >= 0.23.0;
  * therefore public, as is the proposal itself (see the `ProposalManager`
  * header). This preset hides the *transfer*, not the governance around it.
  *
+ * @notice Approvals are deliberately NOT pruned when a proposal reaches a
+ * terminal state. `_proposalApprovals[id]` and `_approvalCount[id]` persist after
+ * execution or cancellation, so `_proposalApprovals` grows with the number of
+ * proposals ever made and there is no cleanup path.
+ *
+ * That growth is the price of the audit trail, and for a transparent treasury the
+ * trail is the point. Retention is safe because proposal ids are never reused.
+ *
  * @notice Signer identity is witness-derived, so a contract can never act as a
  * signer: a contract caller has no witness provider. This is a permanent
  * property of the scheme rather than a limitation pending contract-to-contract
@@ -120,6 +109,27 @@ import CompactStandardLibrary;
 import "../ProposalManager" prefix Proposal_;
 import "../ShieldedTreasury" prefix Treasury_;
 import "../Signer"<Bytes<32>> prefix Signer_;
+
+// Circuits are called through the prefixes above. The named imports and
+// re-exports below are only for the modules' state variables, so this contract's
+// ledger keys read as `_signers` / `_coins` etc. rather than
+// `Signer__signers` / `ShieldedTreasury__coins`. Circuit names are deliberately
+// NOT imported unprefixed, to avoid clashes.
+//
+// Views may be worth reinstating once contract-to-contract calls land, since a
+// calling contract cannot read another contract's ledger off-chain. That is a
+// deliberate deferral, not an oversight.
+//
+// @notice A named import binds the module's ledger field itself, not a read-only
+// view, so this contract can WRITE that state directly and bypass the module's
+// circuits. This preset as constructed does NOT write module state directly.
+import { _signers, _signerCount, _threshold } from "../Signer"<Bytes<32>>;
+import { _nextProposalId, _proposals } from "../ProposalManager";
+import { _coins, _received, _sent } from "../ShieldedTreasury";
+
+export { _signers, _signerCount, _threshold };
+export { _nextProposalId, _proposals };
+export { _coins, _received, _sent };
 
 // ─── Witnesses ───────────────────────────────────────────────────────────
 
@@ -151,35 +161,118 @@ export sealed ledger _instanceSalt: Bytes<32>;
 // ─── Constructor ─────────────────────────────────────────────────────────
 
 /**
- * @description Deploys the multisig with a fixed set of 3 signer commitments.
+ * @description Deploys a fixed 2-of-3 multisig over the given signer commitments.
+ *
+ * @notice The threshold is hardcoded to 2 and is not a constructor parameter.
+ * 2-of-3 is the only configuration of three signers that is both a real
+ * threshold and survives one key loss.
  *
  * Requirements:
  *
- * - `thresh` must not be zero and must not exceed 3.
  * - `signerCommitments` must not contain duplicates.
  * - `instanceSalt` should be cryptographically random.
  *
  * @param {Bytes<32>} instanceSalt - Random salt for signer commitment derivation.
  * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
- * @param {Uint<8>} thresh - The minimum number of approvals required.
  */
 constructor(
   instanceSalt: Bytes<32>,
-  signerCommitments: Vector<3, Bytes<32>>,
-  thresh: Uint<8>
+  signerCommitments: Vector<3, Bytes<32>>
 ) {
   _instanceSalt = disclose(instanceSalt);
-  Signer_initialize<3>(signerCommitments, thresh);
+  Signer_initialize<3>(signerCommitments, 2);
 }
 
 // ─── Deposit ─────────────────────────────────────────────────────────────
 
+/**
+ * @description Receives a shielded coin into the treasury. Open to any caller.
+ *
+ * @notice Zero-value deposits are rejected here, which `ShieldedTreasury._deposit`
+ * permits. A zero-value coin still creates a `_coins` entry for its color, and
+ * this preset can never remove one: entries are deleted only by a full send, and
+ * `_createProposal` rejects a zero amount, so no proposal can drain a zero-value
+ * entry. Since `deposit` is open to any caller, that made `_coins` growable
+ * without bound, one cheap transaction per color, with no pruning path.
+ *
+ * This does not make deposit-driven growth impossible. Dust of a color the
+ * caller actually holds still creates an entry, but that costs the caller a mint
+ * of their own token type, rather than being free.
+ *
+ * Requirements:
+ *
+ * - `coin.value` must be greater than 0.
+ *
+ * @circuitInfo k=16, rows=36932
+ *
+ * @param {ShieldedCoinInfo} coin - The incoming shielded coin.
+ * @returns {[]} Empty tuple.
+ */
 export circuit deposit(coin: ShieldedCoinInfo): [] {
+  assert(coin.value > 0, "ShieldedMultiSig: zero-value deposit");
   Treasury__deposit(coin);
 }
 
 // ─── Proposals ───────────────────────────────────────────────────────────
 
+/**
+ * @description Creates a proposal to transfer `amount` of `color` to `to`.
+ *
+ * @notice Beyond `kind`, the recipient is NOT validated, and neither the color nor
+ * the amount is checked against anything spendable. A proposal naming an unfunded
+ * color or an over-balance amount is created successfully and fails at execution.
+ * See `cancelProposal` for retiring one that can never execute.
+ *
+ * @notice **A zero recipient address is a burn, and is allowed deliberately.**
+ * `shieldedBurnAddress()` is defined as `left(ZswapCoinPublicKey { bytes: 0 })`,
+ * and since this preset accepts only `ShieldedUser`, `toShieldedRecipient` turns a
+ * zero address into exactly that value. A proposal to the zero address is
+ * therefore byte-identical to a burn, not funds lost to a void, so rejecting it
+ * would remove the only way this preset can destroy treasury holdings (a
+ * buyback-and-burn, for example).
+ *
+ * The cost is that zero is also the default value of a `Bytes<32>` field, so a
+ * proposal whose recipient was never set burns the funds. That risk is real but it
+ * is not special: a recipient wrong by one character is equally unrecoverable, and
+ * no check here can catch it, because nothing tells the contract whether a coin
+ * public key is spendable. The control on where funds go is that two signers must
+ * read the proposal (which is public, recipient included) and approve it.
+ *
+ * @notice **`RecipientKind.Contract` is rejected**, even though
+ * `ProposalManager.toShieldedRecipient` supports it. A shielded coin addressed to
+ * a contract must be claimed by that contract with `receiveShielded` *in the same
+ * transaction*, and only the executing contract can do that. A send to any other
+ * contract is rejected by the node with
+ * `1010: Invalid Transaction: Custom error: 186` — measured, and independent of
+ * whether that contract exists (`MockShieldedRecipientProbe.test.ts` isolates it:
+ * self is accepted, a deployed foreign contract is rejected exactly like a
+ * fabricated address). Claiming on the recipient's behalf needs
+ * contract-to-contract calls, which do not exist yet.
+ *
+ * Note the platform fails closed here: nothing is stranded and the proposal is
+ * not marked `Executed`, because the whole transaction is rejected. The reason to
+ * block at proposal time is to fail *fast* rather than late; otherwise, signers
+ * can drive a proposal to quorum, spending two approvals and their fees, only to
+ * find it permanently unexecutable and needing `cancelProposal` to retire.
+ *
+ * Sending to a contract remains fine internally. `ShieldedTreasury` routes its
+ * own change to `kernel.self()` because there the contract *is* the claimer.
+ *
+ * Re-enable this together with c2c support.
+ *
+ * Requirements:
+ *
+ * - Caller must be a signer.
+ * - `to.kind` must be `ShieldedUser`.
+ * - `amount` must be greater than 0.
+ *
+ * @circuitInfo k=13, rows=4965
+ *
+ * @param {Proposal_Recipient} to - The recipient.
+ * @param {Bytes<32>} color - The token color to transfer.
+ * @param {Uint<128>} amount - The amount to transfer.
+ * @returns {Uint<64>} The new proposal ID.
+ */
 export circuit createShieldedProposal(
   to: Proposal_Recipient,
   color: Bytes<32>,
@@ -189,14 +282,33 @@ export circuit createShieldedProposal(
   Signer_assertSigner(callerId);
 
   assert(
-    to.kind == Proposal_RecipientKind.ShieldedUser
-      || to.kind == Proposal_RecipientKind.Contract,
-    "ShieldedMultiSig: recipient must be a shielded user or contract"
+    to.kind == Proposal_RecipientKind.ShieldedUser,
+    "ShieldedMultiSig: recipient must be a shielded user"
   );
+
 
   return Proposal__createProposal(to, color, amount);
 }
 
+/**
+ * @description Records the caller's approval of a proposal.
+ *
+ * @notice Approvals accumulate on-chain across transactions, one per signer per
+ * transaction. `_approvalCount` is a pinned read-modify-write, so two signers
+ * approving the same proposal in the same block conflict and the loser is
+ * rejected (needing a re-prove).
+ *
+ * Requirements:
+ *
+ * - Proposal must be active.
+ * - Caller must be a signer.
+ * - Caller must not have already approved this proposal.
+ *
+ * @circuitInfo k=13, rows=4455
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @returns {[]} Empty tuple.
+ */
 export circuit approveProposal(id: Uint<64>): [] {
   // Check if active
   Proposal_assertProposalActive(id);
@@ -212,6 +324,23 @@ export circuit approveProposal(id: Uint<64>): [] {
   _approveProposal(id, callerId);
 }
 
+/**
+ * @description Withdraws the caller's approval, dropping the proposal's count.
+ *
+ * @notice The proposal stays `Active` and can be re-armed by a later approval.
+ * Use `cancelProposal` for a terminal retirement.
+ *
+ * Requirements:
+ *
+ * - Proposal must be active.
+ * - Caller must be a signer.
+ * - Caller must have approved this proposal.
+ *
+ * @circuitInfo k=13, rows=4425
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @returns {[]} Empty tuple.
+ */
 export circuit revokeApproval(id: Uint<64>): [] {
   // Check if active
   Proposal_assertProposalActive(id);
@@ -234,37 +363,31 @@ export circuit revokeApproval(id: Uint<64>): [] {
  * so it can be re-armed by a later approval. This is the terminal alternative:
  * a `Cancelled` proposal is rejected by `approveProposal`, `revokeApproval`, and
  * `executeShieldedProposal` alike. Its main use is retiring a proposal that
- * reached quorum but cannot execute — one naming a token color the treasury
- * does not hold, or an amount above its balance — which would otherwise sit
- * `Active` forever.
+ * reached quorum but cannot execute (one naming a token color the treasury
+ * does not hold or an amount above its balance) which would otherwise sit
+ * `Active` indefinitely.
  *
  * @notice The authorization is deliberately narrow: the caller must be a signer
  * who has approved *this* proposal, and the proposal must already have reached
  * the threshold. Each condition removes a griefing vector, and the combination
  * grants no power that `revokeApproval` does not already grant.
  *
- * - Requiring the caller be an **approver of this proposal** stops a signer from
- *   killing a proposal they never supported. Any approver may already withdraw
- *   unilaterally via `revokeApproval`, so letting them cancel adds only
- *   terminality, not reach.
- * - Requiring the **threshold be met** stops the approve-then-cancel gambit,
- *   where a signer approves someone else's proposal purely to gain the right to
- *   destroy it.
- * - Requiring the caller be a **signer at all** matters here in a way it does
- *   not for `executeShieldedProposal`: execute's outcome is fixed by the
- *   proposal, so the submitter is irrelevant, whereas cancel destroys an
- *   authorized action and must not be open to anyone.
- *
  * Rejecting the simpler designs on purpose: a unilateral cancel by any signer
  * would break the M-of-N guarantee, letting one signer block a transfer the
- * other M agreed on — a power they otherwise lack. Restricting that to
- * below-threshold proposals does not help, because approvals accumulate across
- * transactions, so the canceller can retire each proposal before a quorum forms.
+ * other M agreed on. Restricting that to below-threshold proposals does not help,
+ * because approvals accumulate across transactions, so the canceller can retire each
+ * proposal before a quorum forms.
  *
  * @warning A proposal that never reaches the threshold cannot be cancelled and
  * stays `Active` indefinitely. This is the accepted cost of the above: it is
  * harmless, since without a quorum it can never execute and it locks no funds.
  * Signers who want to neutralize such a proposal revoke their approvals.
+ *
+ * @notice The threshold guard only bites for a threshold of 2 or more, and this
+ * preset's fixed threshold of 2 is part of what keeps it effective. Were the
+ * threshold 1, a single approval would already constitute a quorum, so any signer
+ * could approve a proposal purely to earn the right to cancel it. The
+ * approve-then-cancel gambit this guard exists to prevent.
  *
  * Requirements:
  *
@@ -272,6 +395,8 @@ export circuit revokeApproval(id: Uint<64>): [] {
  * - Caller must be a signer.
  * - Caller must have approved this proposal.
  * - Approval count must meet the threshold.
+ *
+ * @circuitInfo k=13, rows=4451
  *
  * @param {Uint<64>} id - The proposal ID.
  * @returns {[]} Empty tuple.
@@ -300,8 +425,21 @@ export circuit cancelProposal(id: Uint<64>): [] {
  *
  * @notice Deliberately not gated on the caller being a signer. Once the
  * threshold is met the transfer is authorized, and its recipient and amount are
- * fixed by the proposal, so a non-signer who submits this circuit gains nothing
- * beyond paying the fee and choosing the timing.
+ * fixed by the proposal.
+ *
+ * @notice Returns the `ShieldedSendResult` in plaintext, which is public. That is
+ * deliberate for this composition (see the disclosure section in the module header).
+ *
+ * Requirements:
+ *
+ * - Proposal must be active.
+ * - Approval count must meet the threshold.
+ * - The treasury must hold `amount` of the proposal's color.
+ *
+ * @circuitInfo k=15, rows=30829
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @returns {ShieldedSendResult} The sent coin and any change.
  */
 export circuit executeShieldedProposal(
   id: Uint<64>,
@@ -328,6 +466,13 @@ export circuit executeShieldedProposal(
 
 // ─── Internal ───────────────────────────────────────────────────────────
 
+/**
+ * @description Records `signer`'s approval of a proposal and bumps its count.
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @param {Bytes<32>} signer - The approving signer's commitment.
+ * @returns {[]} Empty tuple.
+ */
 circuit _approveProposal(id: Uint<64>, signer: Bytes<32>): [] {
   if (!_proposalApprovals.member(disclose(id))) {
     _proposalApprovals.insert(disclose(id), default<Map<Bytes<32>, Boolean>>);
@@ -339,6 +484,13 @@ circuit _approveProposal(id: Uint<64>, signer: Bytes<32>): [] {
   _approvalCount.insert(disclose(id), disclose(newCount));
 }
 
+/**
+ * @description Withdraws `signer`'s approval and decrements the count.
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @param {Bytes<32>} signer - The withdrawing signer's commitment.
+ * @returns {[]} Empty tuple.
+ */
 circuit _revokeApproval(id: Uint<64>, signer: Bytes<32>): [] {
   _proposalApprovals.lookup(disclose(id)).remove(disclose(signer));
 
@@ -363,10 +515,8 @@ circuit _computeSignerId(): Bytes<32> {
  *
  * `signerId = persistentHash([secretKey, salt, "ShieldedMultiSig:signer:"])`
  *
- * Pure circuit — callable off-chain so each prospective signer can derive their
- * own commitment locally and hand the deployer only the commitment. Calling it
- * does not disclose the secret key: nothing here touches the ledger, and a
- * local invocation produces no transaction.
+ * Pure circuit. Callable off-chain so each prospective signer can derive their
+ * own commitment locally and hand the deployer only the commitment.
  *
  * @param {Bytes<32>} secretKey - The signer's 32-byte secret key.
  * @param {Bytes<32>} salt - The deployment's instance salt.
@@ -383,9 +533,16 @@ export pure circuit calculateSignerId(
   ]);
 }
 
-// ─── View ───────────────────────────────────────────────────────────────
+// ─── Internal reads ─────────────────────────────────────────────────────
 
-export circuit isProposalApprovedBySigner(
+/**
+ * @description Whether `signer` currently approves the proposal.
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @param {Bytes<32>} signer - The signer's commitment.
+ * @returns {Boolean} True if that signer's approval currently stands.
+ */
+circuit isProposalApprovedBySigner(
   id: Uint<64>,
   signer: Bytes<32>
 ): Boolean {
@@ -396,55 +553,19 @@ export circuit isProposalApprovedBySigner(
   return _proposalApprovals.lookup(disclose(id)).lookup(disclose(signer));
 }
 
-export circuit getApprovalCount(id: Uint<64>): Uint<8> {
+/**
+ * @description The number of approvals currently standing for a proposal.
+ *
+ * @notice Answers 0 for a proposal with no `_approvalCount` entry, which covers
+ * both an unknown id and one nobody has approved yet.
+ *
+ * @param {Uint<64>} id - The proposal ID.
+ * @returns {Uint<8>} The approval count, or 0 if there is no entry.
+ */
+circuit getApprovalCount(id: Uint<64>): Uint<8> {
   if (!_approvalCount.member(disclose(id))) {
     return 0;
   }
 
   return _approvalCount.lookup(disclose(id));
-}
-
-// IProposalManager
-
-export circuit getProposal(id: Uint<64>): Proposal_Proposal {
-  return Proposal_getProposal(id);
-}
-
-// NOTE: the per-field proposal getters (getProposalRecipient / getProposalAmount
-// / getProposalColor) and getReceivedMinusSent were dropped to bring the deploy
-// transaction under the block-weight limit (the full 19-circuit deploy is
-// rejected with "Transaction would exhaust the block limits"). They are all
-// redundant: read the proposal fields via `getProposal(id).to / .amount / .color`,
-// and the net balance via `getReceivedTotal(color) - getSentTotal(color)`.
-
-export circuit getProposalStatus(id: Uint<64>): Proposal_ProposalStatus {
-  return Proposal_getProposalStatus(id);
-}
-
-// IShieldedTreasury
-
-export circuit getTokenBalance(color: Bytes<32>): Uint<128> {
-  return Treasury_getTokenBalance(color);
-}
-
-export circuit getReceivedTotal(color: Bytes<32>): Uint<128> {
-  return Treasury_getReceivedTotal(color);
-}
-
-export circuit getSentTotal(color: Bytes<32>): Uint<128> {
-  return Treasury_getSentTotal(color);
-}
-
-// ISigner
-
-export circuit getSignerCount(): Uint<8> {
-  return Signer_getSignerCount();
-}
-
-export circuit getThreshold(): Uint<8> {
-  return Signer_getThreshold();
-}
-
-export circuit isSigner(commitment: Bytes<32>): Boolean {
-  return Signer_isSigner(commitment);
 }
