@@ -19,17 +19,10 @@ type ShieldedSendResult = {
   change: { is_some: boolean; value: ShieldedCoinInfo };
   sent: ShieldedCoinInfo;
 };
-type Proposal = {
-  to: Recipient;
-  color: Uint8Array;
-  amount: bigint;
-  status: number;
-};
 
 type ShieldedMultiSigArgs = readonly [
   instanceSalt: Uint8Array,
   signerCommitments: Uint8Array[],
-  thresh: bigint,
 ];
 
 const ShieldedMultiSigSimulatorBase = createSimulator<
@@ -42,21 +35,22 @@ const ShieldedMultiSigSimulatorBase = createSimulator<
   contractFactory: (witnesses) =>
     new ShieldedMultiSig<ShieldedMultiSigPrivateState>(witnesses),
   defaultPrivateState: () => ShieldedMultiSigPrivateState.generate(),
-  contractArgs: (instanceSalt, signerCommitments, thresh) => [
+  contractArgs: (instanceSalt, signerCommitments) => [
     instanceSalt,
     signerCommitments,
-    thresh,
   ],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => ShieldedMultiSigWitnesses(),
   artifactName: 'ShieldedMultiSig',
 });
 
+/**
+ * Wraps the contract's circuits and does NOT expose view circuits.
+ */
 export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
   static async create(
     instanceSalt: Uint8Array,
     signerCommitments: Uint8Array[],
-    thresh: bigint,
     options: SimulatorOptions<
       ShieldedMultiSigPrivateState,
       ReturnType<typeof ShieldedMultiSigWitnesses>
@@ -64,15 +58,14 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
   ): Promise<ShieldedMultiSigSimulator> {
     // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
     return super.create(
-      [instanceSalt, signerCommitments, thresh],
+      [instanceSalt, signerCommitments],
       options,
     ) as Promise<ShieldedMultiSigSimulator>;
   }
 
   /**
-   * @description Derives a signer commitment off-chain, exactly as the contract
-   * derives it in-circuit. This is the deployer-side helper: each prospective
-   * signer computes their own commitment and shares only the result.
+   * @description The `calculateSignerId` pure circuit, evaluated locally. This is
+   * a real circuit on the contract, not a ledger read.
    */
   static calculateSignerId(
     secretKey: Uint8Array,
@@ -81,12 +74,12 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
     return pureCircuits.calculateSignerId(secretKey, salt);
   }
 
-  // Deposit
+  // ─── Circuits ───────────────────────────────────────────────────────────
+
   public deposit(coin: ShieldedCoinInfo): Promise<[]> {
     return this.circuits.impure.deposit(coin);
   }
 
-  // Proposals
   public createShieldedProposal(
     to: Recipient,
     color: Uint8Array,
@@ -111,54 +104,9 @@ export class ShieldedMultiSigSimulator extends ShieldedMultiSigSimulatorBase {
     return this.circuits.impure.executeShieldedProposal(id);
   }
 
-  // View - Approvals
-  public isProposalApprovedBySigner(
-    id: bigint,
-    signer: Uint8Array,
-  ): Promise<boolean> {
-    return this.circuits.impure.isProposalApprovedBySigner(id, signer);
-  }
+  // ─── State ──────────────────────────────────────────────────────────────
 
-  public getApprovalCount(id: bigint): Promise<bigint> {
-    return this.circuits.impure.getApprovalCount(id);
-  }
-
-  // View - Proposals
-  public getProposal(id: bigint): Promise<Proposal> {
-    return this.circuits.impure.getProposal(id);
-  }
-
-  public getProposalStatus(id: bigint): Promise<number> {
-    return this.circuits.impure.getProposalStatus(id);
-  }
-
-  // View - Treasury
-  public getTokenBalance(color: Uint8Array): Promise<bigint> {
-    return this.circuits.impure.getTokenBalance(color);
-  }
-
-  public getReceivedTotal(color: Uint8Array): Promise<bigint> {
-    return this.circuits.impure.getReceivedTotal(color);
-  }
-
-  public getSentTotal(color: Uint8Array): Promise<bigint> {
-    return this.circuits.impure.getSentTotal(color);
-  }
-
-  // View - Signers
-  public getSignerCount(): Promise<bigint> {
-    return this.circuits.impure.getSignerCount();
-  }
-
-  public getThreshold(): Promise<bigint> {
-    return this.circuits.impure.getThreshold();
-  }
-
-  public isSigner(commitment: Uint8Array): Promise<boolean> {
-    return this.circuits.impure.isSigner(commitment);
-  }
-
-  // Ledger access
+  /** The contract's public ledger, as any off-chain reader would see it. */
   public getLedger(): Promise<Ledger> {
     return this.getPublicState();
   }
