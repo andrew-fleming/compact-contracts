@@ -61,7 +61,8 @@ module ProposalManager {
     to: Recipient,
     color: Bytes<32>,
     amount: Uint<128>,
-    status: ProposalStatus
+    status: ProposalStatus,
+    expiry: Uint<64>
   }
 
   // ─── State ──────────────────────────────────────────────────────
@@ -173,12 +174,13 @@ module ProposalManager {
   }
 
   /**
-   * @description Asserts that a proposal exists and is active.
+   * @description Asserts that a proposal exists, is `Active`, and has not expired.
    *
    * Requirements:
    *
    * - Proposal must exist.
    * - Proposal status must be Active.
+   * - Proposal must not have expired.
    *
    * @param {Uint<64>} id - The proposal ID.
    *
@@ -186,9 +188,15 @@ module ProposalManager {
    */
   export circuit assertProposalActive(id: Uint<64>): [] {
     assertProposalExists(id);
+
+    const proposal = _proposals.lookup(disclose(id));
     assert(
-      _proposals.lookup(disclose(id)).status == ProposalStatus.Active,
+      proposal.status == ProposalStatus.Active,
       "ProposalManager: proposal not active"
+    );
+    assert(
+      blockTimeLt(proposal.expiry),
+      "ProposalManager: proposal expired"
     );
   }
 
@@ -208,7 +216,18 @@ module ProposalManager {
    *   it on execution are unrecoverable.
    *
    * @notice `_nextProposalId` is incremented and then read back for the map key,
-   * making this a pinned read-modify-write.
+   * making this a pinned read-modify-write. The `increment` alone would commute,
+   * but reading it back to key the map reintroduces the conflict, so two
+   * proposals created in the same block serialize and the loser is rejected
+   * (paying no fee, but needing a re-prove).
+   *
+   * @notice `expiry` is mandatory and is only checked against the present: a
+   * proposal cannot be born expired. There is deliberately NO maximum horizon
+   * here, because the module cannot know what a sensible one is for a given
+   * deployment. A caller may therefore pass an effectively unreachable expiry and
+   * recreate an immortal proposal. Consuming contracts that need a bounded
+   * lifetime must impose their own cap; `blockTimeGte(expiry - MAX_TTL)` expresses
+   * one, and must guard the subtraction against underflow.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
@@ -217,19 +236,26 @@ module ProposalManager {
    * Requirements:
    *
    * - `amount` must be greater than 0.
+   * - `expiry` must be in the future.
    *
    * @param {Recipient} to - The recipient (constructed via helper circuits).
    * @param {Bytes<32>} color - The token color.
    * @param {Uint<128>} amount - The amount to transfer.
+   * @param {Uint<64>} expiry - Block time after which the proposal is inert.
    *
    * @returns {Uint<64>} The new proposal ID.
    */
   export circuit _createProposal(
     to: Recipient,
     color: Bytes<32>,
-    amount: Uint<128>
+    amount: Uint<128>,
+    expiry: Uint<64>
   ): Uint<64> {
     assert(amount > 0, "ProposalManager: zero amount");
+    assert(
+      blockTimeLt(disclose(expiry)),
+      "ProposalManager: expiry not in the future"
+    );
 
     _nextProposalId.increment(1);
     const id = _nextProposalId;
@@ -240,14 +266,15 @@ module ProposalManager {
       to: to,
       color: color,
       amount: amount,
-      status: ProposalStatus.Active
+      status: ProposalStatus.Active,
+      expiry: expiry
     }));
 
     return id;
   }
 
   /**
-   * @description Cancels a proposal.
+   * @description Cancels a proposal, retiring it before its expiry.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
@@ -269,7 +296,8 @@ module ProposalManager {
       to: proposal.to,
       color: proposal.color,
       amount: proposal.amount,
-      status: ProposalStatus.Cancelled
+      status: ProposalStatus.Cancelled,
+      expiry: proposal.expiry
     });
   }
 
@@ -296,7 +324,8 @@ module ProposalManager {
       to: proposal.to,
       color: proposal.color,
       amount: proposal.amount,
-      status: ProposalStatus.Executed
+      status: ProposalStatus.Executed,
+      expiry: proposal.expiry
     });
   }
 
