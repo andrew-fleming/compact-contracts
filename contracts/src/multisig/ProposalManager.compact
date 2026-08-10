@@ -233,6 +233,8 @@ module ProposalManager {
 
     _nextProposalId.increment(1);
     const id = _nextProposalId;
+    // Defense in depth
+    assert(!_proposals.member(id), "ProposalManager: id already used");
 
     _proposals.insert(id, disclose(Proposal {
       to: to,
