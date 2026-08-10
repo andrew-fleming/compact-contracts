@@ -85,6 +85,11 @@ export class ProposalManagerSimulator extends ProposalManagerSimulatorBase {
   }
 
   // Lifecycle
+  /** TEST-ONLY. Rewinds the proposal counter to force an id collision. */
+  public rewindProposalCounter(by: bigint): Promise<[]> {
+    return this.circuits.impure.rewindProposalCounter(by);
+  }
+
   public _createProposal(
     to: Recipient,
     color: Uint8Array,

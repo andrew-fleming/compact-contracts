@@ -103,6 +103,18 @@ describe('ProposalManager', () => {
       expect(id).toEqual(1n);
     });
 
+    it('should reject an id that is already in use', async () => {
+      const recipient = contract.shieldedUserRecipient(Z_RECIPIENT);
+      const id = await contract._createProposal(recipient, COLOR, AMOUNT);
+      expect(id).toEqual(1n);
+
+      await contract.rewindProposalCounter(1n);
+
+      await expect(
+        contract._createProposal(recipient, COLOR, AMOUNT),
+      ).rejects.toThrow('ProposalManager: id already used');
+    });
+
     it('should create sequential proposal ids', async () => {
       const recipient = contract.shieldedUserRecipient(Z_RECIPIENT);
       const id1 = await contract._createProposal(recipient, COLOR, AMOUNT);

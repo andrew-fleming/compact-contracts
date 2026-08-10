@@ -10,6 +10,17 @@ pragma language_version >= 0.23.0;
 import CompactStandardLibrary;
 
 import "../../ProposalManager" prefix Proposal_;
+import { _nextProposalId } from "../../ProposalManager";
+/**
+ * TEST-ONLY. Rewinds the proposal counter by `by`, so the next `_createProposal`
+ * reissues an id that `_proposals` already holds.
+ *
+ * @param {Uint<16>} by - How many ids to rewind.
+ * @returns {[]} Empty tuple.
+ */
+export circuit rewindProposalCounter(by: Uint<16>): [] {
+  _nextProposalId.decrement(disclose(by));
+}
 
 export circuit shieldedUserRecipient(key: ZswapCoinPublicKey): Proposal_Recipient {
   return Proposal_shieldedUserRecipient(key);
