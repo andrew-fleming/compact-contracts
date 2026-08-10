@@ -13,20 +13,20 @@ const THRESHOLD = 2n;
 // A shielded token type the deployer wallet holds on live (genesis-minted);
 // `fill(1)` would be unfunded on live. On dry the color is arbitrary.
 const COLOR = GENESIS_NATIVE_SHIELDED_TOKEN_COLORS.nativeShieldedToken1;
-// A second genesis color the treasury is never funded with, for the
-// never-held-this-color path through `ShieldedTreasury._send`.
+// A second genesis color. Used unfunded to reach the never-held-this-color path
+// in `ShieldedTreasury._send`, and funded in the multi-color block.
 const OTHER_COLOR = GENESIS_NATIVE_SHIELDED_TOKEN_COLORS.nativeShieldedToken2;
 const AMOUNT = 1000n;
 const PROPOSAL_AMOUNT = 400n;
 
 // Signer identities are commitments over a secret key, an instance salt, and a
 // domain separator. A caller authenticates by proving knowledge of a secret key
-// whose commitment is registered — `wit_ShieldedMultiSigSK` supplies it, and the
+// whose commitment is registered: `wit_ShieldedMultiSigSK` supplies it, and the
 // `as(...)` helper below swaps it to switch identity.
 //
 // Note this is NOT the submitting wallet: authorization no longer depends on who
 // submits the transaction, only on the secret key the witness returns. That is
-// the whole point of the scheme — an attacker who freely chooses the witness
+// the whole point of the scheme. An attacker who freely chooses the witness
 // value still cannot produce a preimage of a registered commitment.
 const INSTANCE_SALT = new Uint8Array(32).fill(0xa5);
 
@@ -68,11 +68,7 @@ let multisig: ShieldedMultiSigSimulator;
 // A fresh 2-of-3 multisig. Mutating groups deploy one per test (`beforeEach`);
 // read-only groups deploy one per group (`beforeAll`) to save a live deploy tx.
 const freshMultisig = () =>
-  ShieldedMultiSigSimulator.create(
-    INSTANCE_SALT,
-    SIGNER_COMMITMENTS,
-    THRESHOLD,
-  );
+  ShieldedMultiSigSimulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS);
 
 /**
  * Switches the acting identity by injecting that signer's secret key into the
@@ -89,22 +85,22 @@ describe('ShieldedMultiSig', () => {
       multisig = await ShieldedMultiSigSimulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        THRESHOLD,
       );
-      expect(await multisig.getSignerCount()).toEqual(
+      expect((await multisig.getLedger())._signerCount).toEqual(
         BigInt(SIGNER_COMMITMENTS.length),
       );
-      expect(await multisig.getThreshold()).toEqual(THRESHOLD);
+      expect((await multisig.getLedger())._threshold).toEqual(THRESHOLD);
     });
 
     it('should register all signers', async () => {
       multisig = await ShieldedMultiSigSimulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        THRESHOLD,
       );
       for (const signer of SIGNER_COMMITMENTS) {
-        expect(await multisig.isSigner(signer)).toEqual(true);
+        expect((await multisig.getLedger())._signers.member(signer)).toEqual(
+          true,
+        );
       }
     });
 
@@ -112,39 +108,24 @@ describe('ShieldedMultiSig', () => {
       multisig = await ShieldedMultiSigSimulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        THRESHOLD,
       );
-      expect(await multisig.isSigner(OUTSIDER_ID)).toEqual(false);
+      expect((await multisig.getLedger())._signers.member(OUTSIDER_ID)).toEqual(
+        false,
+      );
     });
 
-    it('should fail with zero threshold', async () => {
-      await expect(
-        ShieldedMultiSigSimulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS, 0n),
-      ).rejects.toThrow('Signer: threshold must not be zero');
-    });
-
-    it('should fail with threshold exceeding signer count', async () => {
-      await expect(
-        ShieldedMultiSigSimulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS, 4n),
-      ).rejects.toThrow('Signer: threshold exceeds signer count');
+    it('should hardcode the threshold to 2', async () => {
+      multisig = await freshMultisig();
+      expect((await multisig.getLedger())._threshold).toEqual(2n);
     });
 
     it('should reject duplicate signer commitments', async () => {
       await expect(
-        ShieldedMultiSigSimulator.create(
-          INSTANCE_SALT,
-          [ID1, ID2, ID1],
-          THRESHOLD,
-        ),
+        ShieldedMultiSigSimulator.create(INSTANCE_SALT, [ID1, ID2, ID1]),
       ).rejects.toThrow('Signer: signer already active');
     });
   });
 
-  // The property that makes this scheme sound: authorization requires a preimage
-  // of a registered commitment, not merely knowledge of it. Signer commitments
-  // are public — they sit in the exported `_signers` set and `isSigner` reads
-  // them back — so a scheme that accepted the commitment itself would be
-  // forgeable by anyone. These specs pin that it does not.
   describe('signer identity', () => {
     beforeEach(async () => {
       multisig = await freshMultisig();
@@ -160,13 +141,15 @@ describe('ShieldedMultiSig', () => {
           PROPOSAL_AMOUNT,
         ),
       );
-      expect(await multisig.isProposalApprovedBySigner(1n, ID1)).toEqual(true);
+      expect(
+        (await multisig.getLedger())._proposalApprovals.lookup(1n).member(ID1),
+      ).toEqual(true);
     });
 
     it('should reject a caller who knows a commitment but not its preimage', async () => {
       // The naive forgery: an attacker reads ID1 off the public ledger and
       // supplies it as their secret key. The contract hashes whatever it is
-      // given, so this yields H(ID1, salt, domain) — not ID1.
+      // given, so this yields H(ID1, salt, domain) and not ID1.
       await expect(
         (await as(ID1)).createShieldedProposal(
           makeRecipient(Z_RECIPIENT_PK),
@@ -187,31 +170,26 @@ describe('ShieldedMultiSig', () => {
     });
 
     it('should bind identity to the instance salt', async () => {
-      // The same secret key yields a different identity under a different salt,
-      // so a signer registered here cannot authenticate in another deployment —
-      // and their identities across deployments are not correlatable.
       const otherSalt = new Uint8Array(32).fill(0x5a);
       const idUnderOtherSalt = ShieldedMultiSigSimulator.calculateSignerId(
         SK1,
         otherSalt,
       );
       expect(idUnderOtherSalt).not.toEqual(ID1);
-      expect(await multisig.isSigner(idUnderOtherSalt)).toEqual(false);
+      expect(
+        (await multisig.getLedger())._signers.member(idUnderOtherSalt),
+      ).toEqual(false);
     });
 
     it('should isolate signer sets across deployments', async () => {
       // `SK_OUTSIDER` is a registered signer of `other` but of nothing here, so
       // a key that authenticates in one deployment is a stranger in the next.
       const otherSalt = new Uint8Array(32).fill(0x5a);
-      const other = await ShieldedMultiSigSimulator.create(
-        otherSalt,
-        [
-          ShieldedMultiSigSimulator.calculateSignerId(SK_OUTSIDER, otherSalt),
-          ID2,
-          ID3,
-        ],
-        THRESHOLD,
-      );
+      const other = await ShieldedMultiSigSimulator.create(otherSalt, [
+        ShieldedMultiSigSimulator.calculateSignerId(SK_OUTSIDER, otherSalt),
+        ID2,
+        ID3,
+      ]);
 
       await other.privateState.injectSecretKey(SK_OUTSIDER);
       await other.createShieldedProposal(
@@ -238,7 +216,9 @@ describe('ShieldedMultiSig', () => {
 
       it('should accept deposits', async () => {
         await multisig.deposit(makeCoin(COLOR, AMOUNT));
-        expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT);
+        expect((await multisig.getLedger())._coins.lookup(COLOR).value).toEqual(
+          AMOUNT,
+        ); 
       });
 
       it('should accumulate deposits', async () => {
@@ -248,12 +228,16 @@ describe('ShieldedMultiSig', () => {
         await multisig.deposit(
           makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(2)),
         );
-        expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT * 2n);
+        expect((await multisig.getLedger())._coins.lookup(COLOR).value).toEqual(
+          AMOUNT * 2n,
+        );
       });
 
       it('should track received total', async () => {
         await multisig.deposit(makeCoin(COLOR, AMOUNT));
-        expect(await multisig.getReceivedTotal(COLOR)).toEqual(AMOUNT);
+        expect((await multisig.getLedger())._received.lookup(COLOR)).toEqual(
+          AMOUNT,
+        );
       });
     });
 
@@ -263,21 +247,23 @@ describe('ShieldedMultiSig', () => {
       });
 
       it('getSignerCount should match initial count', async () => {
-        expect(await multisig.getSignerCount()).toEqual(
+        expect((await multisig.getLedger())._signerCount).toEqual(
           BigInt(SIGNER_COMMITMENTS.length),
         );
       });
 
       it('getThreshold should match initial threshold', async () => {
-        expect(await multisig.getThreshold()).toEqual(THRESHOLD);
+        expect((await multisig.getLedger())._threshold).toEqual(THRESHOLD);
       });
 
       it('isSigner should return true for signer', async () => {
-        expect(await multisig.isSigner(ID1)).toEqual(true);
+        expect((await multisig.getLedger())._signers.member(ID1)).toEqual(true);
       });
 
       it('isSigner should return false for non-signer', async () => {
-        expect(await multisig.isSigner(OUTSIDER_ID)).toEqual(false);
+        expect(
+          (await multisig.getLedger())._signers.member(OUTSIDER_ID),
+        ).toEqual(false);
       });
     });
 
@@ -288,30 +274,34 @@ describe('ShieldedMultiSig', () => {
       });
 
       it('getTokenBalance should reflect deposits', async () => {
-        expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT);
+        expect((await multisig.getLedger())._coins.lookup(COLOR).value).toEqual(
+          AMOUNT,
+        );
       });
 
       it('getReceivedTotal should reflect deposits', async () => {
-        expect(await multisig.getReceivedTotal(COLOR)).toEqual(AMOUNT);
+        expect((await multisig.getLedger())._received.lookup(COLOR)).toEqual(
+          AMOUNT,
+        );
       });
 
       it('getSentTotal should be 0 before any sends', async () => {
-        expect(await multisig.getSentTotal(COLOR)).toEqual(0n);
+        // No send has happened, so `_sent` has no entry for this color at all.
+        expect((await multisig.getLedger())._sent.member(COLOR)).toEqual(false);
       });
 
       it('received minus sent should equal balance', async () => {
-        // The preset dropped getReceivedMinusSent to fit the deploy block limit;
-        // derive it from the totals the preset does expose.
-        const received = await multisig.getReceivedTotal(COLOR);
-        const sent = await multisig.getSentTotal(COLOR);
-        expect(received - sent).toEqual(AMOUNT);
+        const l = await multisig.getLedger();
+        const received = l._received.lookup(COLOR);
+        // Nothing has been sent, so `_sent` holds no entry for this color; the
+        // net is the received total.
+        expect(l._sent.member(COLOR)).toEqual(false);
+        expect(received).toEqual(AMOUNT);
       });
     });
 
     // Caller-gated flows: authorization is resolved from the
-    // `wit_ShieldedMultiSigSK` witness, swapped via `as(...)`. Unlike the
-    // previous `ownPublicKey()` scheme these do not depend on which wallet
-    // submits, so the same specs hold on dry and live.
+    // `wit_ShieldedMultiSigSK` witness, swapped via `as(...)`
     describe('caller-gated proposal flows', () => {
       describe('createShieldedProposal', () => {
         beforeEach(async () => {
@@ -336,7 +326,7 @@ describe('ShieldedMultiSig', () => {
             PROPOSAL_AMOUNT,
           );
 
-          const proposal = await multisig.getProposal(id);
+          const proposal = (await multisig.getLedger())._proposals.lookup(id);
           expect(proposal.status).toEqual(ProposalStatus.Active);
           expect(proposal.amount).toEqual(PROPOSAL_AMOUNT);
           expect(proposal.color).toEqual(COLOR);
@@ -368,23 +358,19 @@ describe('ShieldedMultiSig', () => {
           await expect(
             (await as(SK1)).createShieldedProposal(to, COLOR, PROPOSAL_AMOUNT),
           ).rejects.toThrow(
-            'ShieldedMultiSig: recipient must be a shielded user or contract',
+            'ShieldedMultiSig: recipient must be a shielded user',
           );
         });
 
-        it('should accept Contract recipient kind', async () => {
+        it('should reject Contract recipient kind', async () => {
           const to = {
             kind: RecipientKind.Contract,
             address: new Uint8Array(32).fill(7),
           };
-          const id = await (await as(SK1)).createShieldedProposal(
-            to,
-            COLOR,
-            PROPOSAL_AMOUNT,
-          );
-          expect(id).toEqual(1n);
-          expect((await multisig.getProposal(id)).to.kind).toEqual(
-            RecipientKind.Contract,
+          await expect(
+            (await as(SK1)).createShieldedProposal(to, COLOR, PROPOSAL_AMOUNT),
+          ).rejects.toThrow(
+            'ShieldedMultiSig: recipient must be a shielded user',
           );
         });
       });
@@ -405,15 +391,21 @@ describe('ShieldedMultiSig', () => {
         it('should allow signer to approve', async () => {
           await (await as(SK1)).approveProposal(proposalId);
           expect(
-            await multisig.isProposalApprovedBySigner(proposalId, ID1),
+            (await multisig.getLedger())._proposalApprovals
+              .lookup(proposalId)
+              .member(ID1),
           ).toEqual(true);
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(1n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(1n);
         });
 
         it('should allow multiple signers to approve', async () => {
           await (await as(SK1)).approveProposal(proposalId);
           await (await as(SK2)).approveProposal(proposalId);
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(2n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(2n);
         });
 
         it('should fail for non-signer', async () => {
@@ -464,9 +456,13 @@ describe('ShieldedMultiSig', () => {
         it('should allow signer to revoke their approval', async () => {
           await (await as(SK1)).revokeApproval(proposalId);
           expect(
-            await multisig.isProposalApprovedBySigner(proposalId, ID1),
+            (await multisig.getLedger())._proposalApprovals
+              .lookup(proposalId)
+              .member(ID1),
           ).toEqual(false);
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(0n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(0n);
         });
 
         it('should fail for non-signer', async () => {
@@ -485,9 +481,13 @@ describe('ShieldedMultiSig', () => {
           await (await as(SK1)).revokeApproval(proposalId);
           await (await as(SK1)).approveProposal(proposalId);
           expect(
-            await multisig.isProposalApprovedBySigner(proposalId, ID1),
+            (await multisig.getLedger())._proposalApprovals
+              .lookup(proposalId)
+              .member(ID1),
           ).toEqual(true);
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(1n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(1n);
         });
 
         it('should fail for executed proposal', async () => {
@@ -523,16 +523,21 @@ describe('ShieldedMultiSig', () => {
         it('should let an approver cancel a proposal at threshold', async () => {
           await approveToThreshold();
           await (await as(SK1)).cancelProposal(proposalId);
-          expect(await multisig.getProposalStatus(proposalId)).toEqual(
-            ProposalStatus.Cancelled,
-          );
+          expect(
+            (await multisig.getLedger())._proposals.lookup(proposalId).status,
+          ).toEqual(ProposalStatus.Cancelled);
         });
 
         it('should not move funds when cancelling', async () => {
           await approveToThreshold();
           await (await as(SK2)).cancelProposal(proposalId);
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT);
-          expect(await multisig.getSentTotal(COLOR)).toEqual(0n);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT);
+          // No send has happened, so `_sent` has no entry for this color at all.
+          expect((await multisig.getLedger())._sent.member(COLOR)).toEqual(
+            false,
+          );
         });
 
         it('should fail below threshold', async () => {
@@ -546,7 +551,7 @@ describe('ShieldedMultiSig', () => {
 
         it('should fail for a signer who has not approved', async () => {
           // SK3 is a signer but not an approver, so it cannot kill a transfer
-          // SK1 and SK2 agreed on — this is what preserves the M-of-N guarantee.
+          // SK1 and SK2 agreed on, this is what preserves the M-of-N guarantee.
           await approveToThreshold();
           await expect(
             (await as(SK3)).cancelProposal(proposalId),
@@ -590,9 +595,9 @@ describe('ShieldedMultiSig', () => {
           ).rejects.toThrow('ShieldedTreasury: no balance');
 
           await (await as(SK1)).cancelProposal(stuckId);
-          expect(await multisig.getProposalStatus(stuckId)).toEqual(
-            ProposalStatus.Cancelled,
-          );
+          expect(
+            (await multisig.getLedger())._proposals.lookup(stuckId).status,
+          ).toEqual(ProposalStatus.Cancelled);
         });
 
         describe('once cancelled', () => {
@@ -626,10 +631,8 @@ describe('ShieldedMultiSig', () => {
 
         beforeEach(async () => {
           multisig = await freshMultisig();
-          // Fund the treasury
           await multisig.deposit(makeCoin(COLOR, AMOUNT));
 
-          // Create and approve proposal to threshold
           const to = makeRecipient(Z_RECIPIENT_PK);
           proposalId = await (await as(SK1)).createShieldedProposal(
             to,
@@ -642,9 +645,9 @@ describe('ShieldedMultiSig', () => {
 
         it('should execute when threshold is met', async () => {
           await multisig.executeShieldedProposal(proposalId);
-          expect(await multisig.getProposalStatus(proposalId)).toEqual(
-            ProposalStatus.Executed,
-          );
+          expect(
+            (await multisig.getLedger())._proposals.lookup(proposalId).status,
+          ).toEqual(ProposalStatus.Executed);
         });
 
         it('should return sent coin and change in result', async () => {
@@ -657,7 +660,6 @@ describe('ShieldedMultiSig', () => {
         });
 
         it('should return no change when sending full balance', async () => {
-          // Create proposal for the full amount
           const to = makeRecipient(Z_RECIPIENT_PK);
           const fullId = await (await as(SK1)).createShieldedProposal(
             to,
@@ -674,18 +676,19 @@ describe('ShieldedMultiSig', () => {
 
         it('should deduct from treasury balance', async () => {
           await multisig.executeShieldedProposal(proposalId);
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(
-            AMOUNT - PROPOSAL_AMOUNT,
-          );
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - PROPOSAL_AMOUNT);
         });
 
         it('should track sent total', async () => {
           await multisig.executeShieldedProposal(proposalId);
-          expect(await multisig.getSentTotal(COLOR)).toEqual(PROPOSAL_AMOUNT);
+          expect((await multisig.getLedger())._sent.lookup(COLOR)).toEqual(
+            PROPOSAL_AMOUNT,
+          );
         });
 
         it('should fail when threshold is not met', async () => {
-          // Create a new proposal with only 1 approval
           const to = makeRecipient(Z_RECIPIENT_PK);
           const id2 = await (await as(SK1)).createShieldedProposal(
             to,
@@ -713,7 +716,6 @@ describe('ShieldedMultiSig', () => {
         });
 
         it('should fail with insufficient treasury balance', async () => {
-          // Create proposal for more than treasury holds
           const to = makeRecipient(Z_RECIPIENT_PK);
           const bigId = await (await as(SK1)).createShieldedProposal(
             to,
@@ -730,9 +732,7 @@ describe('ShieldedMultiSig', () => {
 
         it('should fail for a color the treasury has never held', async () => {
           // Distinct from the insufficiency above: that one holds the color and
-          // asks for too much, reaching the `coin.value >= amount` assert. This
-          // reaches the earlier `_coins.member(color)` guard, which no other
-          // spec exercises.
+          // asks for too much, reaching the `coin.value >= amount` assert
           const to = makeRecipient(Z_RECIPIENT_PK);
           const otherId = await (await as(SK1)).createShieldedProposal(
             to,
@@ -747,41 +747,17 @@ describe('ShieldedMultiSig', () => {
           ).rejects.toThrow('ShieldedTreasury: no balance');
         });
 
-        it('should execute to a contract recipient', async () => {
-          // `RecipientKind.Contract` is accepted at creation elsewhere, but only
-          // here is it actually executed — this is the sole spec that drives
-          // `toShieldedRecipient` down its right-variant (ContractAddress)
-          // branch end to end.
-          const to = {
-            kind: RecipientKind.Contract,
-            address: new Uint8Array(32).fill(7),
-          };
-          const contractId = await (await as(SK1)).createShieldedProposal(
-            to,
-            COLOR,
-            PROPOSAL_AMOUNT,
-          );
-          await (await as(SK1)).approveProposal(contractId);
-          await (await as(SK2)).approveProposal(contractId);
-
-          const result = await multisig.executeShieldedProposal(contractId);
-          expect(result.sent.value).toEqual(PROPOSAL_AMOUNT);
-          expect(await multisig.getProposalStatus(contractId)).toEqual(
-            ProposalStatus.Executed,
-          );
-        });
-
         it('should fail when an approval is revoked back below threshold', async () => {
           // The central hazard of on-chain approval accumulation: the threshold
           // is met, then a signer withdraws before anyone executes. Execute
           // re-reads the count, so it must fail rather than settle on a stale one.
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(
-            THRESHOLD,
-          );
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(THRESHOLD);
           await (await as(SK2)).revokeApproval(proposalId);
-          expect(await multisig.getApprovalCount(proposalId)).toEqual(
-            THRESHOLD - 1n,
-          );
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(THRESHOLD - 1n);
 
           await expect(
             multisig.executeShieldedProposal(proposalId),
@@ -789,10 +765,7 @@ describe('ShieldedMultiSig', () => {
         });
       });
 
-      // Two circuits are deliberately open to any caller. Both are load-bearing
-      // for the asynchronous workflow, and both are documented as intentional in
-      // the module header — so they get specs, or a later reviewer "tightening"
-      // them would silently contradict the docs and break the design.
+      // `deposit` and `executeShieldedProposal` are deliberately open to any caller
       describe('ungated by design', () => {
         beforeEach(async () => {
           multisig = await freshMultisig();
@@ -800,7 +773,9 @@ describe('ShieldedMultiSig', () => {
 
         it('should let a non-signer deposit', async () => {
           await (await as(SK_OUTSIDER)).deposit(makeCoin(COLOR, AMOUNT));
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT);
         });
 
         it('should let a non-signer execute once the threshold is met', async () => {
@@ -817,42 +792,37 @@ describe('ShieldedMultiSig', () => {
           // The recipient and amount are fixed by the proposal, so a non-signer
           // executing gains nothing beyond paying the fee and picking the moment.
           await (await as(SK_OUTSIDER)).executeShieldedProposal(id);
-          expect(await multisig.getProposalStatus(id)).toEqual(
-            ProposalStatus.Executed,
-          );
+          expect(
+            (await multisig.getLedger())._proposals.lookup(id).status,
+          ).toEqual(ProposalStatus.Executed);
         });
       });
 
-      // The proposal views split deliberately: `getProposal` / `getProposalStatus`
-      // assert existence, while `getApprovalCount` / `isProposalApprovedBySigner`
-      // answer for an unknown id without asserting. That asymmetry reads like an
-      // oversight, so it is pinned here on purpose.
-      describe('view - unknown proposal id', () => {
+      // Touching an unknown id must not create ledger entries for it.
+      // `ProposalManager`'s "proposal not found" assert is covered separately, by
+      // the approve / cancel / execute specs.
+      describe('ledger state for an unknown proposal id', () => {
         const UNKNOWN_ID = 999n;
 
         beforeAll(async () => {
           multisig = await freshMultisig();
         });
 
-        it('getProposal should reject an unknown id', async () => {
-          await expect(multisig.getProposal(UNKNOWN_ID)).rejects.toThrow(
-            'ProposalManager: proposal not found',
-          );
-        });
-
-        it('getProposalStatus should reject an unknown id', async () => {
-          await expect(multisig.getProposalStatus(UNKNOWN_ID)).rejects.toThrow(
-            'ProposalManager: proposal not found',
-          );
-        });
-
-        it('getApprovalCount should return 0 for an unknown id', async () => {
-          expect(await multisig.getApprovalCount(UNKNOWN_ID)).toEqual(0n);
-        });
-
-        it('isProposalApprovedBySigner should return false for an unknown id', async () => {
+        it('should hold no proposal entry', async () => {
           expect(
-            await multisig.isProposalApprovedBySigner(UNKNOWN_ID, ID1),
+            (await multisig.getLedger())._proposals.member(UNKNOWN_ID),
+          ).toEqual(false);
+        });
+
+        it('should hold no approval-count entry', async () => {
+          expect(
+            (await multisig.getLedger())._approvalCount.member(UNKNOWN_ID),
+          ).toEqual(false);
+        });
+
+        it('should hold no approvals entry', async () => {
+          expect(
+            (await multisig.getLedger())._proposalApprovals.member(UNKNOWN_ID),
           ).toEqual(false);
         });
       });
@@ -862,26 +832,29 @@ describe('ShieldedMultiSig', () => {
           multisig = await freshMultisig();
         });
 
-        it('should return false for unapproved signer', async () => {
+        it('should hold no approvals entry until the first approval', async () => {
           const to = makeRecipient(Z_RECIPIENT_PK);
           const id = await (await as(SK1)).createShieldedProposal(
             to,
             COLOR,
             PROPOSAL_AMOUNT,
           );
-          expect(await multisig.isProposalApprovedBySigner(id, ID1)).toEqual(
-            false,
-          );
+          // No approval yet, so the per-proposal map has not been created.
+          expect(
+            (await multisig.getLedger())._proposalApprovals.member(id),
+          ).toEqual(false);
         });
 
-        it('should return 0 approval count for new proposal', async () => {
+        it('should hold no approval-count entry for a new proposal', async () => {
           const to = makeRecipient(Z_RECIPIENT_PK);
           const id = await (await as(SK1)).createShieldedProposal(
             to,
             COLOR,
             PROPOSAL_AMOUNT,
           );
-          expect(await multisig.getApprovalCount(id)).toEqual(0n);
+          expect(
+            (await multisig.getLedger())._approvalCount.member(id),
+          ).toEqual(false);
         });
       });
 
@@ -898,10 +871,10 @@ describe('ShieldedMultiSig', () => {
           );
         });
 
-        // The preset dropped getProposalRecipient/Amount/Color to fit the deploy
-        // block limit; the fields are read off getProposal, the getter it exposes.
-        it('getProposal should expose recipient, amount, and color', async () => {
-          const proposal = await multisig.getProposal(proposalId);
+        it('should store recipient, amount, and color on the proposal', async () => {
+          const proposal = (await multisig.getLedger())._proposals.lookup(
+            proposalId,
+          );
           expect(proposal.to.kind).toEqual(RecipientKind.ShieldedUser);
           expect(proposal.to.address).toEqual(Z_RECIPIENT_PK.bytes);
           expect(proposal.amount).toEqual(PROPOSAL_AMOUNT);
@@ -909,18 +882,17 @@ describe('ShieldedMultiSig', () => {
         });
       });
 
-      // TODO: move to integration tests
       describe('full lifecycle', () => {
         beforeEach(async () => {
           multisig = await freshMultisig();
         });
 
         it('should handle deposit -> propose -> approve -> execute', async () => {
-          // Deposit
           await multisig.deposit(makeCoin(COLOR, AMOUNT));
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(AMOUNT);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT);
 
-          // Propose
           const to = makeRecipient(Z_RECIPIENT_PK);
           const id = await (await as(SK1)).createShieldedProposal(
             to,
@@ -928,21 +900,21 @@ describe('ShieldedMultiSig', () => {
             PROPOSAL_AMOUNT,
           );
 
-          // Approve to threshold
           await (await as(SK1)).approveProposal(id);
           await (await as(SK2)).approveProposal(id);
-          expect(await multisig.getApprovalCount(id)).toEqual(THRESHOLD);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(id),
+          ).toEqual(THRESHOLD);
 
-          // Execute
           await multisig.executeShieldedProposal(id);
-          expect(await multisig.getProposalStatus(id)).toEqual(
-            ProposalStatus.Executed,
-          );
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(
-            AMOUNT - PROPOSAL_AMOUNT,
-          );
-          const received = await multisig.getReceivedTotal(COLOR);
-          const sent = await multisig.getSentTotal(COLOR);
+          expect(
+            (await multisig.getLedger())._proposals.lookup(id).status,
+          ).toEqual(ProposalStatus.Executed);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - PROPOSAL_AMOUNT);
+          const received = (await multisig.getLedger())._received.lookup(COLOR);
+          const sent = (await multisig.getLedger())._sent.lookup(COLOR);
           expect(received - sent).toEqual(AMOUNT - PROPOSAL_AMOUNT);
         });
 
@@ -961,19 +933,17 @@ describe('ShieldedMultiSig', () => {
             300n,
           );
 
-          // Approve and execute first
           await (await as(SK1)).approveProposal(id1);
           await (await as(SK2)).approveProposal(id1);
           await multisig.executeShieldedProposal(id1);
 
-          // Approve and execute second
           await (await as(SK1)).approveProposal(id2);
           await (await as(SK3)).approveProposal(id2);
           await multisig.executeShieldedProposal(id2);
 
-          expect(await multisig.getTokenBalance(COLOR)).toEqual(
-            AMOUNT - 200n - 300n,
-          );
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - 200n - 300n);
         });
 
         it('should handle approve -> revoke -> re-approve -> execute', async () => {
@@ -985,20 +955,491 @@ describe('ShieldedMultiSig', () => {
             PROPOSAL_AMOUNT,
           );
 
-          // Approve then revoke
           await (await as(SK1)).approveProposal(id);
           await (await as(SK1)).revokeApproval(id);
-          expect(await multisig.getApprovalCount(id)).toEqual(0n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(id),
+          ).toEqual(0n);
 
-          // Re-approve with enough signers
           await (await as(SK2)).approveProposal(id);
           await (await as(SK3)).approveProposal(id);
-          expect(await multisig.getApprovalCount(id)).toEqual(2n);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(id),
+          ).toEqual(2n);
 
           await multisig.executeShieldedProposal(id);
-          expect(await multisig.getProposalStatus(id)).toEqual(
-            ProposalStatus.Executed,
+          expect(
+            (await multisig.getLedger())._proposals.lookup(id).status,
+          ).toEqual(ProposalStatus.Executed);
+        });
+      });
+
+      // The treasury keys `_coins`, `_received`, and `_sent` by color. This is the
+      // only block that funds two colors at once, so it is where the per-color
+      // dimension is exercised.
+      describe('multi-color accounting', () => {
+        const OTHER_AMOUNT = 700n;
+
+        beforeEach(async () => {
+          multisig = await freshMultisig();
+          await multisig.deposit(
+            makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(1)),
           );
+          await multisig.deposit(
+            makeCoin(OTHER_COLOR, OTHER_AMOUNT, new Uint8Array(32).fill(2)),
+          );
+        });
+
+        it('should track balances per color', async () => {
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT);
+          expect(
+            (await multisig.getLedger())._coins.lookup(OTHER_COLOR).value,
+          ).toEqual(OTHER_AMOUNT);
+        });
+
+        it('should track received totals per color', async () => {
+          expect((await multisig.getLedger())._received.lookup(COLOR)).toEqual(
+            AMOUNT,
+          );
+          expect(
+            (await multisig.getLedger())._received.lookup(OTHER_COLOR),
+          ).toEqual(OTHER_AMOUNT);
+        });
+
+        it('should leave other colors untouched when spending one', async () => {
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await multisig.executeShieldedProposal(id);
+
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - PROPOSAL_AMOUNT);
+          expect((await multisig.getLedger())._sent.lookup(COLOR)).toEqual(
+            PROPOSAL_AMOUNT,
+          );
+
+          expect(
+            (await multisig.getLedger())._coins.lookup(OTHER_COLOR).value,
+          ).toEqual(OTHER_AMOUNT);
+          // The untouched color has no `_sent` entry at all.
+          expect(
+            (await multisig.getLedger())._sent.member(OTHER_COLOR),
+          ).toEqual(false);
+        });
+
+        it('should keep one color spendable after another is drained', async () => {
+          const drainId = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(drainId);
+          await (await as(SK2)).approveProposal(drainId);
+          await multisig.executeShieldedProposal(drainId);
+          // A full send deletes the entry rather than zeroing it.
+          expect((await multisig.getLedger())._coins.member(COLOR)).toEqual(
+            false,
+          );
+
+          const otherId = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            OTHER_COLOR,
+            OTHER_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(otherId);
+          await (await as(SK2)).approveProposal(otherId);
+          await multisig.executeShieldedProposal(otherId);
+          expect(
+            (await multisig.getLedger())._coins.member(OTHER_COLOR),
+          ).toEqual(false);
+        });
+      });
+
+      // Sending the full balance takes the `else` branch in `ShieldedTreasury._send`
+      // and calls `_coins.remove(color)`. Other specs only assert `change.is_some`
+      // is false; these cover what the removal leaves behind.
+      describe('post-drain lifecycle', () => {
+        const drainFully = async () => {
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await multisig.executeShieldedProposal(id);
+        };
+
+        beforeEach(async () => {
+          multisig = await freshMultisig();
+          await multisig.deposit(
+            makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(3)),
+          );
+          await drainFully();
+        });
+
+        it('should delete the coin entry entirely', async () => {
+          // A full send takes the `else` branch in `ShieldedTreasury._send` and
+          // removes the entry rather than storing a zero-value coin which is
+          // what makes a later spend fail with "no balance" rather than an
+          // insufficiency.
+          expect((await multisig.getLedger())._coins.member(COLOR)).toEqual(
+            false,
+          );
+        });
+
+        it('should preserve cumulative totals across the drain', async () => {
+          // `_received` is cumulative and must survive the coin removal; only the
+          // live coin is deleted.
+          expect((await multisig.getLedger())._received.lookup(COLOR)).toEqual(
+            AMOUNT,
+          );
+          expect((await multisig.getLedger())._sent.lookup(COLOR)).toEqual(
+            AMOUNT,
+          );
+        });
+
+        it('should fail a further spend with no balance', async () => {
+          // Reaches the `_coins.member` guard, not the insufficiency one
+          // The entry no longer exists at all
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            1n,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await expect(multisig.executeShieldedProposal(id)).rejects.toThrow(
+            'ShieldedTreasury: no balance',
+          );
+        });
+
+        it('should become spendable again after a fresh deposit', async () => {
+          await multisig.deposit(
+            makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(4)),
+          );
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT);
+          expect((await multisig.getLedger())._received.lookup(COLOR)).toEqual(
+            AMOUNT * 2n,
+          );
+
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await multisig.executeShieldedProposal(id);
+
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - PROPOSAL_AMOUNT);
+          expect((await multisig.getLedger())._sent.lookup(COLOR)).toEqual(
+            AMOUNT + PROPOSAL_AMOUNT,
+          );
+        });
+      });
+
+      // The threshold is hardcoded to 2, so 1-of-3 and 3-of-3 are not
+      // constructible. What is testable is the over-threshold case and the two
+      // properties fixing the threshold is meant to guarantee.
+      describe('fixed 2-of-3 threshold', () => {
+        let proposalId: bigint;
+
+        beforeEach(async () => {
+          multisig = await freshMultisig();
+          await multisig.deposit(
+            makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(5)),
+          );
+          proposalId = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+        });
+
+        it('should report a threshold of 2 on the ledger', async () => {
+          expect((await multisig.getLedger())._threshold).toEqual(2n);
+          expect((await multisig.getLedger())._signerCount).toEqual(3n);
+        });
+
+        it('should never execute on one approval', async () => {
+          await (await as(SK1)).approveProposal(proposalId);
+          await expect(
+            multisig.executeShieldedProposal(proposalId),
+          ).rejects.toThrow('Signer: threshold not met');
+        });
+
+        it('should keep cancel quorum-gated on one approval', async () => {
+          // The companion guarantee: `cancelProposal`'s quorum guard collapses at
+          // a threshold of 1, where a single approval is already a quorum. Fixed
+          // at 2, one approval cannot cancel, so the approve-then-cancel gambit
+          // stays closed.
+          await (await as(SK2)).approveProposal(proposalId);
+          await expect(
+            (await as(SK2)).cancelProposal(proposalId),
+          ).rejects.toThrow('Signer: threshold not met');
+        });
+
+        it('should execute when approvals exceed the threshold', async () => {
+          await (await as(SK1)).approveProposal(proposalId);
+          await (await as(SK2)).approveProposal(proposalId);
+          await (await as(SK3)).approveProposal(proposalId);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(proposalId),
+          ).toEqual(3n);
+
+          await multisig.executeShieldedProposal(proposalId);
+          expect(
+            (await multisig.getLedger())._proposals.lookup(proposalId).status,
+          ).toEqual(ProposalStatus.Executed);
+        });
+      });
+
+      // Each of these pins a way the contract can be driven into an
+      // awkward or self-harming state. None is a vulnerability. No funds are at
+      // risk and no authorization is bypassed, but each is behaviour a consumer
+      // should know about rather than discover
+      describe('lifecycle hazards', () => {
+        beforeEach(async () => {
+          multisig = await freshMultisig();
+        });
+
+        it('should reject a zero-value deposit', async () => {
+          // `ShieldedTreasury._deposit` permits a zero-value coin, however,
+          // the multisig does not
+          await expect(
+            multisig.deposit(
+              makeCoin(OTHER_COLOR, 0n, new Uint8Array(32).fill(9)),
+            ),
+          ).rejects.toThrow('ShieldedMultiSig: zero-value deposit');
+
+          const l = await multisig.getLedger();
+          expect(l._coins.member(OTHER_COLOR)).toEqual(false);
+        });
+
+        it('should still have no way to retire a zero-value entry, if one existed', async () => {
+          await expect(
+            (await as(SK1)).createShieldedProposal(
+              makeRecipient(Z_RECIPIENT_PK),
+              OTHER_COLOR,
+              0n,
+            ),
+          ).rejects.toThrow('ProposalManager: zero amount');
+        });
+
+        it('should reject cancellation of an executed proposal', async () => {
+          await multisig.deposit(makeCoin(COLOR, AMOUNT));
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await multisig.executeShieldedProposal(id);
+
+          await expect((await as(SK1)).cancelProposal(id)).rejects.toThrow(
+            'ProposalManager: proposal not active',
+          );
+        });
+
+        it('should never reuse a proposal id', async () => {
+          await multisig.deposit(makeCoin(COLOR, AMOUNT));
+          const first = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(first);
+          await (await as(SK2)).approveProposal(first);
+          await multisig.executeShieldedProposal(first);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(first),
+          ).toEqual(THRESHOLD);
+
+          const second = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          expect(second).not.toEqual(first);
+          expect(second).toEqual(first + 1n);
+          // The new proposal starts clean; the retained approvals belong to the
+          // old id alone.
+          expect(
+            (await multisig.getLedger())._approvalCount.member(second),
+          ).toEqual(false);
+          expect(
+            (await multisig.getLedger())._proposalApprovals.member(second),
+          ).toEqual(false);
+        });
+
+        it('should retain approval state after execution', async () => {
+          // Approvals are never pruned once a proposal executes
+          await multisig.deposit(makeCoin(COLOR, AMOUNT));
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          await multisig.executeShieldedProposal(id);
+
+          const l = await multisig.getLedger();
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(id),
+          ).toEqual(THRESHOLD);
+          expect(l._proposalApprovals.member(id)).toEqual(true);
+          expect(l._proposalApprovals.lookup(id).size()).toEqual(THRESHOLD);
+        });
+
+        it('should make an unexecutable proposal uncancellable once approvals are withdrawn', async () => {
+          // The self-harm case worth knowing: `cancelProposal` needs the caller to
+          // be an approver AND the proposal to be at quorum. Revoking does both
+          // kinds of damage at once as it drops the count below quorum and clears
+          // the caller's approver flag. Recoverable by re-approving to quorum
+          // and then cancelling.
+          const stuckId = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            OTHER_COLOR,
+            5n,
+          );
+          await (await as(SK1)).approveProposal(stuckId);
+          await (await as(SK2)).approveProposal(stuckId);
+          await (await as(SK2)).revokeApproval(stuckId);
+          await (await as(SK1)).revokeApproval(stuckId);
+          expect(
+            (await multisig.getLedger())._approvalCount.lookup(stuckId),
+          ).toEqual(0n);
+
+          await expect((await as(SK1)).cancelProposal(stuckId)).rejects.toThrow(
+            'Multisig: not approved',
+          );
+
+          // The way out: re-approve to quorum, then cancel.
+          await (await as(SK1)).approveProposal(stuckId);
+          await (await as(SK2)).approveProposal(stuckId);
+          await (await as(SK1)).cancelProposal(stuckId);
+          expect(
+            (await multisig.getLedger())._proposals.lookup(stuckId).status,
+          ).toEqual(ProposalStatus.Cancelled);
+        });
+      });
+
+      // Does a payout actually land somewhere the recipient can use? Every other
+      // spec asserts the treasury's side of a send. This asserts the recipient's:
+      // the coin `executeShieldedProposal` reports as `sent` is fed back into a
+      // fresh multisig as a deposit, which forces the recipient's wallet to spend
+      // it as a real transaction input. If the payout were unspendable, the
+      // treasury's books would still balance and every other test would pass.
+      //
+      // Only meaningful on live. The dry simulator accepts any coin as a deposit
+      // without the wallet owning it, so on dry this passes vacuously.
+      describe('recipient can spend the payout', () => {
+        it('should produce a sent coin the recipient can spend', async () => {
+          multisig = await freshMultisig();
+          await multisig.deposit(makeCoin(COLOR, AMOUNT));
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+
+          const { sent } = await multisig.executeShieldedProposal(id);
+          expect(sent.value).toEqual(PROPOSAL_AMOUNT);
+          expect(sent.color).toEqual(COLOR);
+
+          // Spend it: a second multisig receives the very coin just paid out.
+          const sink = await freshMultisig();
+          await sink.deposit(sent);
+          expect((await sink.getLedger())._coins.lookup(COLOR).value).toEqual(
+            PROPOSAL_AMOUNT,
+          );
+        });
+      });
+
+      describe('boundary values', () => {
+        const MAX_UINT128 = 2n ** 128n - 1n;
+
+        beforeEach(async () => {
+          multisig = await freshMultisig();
+          await multisig.deposit(
+            makeCoin(COLOR, AMOUNT, new Uint8Array(32).fill(6)),
+          );
+        });
+
+        const approveAndExecute = async (id: bigint) => {
+          await (await as(SK1)).approveProposal(id);
+          await (await as(SK2)).approveProposal(id);
+          return multisig.executeShieldedProposal(id);
+        };
+
+        it('should accept the smallest non-zero amount', async () => {
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            1n,
+          );
+          const result = await approveAndExecute(id);
+          expect(result.sent.value).toEqual(1n);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - 1n);
+        });
+
+        it('should store a max-Uint128 amount', async () => {
+          const id = await (await as(SK1)).createShieldedProposal(
+            makeRecipient(Z_RECIPIENT_PK),
+            COLOR,
+            MAX_UINT128,
+          );
+          expect(
+            (await multisig.getLedger())._proposals.lookup(id).amount,
+          ).toEqual(MAX_UINT128);
+        });
+
+        it('should treat a zero recipient address as a burn', async () => {
+          const id = await (await as(SK1)).createShieldedProposal(
+            { kind: RecipientKind.ShieldedUser, address: new Uint8Array(32) },
+            COLOR,
+            PROPOSAL_AMOUNT,
+          );
+          const result = await approveAndExecute(id);
+
+          expect(result.sent.value).toEqual(PROPOSAL_AMOUNT);
+          expect(
+            (await multisig.getLedger())._proposals.lookup(id).status,
+          ).toEqual(ProposalStatus.Executed);
+          expect(
+            (await multisig.getLedger())._coins.lookup(COLOR).value,
+          ).toEqual(AMOUNT - PROPOSAL_AMOUNT);
+          expect((await multisig.getLedger())._sent.lookup(COLOR)).toEqual(
+            PROPOSAL_AMOUNT,
+          );
+        });
+
+        it('should reject a recipient kind outside the enum', async () => {
+          await expect(
+            (await as(SK1)).createShieldedProposal(
+              { kind: 3, address: Z_RECIPIENT_PK.bytes },
+              COLOR,
+              PROPOSAL_AMOUNT,
+            ),
+          ).rejects.toThrow(/type error: createShieldedProposal argument/);
         });
       });
     });
