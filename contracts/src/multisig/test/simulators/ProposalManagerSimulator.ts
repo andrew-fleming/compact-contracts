@@ -14,7 +14,7 @@ type Proposal = {
   to: Recipient;
   color: Uint8Array;
   amount: bigint;
-  status: number;
+  state: bigint;
 };
 
 type ProposalManagerArgs = readonly [];
@@ -44,6 +44,15 @@ export class ProposalManagerSimulator extends ProposalManagerSimulatorBase {
   ): Promise<ProposalManagerSimulator> {
     // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
     return super.create([], options) as Promise<ProposalManagerSimulator>;
+  }
+
+  // Pure circuits (state sentinels)
+  public executedState(): bigint {
+    return pureCircuits.executedState();
+  }
+
+  public cancelledState(): bigint {
+    return pureCircuits.cancelledState();
   }
 
   // Pure circuits (recipient helpers)
@@ -94,8 +103,9 @@ export class ProposalManagerSimulator extends ProposalManagerSimulatorBase {
     to: Recipient,
     color: Uint8Array,
     amount: bigint,
+    expiry: bigint,
   ): Promise<bigint> {
-    return this.circuits.impure._createProposal(to, color, amount);
+    return this.circuits.impure._createProposal(to, color, amount, expiry);
   }
 
   public _cancelProposal(id: bigint): Promise<[]> {

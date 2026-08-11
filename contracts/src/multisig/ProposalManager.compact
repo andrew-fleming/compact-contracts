@@ -14,7 +14,7 @@ pragma language_version >= 0.23.0;
  * internal Bytes<32> representation to consumers.
  *
  * @warning PROPOSALS ARE PUBLIC. `_proposals` is exported ledger state, so
- * every proposal's recipient address, token color, amount, and status is
+ * every proposal's recipient address, token color, amount, and state is
  * readable off-chain, and `_nextProposalId` reveals how many have been created.
  * This holds regardless of which treasury a consumer composes: pairing this
  * module with `ShieldedTreasuryStateless` still publishes the full intent of
@@ -34,16 +34,21 @@ module ProposalManager {
   // ─── Types ──────────────────────────────────────────────────────
 
   /**
-   * @description Proposal lifecycle states. `Inactive` is the zero value and is
-   * never stored: `_createProposal` writes `Active`, and every view asserts the
-   * proposal exists before reading, so a stored proposal can never read
-   * `Inactive`.
+   * @description Proposal lifecycle states, derived from `Proposal.state` by
+   * `getProposalStatus`. Not stored on the ledger.
+   *
+   * - `Inactive`: no proposal with that id exists.
+   * - `Active`: `state` is an expiry in the future.
+   * - `Executed`: `state` is `executedState()`.
+   * - `Cancelled`: `state` is `cancelledState()`.
+   * - `Expired`: `state` is an expiry at or before the current block time.
    */
   export enum ProposalStatus {
     Inactive,
     Active,
     Executed,
-    Cancelled
+    Cancelled,
+    Expired
   }
 
   export enum RecipientKind {
@@ -57,18 +62,50 @@ module ProposalManager {
     address: Bytes<32>
   }
 
+  /**
+   * @description A proposal. `state` holds both the lifecycle stage and the
+   * expiry in a single field:
+   *
+   * - `executedState()` (1): executed.
+   * - `cancelledState()` (2): cancelled.
+   * - any greater value: the expiry, as seconds since the Unix epoch. The
+   *   proposal is active while the block time is below it and expired
+   *   afterwards.
+   *
+   * `_createProposal` rejects an `expiry` in the reserved range, so a live
+   * proposal's `state` is always greater than `cancelledState()`.
+   */
   export struct Proposal {
     to: Recipient,
     color: Bytes<32>,
     amount: Uint<128>,
-    status: ProposalStatus,
-    expiry: Uint<64>
+    state: Uint<64>
   }
 
   // ─── State ──────────────────────────────────────────────────────
 
   export ledger _nextProposalId: Counter;
   export ledger _proposals: Map<Uint<64>, Proposal>;
+
+  // ─── State Sentinels ────────────────────────────────────────────
+
+  /**
+   * @description The `Proposal.state` value marking a proposal as executed.
+   *
+   * @returns {Uint<64>} 1.
+   */
+  export pure circuit executedState(): Uint<64> {
+    return 1;
+  }
+
+  /**
+   * @description The `Proposal.state` value marking a proposal as cancelled.
+   *
+   * @returns {Uint<64>} 2.
+   */
+  export pure circuit cancelledState(): Uint<64> {
+    return 2;
+  }
 
   // ─── Recipient Helpers ──────────────────────────────────────────
 
@@ -189,13 +226,13 @@ module ProposalManager {
   export circuit assertProposalActive(id: Uint<64>): [] {
     assertProposalExists(id);
 
-    const proposal = _proposals.lookup(disclose(id));
+    const state = _proposals.lookup(disclose(id)).state;
     assert(
-      proposal.status == ProposalStatus.Active,
+      state > cancelledState(),
       "ProposalManager: proposal not active"
     );
     assert(
-      blockTimeLt(proposal.expiry),
+      blockTimeLt(state),
       "ProposalManager: proposal expired"
     );
   }
@@ -218,20 +255,22 @@ module ProposalManager {
    * @notice `_nextProposalId` is incremented and then read back for the map key,
    * making this a pinned read-modify-write. The `increment` alone would commute,
    * but reading it back to key the map reintroduces the conflict, so two
-   * proposals created in the same block serialize and the loser is rejected
-   * (paying no fee, but needing a re-prove).
+   * proposals created in the same block serialize and the loser is rejected.
    *
    * @notice `expiry` is mandatory and is only checked against the present: a
    * proposal cannot be born expired. There is deliberately NO maximum horizon
    * here, because the module cannot know what a sensible one is for a given
    * deployment. A caller may therefore pass an effectively unreachable expiry and
    * recreate an immortal proposal. Consuming contracts that need a bounded
-   * lifetime must impose their own cap; `blockTimeGte(expiry - MAX_TTL)` expresses
-   * one, and must guard the subtraction against underflow.
+   * lifetime must impose their own cap.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
    * authorization policy.
+   *
+   * @notice The sentinel range needs no separate guard: block time is seconds
+   * since the Unix epoch, so an `expiry` of `executedState()` or
+   * `cancelledState()` is already in the past and fails the future check.
    *
    * Requirements:
    *
@@ -241,7 +280,8 @@ module ProposalManager {
    * @param {Recipient} to - The recipient (constructed via helper circuits).
    * @param {Bytes<32>} color - The token color.
    * @param {Uint<128>} amount - The amount to transfer.
-   * @param {Uint<64>} expiry - Block time after which the proposal is inert.
+   * @param {Uint<64>} expiry - Seconds since the Unix epoch, after which the
+   * proposal is inert.
    *
    * @returns {Uint<64>} The new proposal ID.
    */
@@ -266,8 +306,7 @@ module ProposalManager {
       to: to,
       color: color,
       amount: amount,
-      status: ProposalStatus.Active,
-      expiry: expiry
+      state: expiry
     }));
 
     return id;
@@ -296,8 +335,7 @@ module ProposalManager {
       to: proposal.to,
       color: proposal.color,
       amount: proposal.amount,
-      status: ProposalStatus.Cancelled,
-      expiry: proposal.expiry
+      state: cancelledState()
     });
   }
 
@@ -324,8 +362,7 @@ module ProposalManager {
       to: proposal.to,
       color: proposal.color,
       amount: proposal.amount,
-      status: ProposalStatus.Executed,
-      expiry: proposal.expiry
+      state: executedState()
     });
   }
 
@@ -380,14 +417,29 @@ module ProposalManager {
   }
 
   /**
-   * @description Returns the status of a proposal.
+   * @description Derives the lifecycle status of a proposal from its `state`
+   * field and the current block time. Returns `Inactive` for an id that was
+   * never created rather than failing.
    *
    * @param {Uint<64>} id - The proposal ID.
    *
    * @returns {ProposalStatus} The proposal status.
    */
   export circuit getProposalStatus(id: Uint<64>): ProposalStatus {
-    assertProposalExists(id);
-    return _proposals.lookup(disclose(id)).status;
+    if (!_proposals.member(disclose(id))) {
+      return ProposalStatus.Inactive;
+    }
+
+    const state = _proposals.lookup(disclose(id)).state;
+    if (state == executedState()) {
+      return ProposalStatus.Executed;
+    }
+    if (state == cancelledState()) {
+      return ProposalStatus.Cancelled;
+    }
+    if (blockTimeLt(state)) {
+      return ProposalStatus.Active;
+    }
+    return ProposalStatus.Expired;
   }
 }
