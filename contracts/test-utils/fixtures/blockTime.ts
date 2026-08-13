@@ -6,9 +6,14 @@
  * backend initializes that to `0` and never advances it, so a spec that needs a
  * particular chain time sets it here.
  *
- * DRY ONLY. The live backend holds no in-memory context to write to — the node
- * supplies the real block time — so `setBlockTime` throws there rather than
+ * DRY ONLY. The live backend holds no in-memory context to write to (the node
+ * supplies the real block time) so `setBlockTime` throws there rather than
  * silently doing nothing. Gate callers with `skipIf(isLiveBackend())`.
+ *
+ * The context is reached through fields the simulator package does not export,
+ * so this is coupled to its internals. That coupling fails loudly: if those
+ * fields move, the lookup below throws and every spec using it goes red rather
+ * than passing against an unchanged clock.
  */
 
 type BlockInfo = { secondsSinceEpoch: bigint };
@@ -27,15 +32,10 @@ function queryContext(sim: unknown): { block: BlockInfo } {
     ?.currentQueryContext;
   if (qc === undefined) {
     throw new Error(
-      'setBlockTime/getBlockTime: no in-memory query context. These are dry-only; gate the spec with skipIf(isLiveBackend()).',
+      'setBlockTime: no in-memory query context. This is dry-only; gate the spec with skipIf(isLiveBackend()).',
     );
   }
   return qc;
-}
-
-/** Reads the block time the dry backend currently reports to circuits. */
-export function getBlockTime(sim: unknown): bigint {
-  return queryContext(sim).block.secondsSinceEpoch;
 }
 
 /**
