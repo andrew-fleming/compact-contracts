@@ -23,6 +23,9 @@ const AMOUNT2 = 2000n;
 // active on both backends without any block-time manipulation.
 const EXPIRY = 4_000_000_000n;
 
+const MAX_UINT64 = 2n ** 64n - 1n;
+const MAX_UINT128 = 2n ** 128n - 1n;
+
 const [_RECIPIENT, Z_RECIPIENT] = utils.generatePubKeyPair('RECIPIENT');
 const Z_CONTRACT_RECIPIENT = utils.encodeToAddress('CONTRACT_RECIPIENT');
 
@@ -193,6 +196,35 @@ describe('ProposalManager', () => {
       await expect(
         contract._createProposal(recipient, COLOR, 0n, EXPIRY),
       ).rejects.toThrow('ProposalManager: zero amount');
+    });
+
+    it('should accept the maximum amount', async () => {
+      const recipient = contract.shieldedUserRecipient(Z_RECIPIENT);
+      const id = await contract._createProposal(
+        recipient,
+        COLOR,
+        MAX_UINT128,
+        EXPIRY,
+      );
+      expect((await contract.getProposal(id)).amount).toEqual(MAX_UINT128);
+    });
+
+    // The module deliberately imposes no maximum horizon, pushing that policy
+    // onto consumers. Pinning it here means adding a cap later cannot pass
+    // silently. This spec has to be updated alongside the docs that promise it.
+    it('should accept an unbounded expiry, leaving any cap to the consumer', async () => {
+      const recipient = contract.shieldedUserRecipient(Z_RECIPIENT);
+      const id = await contract._createProposal(
+        recipient,
+        COLOR,
+        AMOUNT,
+        MAX_UINT64,
+      );
+
+      expect((await contract.getProposal(id)).state).toEqual(MAX_UINT64);
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
     });
   });
 
@@ -521,6 +553,97 @@ describe('ProposalManager', () => {
     });
   });
 
+  // A consuming contract that imports `_proposals` by name can write it
+  // directly, bypassing every guard here. Compact modules encapsulate circuits,
+  // not state. These specs pin what that buys an attacker, so the hazard is
+  // recorded as behavior rather than only as a doc warning. They are not
+  // defended against; the module cannot defend against its own consumer.
+  describe('direct state writes by a consumer', () => {
+    beforeEach(async () => {
+      contract = await fresh();
+    });
+
+    const create = () =>
+      contract._createProposal(
+        contract.shieldedUserRecipient(Z_RECIPIENT),
+        COLOR,
+        AMOUNT,
+        EXPIRY,
+      );
+
+    it('can resurrect an executed proposal', async () => {
+      const id = await create();
+      await contract._markExecuted(id);
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Executed,
+      );
+
+      // A fresh deadline puts it back in play, and the lifecycle guard accepts
+      // it again, a second payout for a proposal that already paid out.
+      await contract.forceProposalState(id, EXPIRY);
+
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
+      await contract.assertProposalActive(id);
+      await contract._markExecuted(id);
+    });
+
+    it('can resurrect a cancelled proposal', async () => {
+      const id = await create();
+      await contract._cancelProposal(id);
+
+      await contract.forceProposalState(id, EXPIRY);
+
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
+    });
+
+    it('can forge a terminal state the lifecycle never reached', async () => {
+      const id = await create();
+
+      // `_createProposal` rejects a sentinel-valued expiry, so this state is
+      // unreachable through the public API, but a direct write installs it.
+      await contract.forceProposalState(id, contract.executedState());
+
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Executed,
+      );
+      await expect(contract.assertProposalActive(id)).rejects.toThrow(
+        'ProposalManager: proposal not active',
+      );
+    });
+
+    // Needs a block time above the backdated deadline, so it needs clock
+    // control. The dry backend reports 0, where every non-sentinel value is
+    // still in the future.
+    it.skipIf(isLiveBackend())(
+      'can retire a proposal early by backdating its deadline',
+      async () => {
+        const id = await create();
+        setBlockTime(contract, 1_000_000n);
+
+        // Above the sentinels but below the block time: reads as lapsed, so a
+        // consumer can kill a proposal without calling `_cancelProposal`.
+        await contract.forceProposalState(id, 999_999n);
+
+        expect(await contract.getProposalStatus(id)).toEqual(
+          ProposalStatus.Expired,
+        );
+        await expect(contract.assertProposalActive(id)).rejects.toThrow(
+          'ProposalManager: proposal expired',
+        );
+      },
+    );
+
+    it('cannot write a proposal that does not exist', async () => {
+      await expect(contract.forceProposalState(999n, EXPIRY)).rejects.toThrow(
+        'ProposalManager: proposal not found',
+      );
+    });
+  });
+
   describe('lifecycle transitions', () => {
     beforeEach(async () => {
       contract = await fresh();
@@ -624,12 +747,60 @@ describe('ProposalManager', () => {
       );
     });
 
+    it('should reject a zero expiry', async () => {
+      await expect(create(0n)).rejects.toThrow(
+        'ProposalManager: expiry in reserved range',
+      );
+    });
+
+    // One second past the block time is the smallest accepted expiry; `NOW`
+    // itself is rejected above. Together these pin the comparison as strict.
+    it('should accept the smallest expiry in the future', async () => {
+      const id = await create(NOW + 1n);
+
+      expect((await contract.getProposal(id)).state).toEqual(NOW + 1n);
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
+    });
+
+    it('should still report Active one second before the deadline', async () => {
+      const id = await create(LATER);
+
+      setBlockTime(contract, LATER - 1n);
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
+      await contract.assertProposalActive(id);
+    });
+
     it('should reject an expiry in the sentinel range', async () => {
       await expect(create(contract.executedState())).rejects.toThrow(
-        'ProposalManager: expiry not in the future',
+        'ProposalManager: expiry in reserved range',
       );
       await expect(create(contract.cancelledState())).rejects.toThrow(
-        'ProposalManager: expiry not in the future',
+        'ProposalManager: expiry in reserved range',
+      );
+    });
+
+    // The reserved-range guard is the only thing rejecting these: at block time
+    // 0 a sentinel-valued expiry is still "in the future", so the future check
+    // passes and, without the guard, a proposal would be created whose `state`
+    // collides with a terminal marker.
+    it('should reject a sentinel expiry even when it is in the future', async () => {
+      setBlockTime(contract, 0n);
+
+      await expect(create(contract.executedState())).rejects.toThrow(
+        'ProposalManager: expiry in reserved range',
+      );
+      await expect(create(contract.cancelledState())).rejects.toThrow(
+        'ProposalManager: expiry in reserved range',
+      );
+
+      // Nothing was stored, so no id can report a terminal status it never
+      // reached.
+      expect(await contract.getProposalStatus(1n)).toEqual(
+        ProposalStatus.Inactive,
       );
     });
 

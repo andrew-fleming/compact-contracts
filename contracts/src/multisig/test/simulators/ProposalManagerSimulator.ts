@@ -99,6 +99,14 @@ export class ProposalManagerSimulator extends ProposalManagerSimulatorBase {
     return this.circuits.impure.rewindProposalCounter(by);
   }
 
+  /**
+   * TEST-ONLY. Writes a raw `state` onto a proposal, modelling a consuming
+   * contract that imports `_proposals` by name and mutates it directly.
+   */
+  public forceProposalState(id: bigint, state: bigint): Promise<[]> {
+    return this.circuits.impure.forceProposalState(id, state);
+  }
+
   public _createProposal(
     to: Recipient,
     color: Uint8Array,
