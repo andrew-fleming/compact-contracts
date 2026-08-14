@@ -12,10 +12,7 @@
  *
  * The context is reached through fields the simulator package does not export,
  * so this is coupled to its internals. Every step of that reach is checked, and
- * the write is read back afterwards, so a shape change throws. This matters more
- * than it looks: a silently ignored write would leave the clock at 0, where
- * several time-dependent specs still pass by coincidence — a frozen clock is not
- * a visibly broken one.
+ * the write is read back afterwards, so a shape change throws.
  */
 
 type BlockInfo = { secondsSinceEpoch: bigint };
