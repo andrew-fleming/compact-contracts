@@ -11,28 +11,42 @@
  * silently doing nothing. Gate callers with `skipIf(isLiveBackend())`.
  *
  * The context is reached through fields the simulator package does not export,
- * so this is coupled to its internals. That coupling fails loudly: if those
- * fields move, the lookup below throws and every spec using it goes red rather
- * than passing against an unchanged clock.
+ * so this is coupled to its internals. Every step of that reach is checked, and
+ * the write is read back afterwards, so a shape change throws. This matters more
+ * than it looks: a silently ignored write would leave the clock at 0, where
+ * several time-dependent specs still pass by coincidence — a frozen clock is not
+ * a visibly broken one.
  */
 
 type BlockInfo = { secondsSinceEpoch: bigint };
+type QueryContext = { block: BlockInfo };
 type DrySimulator = {
   _backend?: {
     sim?: {
       circuitContext?: {
-        currentQueryContext?: { block: BlockInfo };
+        currentQueryContext?: QueryContext;
       };
     };
   };
 };
 
-function queryContext(sim: unknown): { block: BlockInfo } {
+function queryContext(sim: unknown): QueryContext {
   const qc = (sim as DrySimulator)._backend?.sim?.circuitContext
     ?.currentQueryContext;
   if (qc === undefined) {
     throw new Error(
       'setBlockTime: no in-memory query context. This is dry-only; gate the spec with skipIf(isLiveBackend()).',
+    );
+  }
+
+  // Reaching the context proves nothing about the field being written. Check
+  // the shape too, or a rename downstream of `currentQueryContext` turns the
+  // write into a no-op instead of an error.
+  const block = (qc as { block?: { secondsSinceEpoch?: unknown } }).block;
+  if (typeof block?.secondsSinceEpoch !== 'bigint') {
+    throw new Error(
+      'setBlockTime: the query context has no bigint `block.secondsSinceEpoch`. ' +
+        "The simulator's internal shape has changed; update this fixture.",
     );
   }
   return qc;
@@ -48,4 +62,13 @@ function queryContext(sim: unknown): { block: BlockInfo } {
 export function setBlockTime(sim: unknown, secondsSinceEpoch: bigint): void {
   const qc = queryContext(sim);
   qc.block = { ...qc.block, secondsSinceEpoch };
+
+  // `block` is backed by a wasm object, so an assignment that is dropped would
+  // be invisible. Read it back rather than assume it landed.
+  if (qc.block.secondsSinceEpoch !== secondsSinceEpoch) {
+    throw new Error(
+      `setBlockTime: wrote ${secondsSinceEpoch} but the context reports ` +
+        `${qc.block.secondsSinceEpoch}. The write did not take effect.`,
+    );
+  }
 }
