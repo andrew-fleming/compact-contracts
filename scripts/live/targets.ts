@@ -16,16 +16,12 @@ import { SRC } from './paths.ts';
  * from happening in the first place.
  */
 
-/** `archive` is excluded from the unit/unit-live projects (see vitest.config). */
+// The live suite runs every `src/<category>` that has tests (see
+// `liveCategories`) — there is no separate live-ready allowlist to keep in sync,
+// since all current categories are backend-aware. A category that must NOT run
+// live is an explicit opt-out here (only legacy `archive` today, which the
+// unit/unit-live vitest projects also exclude — see vitest.config).
 const EXCLUDED_CATEGORIES = new Set(['archive']);
-
-/**
- * Categories whose specs have been refactored for the live backend. The others
- * still assume dry-only semantics (e.g. `.as()` identities derived from alias
- * labels, which the live wallet pool cannot impersonate) and join this list as
- * they are refactored, PR by PR.
- */
-export const LIVE_READY = new Set(['multisig']);
 
 /** The composed-contract target. Not a `src/` category, so it is matched before
  * the category branch — {@link liveCategories} will never contain it. */
@@ -43,8 +39,6 @@ export interface LiveTarget {
 
 export interface LivePlan {
   readonly targets: readonly LiveTarget[];
-  /** Live-ready-gated categories left out of an unscoped run, for reporting. */
-  readonly skipped: readonly string[];
   readonly fileFilters: readonly string[];
   /** Whether the run needs full-key integration-mock artifacts. */
   readonly integration: boolean;
@@ -70,10 +64,11 @@ export function liveCategories(): string[] {
     .sort();
 }
 
-/** Targets CI should spawn a job for. `LIVE_READY` plus the integration target
- * stays the single source of truth for the matrix. */
+/** Targets CI should spawn a job for: every discovered category plus the
+ * integration target. `liveCategories()` is the single source of truth for the
+ * matrix — there is no allowlist to keep in sync with it. */
 export function listTargets(allCategories: readonly string[]): string[] {
-  return [...allCategories.filter((c) => LIVE_READY.has(c)), INTEGRATION];
+  return [...allCategories, INTEGRATION];
 }
 
 /**
@@ -82,8 +77,8 @@ export function listTargets(allCategories: readonly string[]): string[] {
  *
  * A first arg naming a target scopes the run (the `test:live:<target>` scripts
  * pass one); everything else is a vitest file filter. `integration` is matched
- * first because it is not a `src/` category, so it would otherwise fall through
- * to the unscoped path and silently run every live-ready unit category instead.
+ * first because it is not a `src/` category, so it would otherwise be rejected
+ * as an unknown target.
  */
 export function resolvePlan(
   args: readonly string[],
@@ -93,35 +88,38 @@ export function resolvePlan(
   const scoped =
     !integration && args.length > 0 && allCategories.includes(args[0]);
 
-  if (scoped && !LIVE_READY.has(args[0])) {
+  // The first positional arg always names the target (CONTRIBUTING.md). If it is
+  // present but names neither an active live category — an excluded one like
+  // `archive`, or a typo — nor `integration`, reject it here so the caller can
+  // fail fast, BEFORE the expensive compile / env-up / harness-smoke setup (no
+  // args = every category, the default).
+  if (args.length > 0 && !integration && !scoped) {
+    const reason = EXCLUDED_CATEGORIES.has(args[0])
+      ? `'${args[0]}' is excluded from live runs (see EXCLUDED_CATEGORIES)`
+      : `'${args[0]}' is not a live target`;
     return {
       ok: false,
       message:
-        `'${args[0]}' is not live-ready yet — its specs still assume dry-only ` +
-        `semantics. Ready categories: ${[...LIVE_READY].join(', ')}, plus ` +
+        `${reason}.\nLive targets: ${allCategories.join(', ')}, plus ` +
         `'${INTEGRATION}'.`,
     };
   }
 
   const targets: LiveTarget[] = integration
     ? [{ name: INTEGRATION, project: 'integration-live', defaultFilters: [] }]
-    : (scoped ? [args[0]] : allCategories.filter((c) => LIVE_READY.has(c))).map(
-        (category) => ({
-          name: category,
-          project: 'unit-live',
-          defaultFilters: [`src/${category}`],
-        }),
-      );
+    : (scoped ? [args[0]] : allCategories).map((category) => ({
+        name: category,
+        project: 'unit-live',
+        defaultFilters: [`src/${category}`],
+      }));
 
   return {
     ok: true,
     plan: {
       targets,
-      skipped:
-        integration || scoped
-          ? []
-          : allCategories.filter((c) => !LIVE_READY.has(c)),
-      fileFilters: integration || scoped ? args.slice(1) : args,
+      // Any surviving arg list is scoped (an unrecognised first arg was rejected
+      // above), so the first arg is always the target name.
+      fileFilters: args.slice(1),
       integration,
     },
   };

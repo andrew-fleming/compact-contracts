@@ -89,14 +89,11 @@ export class LiveOrchestrator {
   async run(): Promise<number> {
     this.#clearStaleReports();
 
-    const { targets, skipped, fileFilters } = this.#plan;
+    const { targets, fileFilters } = this.#plan;
     banner(
       `ROUND 1 — targets: ${targets.map((t) => t.name).join(', ')}` +
         (fileFilters.length ? ` (filter: ${fileFilters.join(' ')})` : ''),
     );
-    if (skipped.length > 0) {
-      console.log(`skipped (not yet live-ready): ${skipped.join(', ')}`);
-    }
 
     if (!(await this.#compiler.compileVerified())) return INFRA_ABORT;
     if ((await this.#stack.up()) !== 0) {
@@ -209,9 +206,9 @@ export class LiveOrchestrator {
         `\nno test file matched across ${targets.map((t) => t.name).join(', ')}` +
           (fileFilters.length ? ` (filter: ${fileFilters.join(' ')})` : '') +
           ' — nothing ran, so there is no result to report.\n' +
-          'A mistyped target is the usual cause: an unrecognised first argument ' +
-          'is a file filter, not an error, so it matches nothing across every ' +
-          "live-ready target. Run 'yarn test:live --list' for the target names.",
+          'A file filter matching nothing is the usual cause (an unrecognised ' +
+          'first argument is rejected before the run starts). Run ' +
+          "'yarn test:live --list' for the target names.",
       );
       return undefined;
     }
