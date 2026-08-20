@@ -1,4 +1,10 @@
-import type { JubjubPoint } from '@midnight-ntwrk/compact-runtime';
+import {
+  CompactTypeBytes,
+  CompactTypeVector,
+  convertBytesToField,
+  type JubjubPoint,
+  persistentHash,
+} from '@midnight-ntwrk/compact-runtime';
 import { beforeAll, describe, expect, it } from 'vitest';
 import {
   type Ciphertext,
@@ -60,6 +66,65 @@ describe('ElGamal', () => {
 
     it('returns a positive scalar', async () => {
       expect(await contract.secretToScalar(EK_A)).toBeGreaterThan(0n);
+    });
+
+    // -----------------------------------------------------------------------
+    // Domain separation from the PUBLIC account identifier.
+    //
+    // `Utils.computeAccountId` is `persistentHash<Vector<1, Bytes<32>>>([sk])`
+    // and is stored in the clear as a ledger map key. It is deliberately
+    // untagged, because the identifier is global by design. `secretToScalar`
+    // therefore MUST be tagged: untagged, it would compute that same hash, and
+    // a secret used in both roles would have its encryption key recoverable
+    // from the published identifier by applying `degradeToTransient`.
+    //
+    // This is the regression test for that finding. If the tag is ever removed
+    // from `secretToScalar`, this fails.
+    // -----------------------------------------------------------------------
+    it('is not recoverable from a published account identifier', async () => {
+      // Exactly what an observer can do with no privileged access: read the
+      // identifier off the ledger and apply the circuit's own truncation.
+      const publishedAccountId = persistentHash(
+        new CompactTypeVector(1, new CompactTypeBytes(32)),
+        [EK_A],
+      );
+      const recoveredScalar = convertBytesToField(
+        31,
+        publishedAccountId,
+        'attacker-truncation',
+      );
+
+      expect(await contract.secretToScalar(EK_A)).not.toBe(recoveredScalar);
+    });
+
+    // `expandRandomness` hashes `[seed, tag]` with BOTH slots caller-supplied,
+    // so it can reproduce any same-arity tuple. The collision with
+    // `secretToScalar` is therefore real and cannot be removed by tagging alone
+    // — only positioned. The tag leads the vector so the reachable-by-accident
+    // call (domain string passed to the parameter that exists for domain
+    // strings) misses, and the collision sits behind swapped arguments instead.
+    //
+    // Both assertions below flip if the ordering is changed to `[secret, tag]`,
+    // so together they pin the decision rather than merely observing it.
+    it('is not reproducible by passing the domain tag as expandRandomness tag', async () => {
+      const tag = new Uint8Array(32);
+      tag.set(new TextEncoder().encode('ElGamal:secretToScalar'));
+
+      expect(await contract.expandRandomness(EK_A, tag)).not.toBe(
+        await contract.secretToScalar(EK_A),
+      );
+    });
+
+    it('is reproducible only with the domain tag in the seed slot', async () => {
+      const tag = new Uint8Array(32);
+      tag.set(new TextEncoder().encode('ElGamal:secretToScalar'));
+
+      // Documents where the residual collision lives: the caller must pass the
+      // domain constant as the SEED and the secret as the TAG — both parameters
+      // used against their purpose.
+      expect(await contract.expandRandomness(tag, EK_A)).toBe(
+        await contract.secretToScalar(EK_A),
+      );
     });
   });
 
