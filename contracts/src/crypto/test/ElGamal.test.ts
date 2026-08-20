@@ -29,6 +29,9 @@ const b32 = (label: string): Uint8Array => {
 const EK_A = b32('elgamal-ek-A');
 const EK_B = b32('elgamal-ek-B');
 
+// Mirrors the `pad(32, ...)` tag `secretToScalar` prefixes its input with.
+const SECRET_TO_SCALAR_TAG = b32('ElGamal:secretToScalar');
+
 // Explicit encryption randomness. Any value below the Jubjub scalar field
 // order (~2^252) is a valid scalar; these small constants keep the tests
 // deterministic and let us assert that distinct randomness yields distinct
@@ -68,61 +71,33 @@ describe('ElGamal', () => {
       expect(await contract.secretToScalar(EK_A)).toBeGreaterThan(0n);
     });
 
-    // -----------------------------------------------------------------------
-    // Domain separation from the PUBLIC account identifier.
-    //
-    // `Utils.computeAccountId` is `persistentHash<Vector<1, Bytes<32>>>([sk])`
-    // and is stored in the clear as a ledger map key. It is deliberately
-    // untagged, because the identifier is global by design. `secretToScalar`
-    // therefore MUST be tagged: untagged, it would compute that same hash, and
-    // a secret used in both roles would have its encryption key recoverable
-    // from the published identifier by applying `degradeToTransient`.
-    //
-    // This is the regression test for that finding. If the tag is ever removed
-    // from `secretToScalar`, this fails.
-    // -----------------------------------------------------------------------
+    // Guards the domain separation on `secretToScalar` (rationale in its @dev
+    // notes). Account identifiers are the same hash, untagged, and public.
     it('is not recoverable from a published account identifier', async () => {
-      // Exactly what an observer can do with no privileged access: read the
-      // identifier off the ledger and apply the circuit's own truncation.
-      const publishedAccountId = persistentHash(
+      // What any observer can do: take the identifier and apply the circuit's
+      // own truncation.
+      const accountId = persistentHash(
         new CompactTypeVector(1, new CompactTypeBytes(32)),
         [EK_A],
       );
-      const recoveredScalar = convertBytesToField(
-        31,
-        publishedAccountId,
-        'attacker-truncation',
-      );
 
-      expect(await contract.secretToScalar(EK_A)).not.toBe(recoveredScalar);
+      expect(await contract.secretToScalar(EK_A)).not.toBe(
+        convertBytesToField(31, accountId, 'attacker'),
+      );
     });
 
-    // `expandRandomness` hashes `[seed, tag]` with BOTH slots caller-supplied,
-    // so it can reproduce any same-arity tuple. The collision with
-    // `secretToScalar` is therefore real and cannot be removed by tagging alone
-    // — only positioned. The tag leads the vector so the reachable-by-accident
-    // call (domain string passed to the parameter that exists for domain
-    // strings) misses, and the collision sits behind swapped arguments instead.
-    //
-    // Both assertions below flip if the ordering is changed to `[secret, tag]`,
-    // so together they pin the decision rather than merely observing it.
+    // The next two pin the tag's POSITION. `expandRandomness([seed, tag])` has
+    // both slots caller-supplied, so the collision cannot be removed.
+    // Both flip if the order becomes `[secret, tag]`
     it('is not reproducible by passing the domain tag as expandRandomness tag', async () => {
-      const tag = new Uint8Array(32);
-      tag.set(new TextEncoder().encode('ElGamal:secretToScalar'));
-
-      expect(await contract.expandRandomness(EK_A, tag)).not.toBe(
+      expect(await contract.expandRandomness(EK_A, SECRET_TO_SCALAR_TAG)).not.toBe(
         await contract.secretToScalar(EK_A),
       );
     });
 
     it('is reproducible only with the domain tag in the seed slot', async () => {
-      const tag = new Uint8Array(32);
-      tag.set(new TextEncoder().encode('ElGamal:secretToScalar'));
-
-      // Documents where the residual collision lives: the caller must pass the
-      // domain constant as the SEED and the secret as the TAG — both parameters
-      // used against their purpose.
-      expect(await contract.expandRandomness(tag, EK_A)).toBe(
+      // Both parameters used against their purpose — the residual collision.
+      expect(await contract.expandRandomness(SECRET_TO_SCALAR_TAG, EK_A)).toBe(
         await contract.secretToScalar(EK_A),
       );
     });
