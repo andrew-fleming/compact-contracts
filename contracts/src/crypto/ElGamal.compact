@@ -123,7 +123,7 @@ module ElGamal {
    * @dev The tag is FIRST, deliberately. `expandRandomness` hashes
    * `[seed, tag]` with both slots caller-supplied, so tagging this circuit as
    * `[secret, tag]` would make `secretToScalar(x)` identical to
-   * `expandRandomness(x, <this tag>)` — reachable by passing this domain string
+   * `expandRandomness(x, <this tag>)` reachable by passing this domain string
    * to the parameter that exists to receive domain strings. Leading with the
    * tag means reproducing this output through `expandRandomness` would require
    * passing the domain constant as the *seed*. Do not normalise the orderings.
