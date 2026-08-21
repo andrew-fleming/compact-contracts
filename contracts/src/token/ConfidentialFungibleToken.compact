@@ -66,9 +66,11 @@ pragma language_version >= 0.23.0;
  * and the re-approve refund) derive randomness from a static domain tag with
  * no per-operation nonce, so two operations under one seed share randomness
  * and their public ciphertext deltas reveal the amount difference. The credit
- * path folds the recipient's memo-list length in as a nonce (defense in
- * depth), but that counter RESETS on `clearMemos`, so it is an in-epoch
- * backstop only, never a substitute for freshness.
+ * path folds the recipient's `_creditEpochs` counter in as a nonce (defense in
+ * depth): it advances on every credit, is never reset, and no counterparty can
+ * hold it back, so a repeated seed still yields distinct randomness there. It
+ * is a backstop, not a substitute for freshness. It covers only credits, and
+ * only against reuse of one seed to one recipient.
  *
  * Seed generation is a WALLET responsibility and OUT OF SCOPE for this
  * contract, which cannot enforce it. The witness shipped in this repo
@@ -269,6 +271,13 @@ module ConfidentialFungibleToken {
   export ledger _encryptionKeys: Map<Bytes<32>, JubjubPoint>;
   export ledger _memos: Map<Bytes<32>, List<EcdhMask_Ciphertext>>;
   export ledger _escrow: Map<Bytes<32>, Map<Bytes<32>, EscrowEntry>>;
+
+  // Per-account credit counter. `_credit` uses it as the nonce that keeps each
+  // credit's randomness distinct, so it MUST only ever increase. No circuit
+  // resets it. It is kept out of `_memos` for that reason: the memo list is
+  // prunable by its owner, and a nonce that could be walked back would let a
+  // reused seed repeat an earlier credit's randomness.
+  export ledger _creditEpochs: Map<Bytes<32>, Counter>;
 
   export ledger _isInitialized: Boolean;
 
@@ -642,20 +651,25 @@ module ConfidentialFungibleToken {
 
     const recipientPk = _encryptionKeys.lookup(disclose(account));
 
-    // Ensure the recipient's memo list exists; its length is a per-recipient
-    // monotonic nonce that makes this credit's randomness unique even if the
-    // wallet reuses its seed. Freshness is essential for the memo OTP: a repeated
-    // ephemeral to the same recipient would reuse the pad.
+    // Ensure the recipient's memo list exists.
     if (!_memos.member(disclose(account))) {
       _memos.insert(disclose(account), default<List<EcdhMask_Ciphertext>>);
     }
-    const count = _memos.lookup(disclose(account)).length() as Field;
+
+    // Advance the recipient's credit epoch and use it as this credit's nonce.
+    // The nonce must come from a source that only increases; anything the
+    // recipient can reset would let a reused seed repeat the randomness below.
+    if (!_creditEpochs.member(disclose(account))) {
+      _creditEpochs.insert(disclose(account), default<Counter>);
+    }
+    _creditEpochs.lookup(disclose(account)).increment(1);
+    const count = _creditEpochs.lookup(disclose(account)) as Field;
     const seed = wit_RandomnessSeed();
 
     // Randomness must be a VALID Jubjub scalar. `transientHash`'s raw Field output
     // can exceed the Jubjub scalar-field order and fault `ecMulGenerator`, so each
     // scalar is derived via `degradeToTransient(persistentHash(...))`, which
-    // truncates into the scalar field. The per-recipient count, folded into a
+    // truncates into the scalar field. The per-recipient epoch, folded into a
     // Bytes<32> nonce, keeps each credit's randomness unique even if the seed
     // repeats (essential for the memo OTP). This inlines the tag + expansion into
     // a single hash per scalar. The residual persistentHash cost is poseidon-gated
