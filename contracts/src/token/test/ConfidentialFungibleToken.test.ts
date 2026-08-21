@@ -850,9 +850,7 @@ describe.skipIf(isLiveBackend())('ConfidentialFungibleToken: memos', () => {
     await cft.register();
 
     const newest = async () =>
-      [
-        ...(await cft.getPublicState()).CFT__memos.lookup(ALICE.accountId),
-      ][0];
+      [...(await cft.getPublicState()).CFT__memos.lookup(ALICE.accountId)][0];
 
     await cft._mint(ALICE.accountId, 10n);
     const before = await newest();
@@ -868,9 +866,9 @@ describe.skipIf(isLiveBackend())('ConfidentialFungibleToken: memos', () => {
     await cft.register();
 
     const epoch = async () =>
-      (await cft.getPublicState()).CFT__creditEpochs
-        .lookup(ALICE.accountId)
-        .read();
+      (await cft.getPublicState()).CFT__creditEpochs.lookup(
+        ALICE.accountId,
+      ).read();
 
     await cft._mint(ALICE.accountId, 10n);
     const first = await epoch();
