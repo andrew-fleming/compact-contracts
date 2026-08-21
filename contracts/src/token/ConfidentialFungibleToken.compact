@@ -67,10 +67,11 @@ pragma language_version >= 0.23.0;
  * no per-operation nonce, so two operations under one seed share randomness
  * and their public ciphertext deltas reveal the amount difference. The credit
  * path folds the recipient's `_creditEpochs` counter in as a nonce (defense in
- * depth): it advances on every credit, is never reset, and no counterparty can
- * hold it back, so a repeated seed still yields distinct randomness there. It
- * is a backstop, not a substitute for freshness. It covers only credits, and
- * only against reuse of one seed to one recipient.
+ * depth). A sender advances it with every credit and nothing rolls it back
+ * (neither the recipient nor any circuit) so the party whose randomness it
+ * protects is the one moving it, and a repeated seed still yields distinct
+ * randomness there. It is a backstop, not a substitute for freshness. It covers
+ * only credits, and only against reuse of one seed to one recipient.
  *
  * Seed generation is a WALLET responsibility and OUT OF SCOPE for this
  * contract, which cannot enforce it. The witness shipped in this repo
