@@ -90,9 +90,9 @@ describe('ElGamal', () => {
     // both slots caller-supplied, so the collision cannot be removed.
     // Both flip if the order becomes `[secret, tag]`
     it('is not reproducible by passing the domain tag as expandRandomness tag', async () => {
-      expect(await contract.expandRandomness(EK_A, SECRET_TO_SCALAR_TAG)).not.toBe(
-        await contract.secretToScalar(EK_A),
-      );
+      expect(
+        await contract.expandRandomness(EK_A, SECRET_TO_SCALAR_TAG),
+      ).not.toBe(await contract.secretToScalar(EK_A));
     });
 
     it('is reproducible only with the domain tag in the seed slot', async () => {
