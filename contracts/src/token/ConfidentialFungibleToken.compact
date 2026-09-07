@@ -339,7 +339,7 @@ module ConfidentialFungibleToken {
    * The ciphertext is passed explicitly so the wallet can route to the right
    * cached plaintext by ciphertext identity. This avoids call-order
    * conventions (which would be brittle to circuit refactors) and lets the
-   * wallet maintain a `Map<ElGamal_Ciphertext, Uint128>` lookup.
+   * wallet maintain a `Map<ElGamal_Ciphertext, Uint248>` lookup.
    *
    * Verified in-circuit by `ElGamal_assertDecryptsTo`: a wrong plaintext
    * fails the assertion `Dec(ct, EK) == claimedValue`.
