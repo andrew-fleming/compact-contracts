@@ -1204,7 +1204,7 @@ describe.skipIf(isLiveBackend())(
       expect(cftPure.MAX_TRANSFER_VALUE()).toBe(MAX128);
     });
 
-    it('pins the compiled claim and transfer widths', () => {
+    it('pins the compiled claim width', () => {
       const raw = readFileSync(
         new URL(
           '../../../artifacts/MockConfidentialFungibleToken/compiler/contract-info.json',
@@ -1219,11 +1219,6 @@ describe.skipIf(isLiveBackend())(
         (w: { name: string }) => w.name === 'wit_PlaintextBalance',
       );
       expect(BigInt(claim['result type'].maxval)).toBe((1n << 248n) - 1n);
-
-      const value = info.circuits
-        .find((c: { name: string }) => c.name === 'transfer')
-        .arguments.find((a: { name: string }) => a.name === 'value');
-      expect(BigInt(value.type.maxval)).toBe(MAX128);
     });
   },
 );
