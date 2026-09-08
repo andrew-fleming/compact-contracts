@@ -863,6 +863,12 @@ describe.skipIf(isLiveBackend())('ConfidentialFungibleToken: memos', () => {
     expect(
       (await cft.getPublicState()).CFT__memos.lookup(ALICE.accountId).length(),
     ).toBe(2n);
+
+    // Recovery: the wallet re-reads the epoch and retries, which succeeds.
+    await cft.clearMemos(await currentEpoch(ALICE.accountId));
+    expect(
+      (await cft.getPublicState()).CFT__memos.lookup(ALICE.accountId).length(),
+    ).toBe(0n);
   });
 
   it('reverts when the caller has no memo list', async () => {
