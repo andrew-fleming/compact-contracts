@@ -106,6 +106,9 @@ pragma language_version >= 0.23.0;
  *  - approve does not disclose the cap (private-cap escrow design).
  *  - Counterparty graph (sender_id, recipient_id) is public on every
  *    transfer.
+ *  - Per-(owner, spender) escrow spend count is public and permanent
+ *    (`_escrowSpendEpochs`); each spend is already visible in tx
+ *    history, so this adds no fact, only a cheaper way to read it.
  *
  * @dev Per-transfer value bound. Value-bearing circuits check
  * `value <= MAX_TRANSFER_VALUE()`, which is now the `Uint<128>` maximum: the ECDH
@@ -311,6 +314,9 @@ module ConfidentialFungibleToken {
   //
   // Kept out of `EscrowEntry`: `approve` replaces that entry wholesale, so a
   // counter living there would restart on every re-approve.
+  //
+  // Note that this exposes a per-pair spend count which is already derivable
+  // from tx history.
   export ledger _escrowSpendEpochs: Map<Bytes<32>, Map<Bytes<32>, Counter>>;
 
   export ledger _isInitialized: Boolean;
