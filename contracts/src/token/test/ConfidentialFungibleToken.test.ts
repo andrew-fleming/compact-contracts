@@ -912,6 +912,50 @@ describe.skipIf(isLiveBackend())('ConfidentialFungibleToken: memos', () => {
     expect(second).not.toStrictEqual(first);
   });
 
+  // Note: the stale-epoch test above builds the prune AFTER the credit, so the
+  // in-circuit assert refuses it. A prune built BEFORE the credit passes that
+  // assert and has to be rejected at replay instead
+  it('replays a captured prune against unchanged state', async () => {
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft.register();
+    await cft._mint(ALICE.accountId, 10n);
+
+    const memoLen = async () =>
+      (await cft.getPublicState()).CFT__memos.lookup(ALICE.accountId).length();
+    const epoch = async () =>
+      (await cft.getPublicState()).CFT__creditEpochs.lookup(
+        ALICE.accountId,
+      ).read();
+
+    const before = await memoLen();
+    const prune = cft.captureTranscript('clearMemos', await epoch());
+
+    // Capturing builds the call without committing it.
+    expect(await memoLen()).toBe(before);
+
+    expect(() => cft.replayTranscript(prune)).not.toThrow();
+  });
+
+  it('rejects a prune built before a credit when the node replays it', async () => {
+    await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
+    await cft.register();
+    await cft._mint(ALICE.accountId, 10n);
+
+    const epoch = async () =>
+      (await cft.getPublicState()).CFT__creditEpochs.lookup(
+        ALICE.accountId,
+      ).read();
+
+    // Built against pre-credit state, so it carries the epoch as it was then.
+    const prune = cft.captureTranscript('clearMemos', await epoch());
+
+    await cft._mint(ALICE.accountId, 10n);
+
+    expect(() => cft.replayTranscript(prune)).toThrow(
+      /mismatch between expected .* and actual .* read/,
+    );
+  });
+
   it('advances the credit epoch on every credit, and a prune does not reset it', async () => {
     await cft.privateState.switchIdentity(ALICE.secretKey, ALICE.encryptionKey);
     await cft.register();
