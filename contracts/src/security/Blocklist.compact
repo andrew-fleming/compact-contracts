@@ -39,7 +39,7 @@ module Blocklist {
   /**
    * @description Returns whether `account` is currently blocked.
    *
-   * @circuitInfo k=6, rows=303
+   * @circuitInfo k=6s, rows=303
    *
    * @param {Bytes<32>} account - The account to query.
    * @return {Boolean} - True if `account` is a member of the blocklist.
