@@ -168,7 +168,7 @@ module AccessControl {
   /**
    * @description Returns `true` if `account` has been granted `roleId`.
    *
-   * @circuitInfo k=10, rows=1019
+   * @circuitInfo k=10, rows=1017
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} account - The account to query.
@@ -225,7 +225,7 @@ module AccessControl {
   /**
    * @description Reverts if `account` is missing `roleId`.
    *
-   * @circuitInfo k=10, rows=987
+   * @circuitInfo k=10, rows=997
    *
    * Requirements:
    *
@@ -376,7 +376,7 @@ module AccessControl {
    * @description Attempts to grant `roleId` to `account` and returns a boolean indicating if `roleId` was granted.
    * Internal circuit without access restriction. It does NOT check if the role is granted to a ContractAddress.
    *
-   * @circuitInfo k=11, rows=1017
+   * @circuitInfo k=11, rows=1140
    *
    * @notice External smart contracts cannot call the access control contract at this time, so granting a role to a ContractAddress may
    * render a circuit permanently inaccessible.

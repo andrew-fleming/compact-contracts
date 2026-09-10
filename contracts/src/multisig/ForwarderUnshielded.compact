@@ -105,7 +105,7 @@ module ForwarderUnshielded {
    * forwards it to `_parent` via `sendUnshielded` (always the `right` /
    * user-address arm today).
    *
-   * @circuitInfo k=10, rows=563
+   * @circuitInfo k=9, rows=344 (zkir-v3)
    *
    * Requirements:
    *

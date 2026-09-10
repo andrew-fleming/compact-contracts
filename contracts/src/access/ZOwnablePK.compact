@@ -150,7 +150,7 @@ module ZOwnablePK {
    * @description Returns the current commitment representing the contract owner.
    * The full commitment is: `SHA256(SHA256(pk, nonce), instanceSalt, counter, domain)`.
    *
-   * @circuitInfo k=10, rows=48
+   * @circuitInfo k=6, rows=48
    *
    * Requirements:
    *
