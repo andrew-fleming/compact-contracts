@@ -188,7 +188,7 @@ One command runs everything — it compiles, resets the stack, runs a quick harn
 yarn test:live
 ```
 
-Currently `multisig` is the only live-ready category. The others still assume dry-only semantics and are skipped, and the run banner lists them. Each joins the run as its specs are refactored for the live backend, with its own `test:live:<category>` script.
+Every `src/<category>` with tests runs live: `multisig`, `token`, `access`, and `security` carry backend-aware specs (real coins and on-chain identity threaded through the wallet pool; coin-flow assertions split into dry and live blocks), and `crypto` and `utils` — pure hashing / commitment / encoding primitives — run their computation through a real deploy on the node too. There is no separate live-ready allowlist; the runner discovers categories automatically (CI reads the list via `--list`). A category that must not run live is an explicit opt-out (`EXCLUDED_CATEGORIES` in [`scripts/live/targets.ts`](./scripts/live/targets.ts) — only legacy `archive` today).
 
 `integration` is a target of its own, not a category, so an unscoped run skips it. Ask for it by name. Only one live target runs per invocation, since both live projects draw wallets from the same genesis-funded pool.
 

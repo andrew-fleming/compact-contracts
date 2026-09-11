@@ -36,15 +36,19 @@ vi.mock('../shell.ts', async (importOriginal) => ({
 const CATEGORIES = ['multisig', 'token'] as const;
 
 describe('listTargets', () => {
-  it('lists the live-ready categories plus the integration target', () => {
+  it('lists every category plus the integration target', () => {
     // CI builds its matrix from this (`test:live --list`), so a dropped entry
     // would surface only as a silently missing job — a live target nobody runs.
-    expect(listTargets(CATEGORIES)).toStrictEqual(['multisig', 'integration']);
+    expect(listTargets(CATEGORIES)).toStrictEqual([
+      'multisig',
+      'token',
+      'integration',
+    ]);
   });
 
-  it('still offers the integration target when no category is live-ready', () => {
-    // `integration` is not a `src/` category, so it does not depend on
-    // LIVE_READY the way the unit categories do.
+  it('still offers the integration target when no category has tests', () => {
+    // `integration` is not a `src/` category, so it does not come from the
+    // discovered category set the way the unit targets do.
     expect(listTargets([])).toStrictEqual(['integration']);
   });
 });
@@ -62,7 +66,6 @@ describe('resolvePlan', () => {
       { name: 'integration', project: 'integration-live', defaultFilters: [] },
     ]);
     expect(resolution.plan.integration).toBe(true);
-    expect(resolution.plan.skipped).toStrictEqual([]);
     expect(resolution.plan.fileFilters).toStrictEqual([]);
   });
 
@@ -80,7 +83,7 @@ describe('resolvePlan', () => {
     expect(resolution.plan.integration).toBe(true);
   });
 
-  it('scopes to a live-ready unit category', () => {
+  it('scopes to a unit category', () => {
     const resolution = resolvePlan(['multisig'], CATEGORIES);
 
     expect(resolution.ok).toBe(true);
@@ -93,7 +96,6 @@ describe('resolvePlan', () => {
       },
     ]);
     expect(resolution.plan.integration).toBe(false);
-    expect(resolution.plan.skipped).toStrictEqual([]);
   });
 
   it('passes trailing args after a category as file filters', () => {
@@ -104,17 +106,34 @@ describe('resolvePlan', () => {
     expect(resolution.plan.fileFilters).toStrictEqual(['Forwarder']);
   });
 
-  it('rejects a category that is not live-ready yet', () => {
-    const resolution = resolvePlan(['token'], CATEGORIES);
+  it('rejects an excluded category by name', () => {
+    // `archive` never reaches `liveCategories()`, so without the excluded-set
+    // branch it would be reported as an unknown target — true but unhelpful.
+    const resolution = resolvePlan(['archive'], CATEGORIES);
 
     expect(resolution.ok).toBe(false);
     if (resolution.ok) return;
-    expect(resolution.message).toContain("'token' is not live-ready yet");
-    expect(resolution.message).toContain('Ready categories: multisig');
+    expect(resolution.message).toContain(
+      "'archive' is excluded from live runs",
+    );
+    expect(resolution.message).toContain('Live targets: multisig, token');
     expect(resolution.message).toContain("'integration'");
   });
 
-  it('runs only live-ready categories when unscoped, reporting the rest', () => {
+  it('rejects an unknown first arg instead of running it as a file filter', () => {
+    // Rejecting here is what keeps a typo from burning a compile / env-up /
+    // harness-smoke cycle only to match no files.
+    const resolution = resolvePlan(['someFileFilter'], CATEGORIES);
+
+    expect(resolution.ok).toBe(false);
+    if (resolution.ok) return;
+    expect(resolution.message).toContain(
+      "'someFileFilter' is not a live target",
+    );
+    expect(resolution.message).toContain('Live targets: multisig, token');
+  });
+
+  it('runs every category when unscoped', () => {
     const resolution = resolvePlan([], CATEGORIES);
 
     expect(resolution.ok).toBe(true);
@@ -125,26 +144,10 @@ describe('resolvePlan', () => {
         project: 'unit-live',
         defaultFilters: ['src/multisig'],
       },
+      { name: 'token', project: 'unit-live', defaultFilters: ['src/token'] },
     ]);
-    expect(resolution.plan.skipped).toStrictEqual(['token']);
     expect(resolution.plan.fileFilters).toStrictEqual([]);
     expect(resolution.plan.integration).toBe(false);
-  });
-
-  it('treats a non-category first arg as a file filter over every target', () => {
-    const resolution = resolvePlan(['someFileFilter'], CATEGORIES);
-
-    expect(resolution.ok).toBe(true);
-    if (!resolution.ok) return;
-    expect(resolution.plan.targets).toStrictEqual([
-      {
-        name: 'multisig',
-        project: 'unit-live',
-        defaultFilters: ['src/multisig'],
-      },
-    ]);
-    expect(resolution.plan.fileFilters).toStrictEqual(['someFileFilter']);
-    expect(resolution.plan.skipped).toStrictEqual(['token']);
   });
 });
 
@@ -297,7 +300,7 @@ describe('LiveOrchestrator', () => {
     fileFilters: readonly string[] = [],
   ): LiveOrchestrator =>
     new LiveOrchestrator({
-      plan: { targets: [TARGET], skipped: [], fileFilters, integration: false },
+      plan: { targets: [TARGET], fileFilters, integration: false },
       stack: { up: async () => 0, stop: () => {} } as unknown as LiveStack,
       compiler: {
         compileVerified: async () => true,
