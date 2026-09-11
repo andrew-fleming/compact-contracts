@@ -103,7 +103,7 @@ module ForwarderShielded {
    * `sendImmediateShielded` to the stored parent recipient (always the
    * `left` / coin-public-key arm today).
    *
-   * @circuitInfo k=15, rows=23073 (zkir-v3)
+   * @circuitInfo k=15, rows=24373
    *
    * Requirements:
    *
