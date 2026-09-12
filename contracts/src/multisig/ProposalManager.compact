@@ -102,7 +102,37 @@ module ProposalManager {
 
   // ─── State ──────────────────────────────────────────────────────
 
+  /**
+   * @description Monotonic source of proposal ids. `_createProposal` increments
+   * it and reads the new value back to key `_proposals` so an id is never
+   * reused.
+   *
+   * @notice Reading the counter back is what serializes concurrent creates. The
+   * increment on its own would commute, but using the result as a map key turns
+   * creation into a pinned read-modify-write. Thus two creates landing in the same
+   * block cannot both succeed and the loser is rejected.
+   *
+   * @notice Readable off-chain without a proof and it discloses how many
+   * proposals the contract has ever created.
+   */
   export ledger _nextProposalId: Counter;
+
+  /**
+   * @description Proposals by id, keyed by the value `_nextProposalId` produced
+   * at creation. Each entry carries the recipient, token color, amount, and the
+   * overlaid lifecycle/expiry encoding documented on `Proposal`.
+   * @type {Uint<64>} id - The proposal identifier, issued by `_nextProposalId`.
+   * @type {Proposal} proposal - The proposal record.
+   * @type {Map<id, proposal>}
+   * @type {Map<Uint<64>, Proposal>} _proposals
+   *
+   * @notice Entries are never deleted. Reaching a terminal state overwrites
+   * `state` in place so the map only grows.
+   *
+   * @notice Readable off-chain without a proof so integrators read this map
+   * directly rather than calling a circuit. Decoding `state` is the reader's
+   * job. See `Proposal`
+   */
   export ledger _proposals: Map<Uint<64>, Proposal>;
 
   // ─── State Sentinels ────────────────────────────────────────────
