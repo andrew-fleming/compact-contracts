@@ -240,6 +240,8 @@ module ProposalManager {
    * - Proposal must not be executed or cancelled.
    * - Proposal must not have expired.
    *
+   * @circuitInfo k=9, rows=129
+   *
    * @param {Uint<64>} id - The proposal ID.
    *
    * @returns {[]} Empty tuple.
@@ -300,6 +302,8 @@ module ProposalManager {
    * - `amount` must be greater than 0.
    * - `expiry` must be greater than `cancelledState()`.
    * - `expiry` must be in the future.
+   *
+   * @circuitInfo k=10, rows=913
    *
    * @param {Recipient} to - The recipient (constructed via helper circuits).
    * @param {Bytes<32>} color - The token color.
@@ -450,6 +454,8 @@ module ProposalManager {
    * @description Derives the lifecycle status of a proposal from its `state`
    * field and the current block time. Returns `Inactive` for an id that was
    * never created rather than failing.
+   *
+   * @circuitInfo k=9, rows=252
    *
    * @param {Uint<64>} id - The proposal ID.
    *
