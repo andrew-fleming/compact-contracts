@@ -12,8 +12,10 @@ const dryLike = (secondsSinceEpoch: bigint) => ({
   _backend: {
     sim: {
       circuitContext: {
-        currentQueryContext: {
-          block: { secondsSinceEpoch, parentBlockHash: 'abc' },
+        callContext: {
+          currentQueryContext: {
+            block: { secondsSinceEpoch, parentBlockHash: 'abc' },
+          },
         },
       },
     },
@@ -25,7 +27,7 @@ describe('setBlockTime', () => {
     const sim = dryLike(0n);
     setBlockTime(sim, 1_000n);
     expect(
-      sim._backend.sim.circuitContext.currentQueryContext.block
+      sim._backend.sim.circuitContext.callContext.currentQueryContext.block
         .secondsSinceEpoch,
     ).toEqual(1_000n);
   });
@@ -34,7 +36,8 @@ describe('setBlockTime', () => {
     const sim = dryLike(0n);
     setBlockTime(sim, 1_000n);
     expect(
-      sim._backend.sim.circuitContext.currentQueryContext.block.parentBlockHash,
+      sim._backend.sim.circuitContext.callContext.currentQueryContext.block
+        .parentBlockHash,
     ).toEqual('abc');
   });
 
@@ -49,7 +52,9 @@ describe('setBlockTime', () => {
       _backend: {
         sim: {
           circuitContext: {
-            currentQueryContext: { blockInfo: { secondsSinceEpoch: 0n } },
+            callContext: {
+              currentQueryContext: { blockInfo: { secondsSinceEpoch: 0n } },
+            },
           },
         },
       },
@@ -64,7 +69,9 @@ describe('setBlockTime', () => {
       _backend: {
         sim: {
           circuitContext: {
-            currentQueryContext: { block: { blockSeconds: 0n } },
+            callContext: {
+              currentQueryContext: { block: { blockSeconds: 0n } },
+            },
           },
         },
       },
@@ -79,7 +86,9 @@ describe('setBlockTime', () => {
       _backend: {
         sim: {
           circuitContext: {
-            currentQueryContext: { block: { secondsSinceEpoch: 0 } },
+            callContext: {
+              currentQueryContext: { block: { secondsSinceEpoch: 0 } },
+            },
           },
         },
       },
@@ -96,7 +105,9 @@ describe('setBlockTime', () => {
     // property would.
     Object.defineProperty(ctx, 'block', { get: () => block, set: () => {} });
     const sim = {
-      _backend: { sim: { circuitContext: { currentQueryContext: ctx } } },
+      _backend: {
+        sim: { circuitContext: { callContext: { currentQueryContext: ctx } } },
+      },
     };
 
     expect(() => {

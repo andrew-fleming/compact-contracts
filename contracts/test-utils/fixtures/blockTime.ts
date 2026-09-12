@@ -21,14 +21,16 @@ type DrySimulator = {
   _backend?: {
     sim?: {
       circuitContext?: {
-        currentQueryContext?: QueryContext;
+        callContext?: {
+          currentQueryContext?: QueryContext;
+        };
       };
     };
   };
 };
 
 function queryContext(sim: unknown): QueryContext {
-  const qc = (sim as DrySimulator)._backend?.sim?.circuitContext
+  const qc = (sim as DrySimulator)._backend?.sim?.circuitContext?.callContext
     ?.currentQueryContext;
   if (qc === undefined) {
     throw new Error(
