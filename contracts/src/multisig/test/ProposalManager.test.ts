@@ -623,6 +623,21 @@ describe('ProposalManager', () => {
       },
     );
 
+    it('can zero a proposal, which reads Expired', async () => {
+      const id = await create();
+
+      // The zero value is what a default-init write leaves behind
+      await contract.forceProposalState(id, 0n);
+
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Expired,
+      );
+
+      await expect(contract.assertProposalActive(id)).rejects.toThrow(
+        'ProposalManager: proposal not active',
+      );
+    });
+
     it('cannot write a proposal that does not exist', async () => {
       await expect(contract.forceProposalState(999n, EXPIRY)).rejects.toThrow(
         'ProposalManager: proposal not found',
