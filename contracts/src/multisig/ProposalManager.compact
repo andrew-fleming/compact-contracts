@@ -144,7 +144,8 @@ module ProposalManager {
    * @type {Map<Uint<64>, Proposal>} _proposals
    *
    * @notice Entries are never deleted. Reaching a terminal state overwrites
-   * `state` in place so the map only grows.
+   * `state` in place so the map only grows, and no circuit here prunes it.
+   * A consumer that needs cleanup must compose its own.
    *
    * @notice Readable off-chain without a proof so integrators read this map
    * directly rather than calling a circuit. Decoding `state` is the reader's
