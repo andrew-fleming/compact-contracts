@@ -282,6 +282,11 @@ module ProposalManager {
    * first, and a deadline that has passed fails the second, so the error message
    * distinguishes the two.
    *
+   * @notice Expiry is terminal, unlike a conflicting read. A tx rejected
+   * for a stale read succeeds once rebuilt against fresh state. Rebuilding
+   * cannot help here: block time only moves forward, so an expired proposal
+   * stays expired. Check the proposal's status before re-proving.
+   *
    * Requirements:
    *
    * - Proposal must exist.
