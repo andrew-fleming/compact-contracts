@@ -95,9 +95,9 @@ module ProposalManager {
    * still carries its original deadline, which is what tells a reader when it
    * lapsed.
    *
-   * @warning `state` is a DEADLINE, not a ready-at time. `state > blockTime`
-   * means the proposal is still executable; `state <= blockTime` means it no
-   * longer is.
+   * @warning In the deadline range, `state` marks when a proposal STOPS being
+   * executable, not when it starts: it is executable while `blockTime < state`
+   * and inert once `blockTime >= state`.
    *
    * @notice This module implements no execution delay. `expiry` bounds how long
    * a proposal stays valid; it does not impose a minimum wait before it may be
