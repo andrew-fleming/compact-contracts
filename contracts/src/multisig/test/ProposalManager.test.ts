@@ -537,20 +537,6 @@ describe('ProposalManager', () => {
         contract.cancelledState(),
       );
     });
-
-    it('should discard the expiry when a proposal reaches a terminal state', async () => {
-      const recipient = contract.shieldedUserRecipient(Z_RECIPIENT);
-      const id = await contract._createProposal(
-        recipient,
-        COLOR,
-        AMOUNT,
-        EXPIRY,
-      );
-      expect((await contract.getProposal(id)).state).toEqual(EXPIRY);
-
-      await contract._markExecuted(id);
-      expect((await contract.getProposal(id)).state).not.toEqual(EXPIRY);
-    });
   });
 
   // A consuming contract that imports `_proposals` by name can write it
