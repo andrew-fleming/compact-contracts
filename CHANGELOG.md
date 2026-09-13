@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Changed (breaking)
+
+- Refactor `ProposalManager` (#780)
+  - `Proposal.status` → `state: Uint<64>`, overlaying lifecycle and expiry
+  - `_createProposal` / `createShieldedProposal` require `expiry`
+  - `getProposalStatus` returns `Inactive` for unknown ids instead of failing
+
 ## 0.4.0-alpha.1 (2026-09-02)
 
 ### Added
@@ -22,11 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Under `--feature-zkir-v3`, any impure circuit that reaches `ElGamal.encryptPoint` (notably `ConfidentialFungibleToken`) fails at key generation with `Unsupported test_eq: JubjubScalar == JubjubScalar`, because the ZKIR v3 backend has no `JubjubScalar` equality ([LFDT-Minokawa/compact#757](https://github.com/LFDT-Minokawa/compact/issues/757)). A source-level fix, comparing the derived point instead of the scalar, lands in the next release.
 - Under `--feature-zkir-v3`, exporting `ElGamal.derivePk` as an impure circuit panics with `ZkStdLibArch must enable jubjub` ([LFDT-Minokawa/compact#616](https://github.com/LFDT-Minokawa/compact/issues/616)). There is no source workaround.
 - `@openzeppelin/compact-cli` `0.0.3` pins `@openzeppelin/compact-builder` to `0.0.4`, which reports a failed compile as success on Linux and writes no artifact. This is fixed in `compact-builder` `0.0.5` ([OpenZeppelin/compact-tools#162](https://github.com/OpenZeppelin/compact-tools/pull/162)); a `compact-cli` patch release picking it up follows, after which this repo bumps it. Until then, check that `artifacts/<Name>/compiler/contract-info.json` exists after a compile.
-
-### Changed
-
-- Refactor ProposalManager (#780)
-  - Support configurable expiry deadlines, improve proposal status
 
 ## 0.3.0-alpha.2 (2026-08-11)
 
