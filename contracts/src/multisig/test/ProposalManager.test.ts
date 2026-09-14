@@ -765,6 +765,20 @@ describe('ProposalManager', () => {
       );
     });
 
+    // The rejection specs currently pin 0, 1 and 2 as illegal
+    it('should accept the smallest expiry above the reserved range', async () => {
+      setBlockTime(contract, contract.cancelledState());
+
+      const id = await create(contract.cancelledState() + 1n);
+
+      expect((await contract.getProposal(id)).state).toEqual(
+        contract.cancelledState() + 1n,
+      );
+      expect(await contract.getProposalStatus(id)).toEqual(
+        ProposalStatus.Active,
+      );
+    });
+
     it('should still report Active one second before the deadline', async () => {
       const id = await create(LATER);
 
