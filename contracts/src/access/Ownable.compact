@@ -99,10 +99,6 @@ module Ownable {
    * account identifier, stored as supplied and never checked against the secret
    * key it should derive from; a `right` holds a contract address. The zero
    * value means ownership has been renounced.
-   *
-   * `assertOnlyOwner` compares `persistentHash(wit_OwnableSK())` against
-   * `_owner.left`, so a `left` must equal the intended owner's account
-   * identifier for authentication to succeed.
    */
   export ledger _owner: Either<Bytes<32>, ContractAddress>;
 
