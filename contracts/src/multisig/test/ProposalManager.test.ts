@@ -931,7 +931,7 @@ describe('ProposalManager', () => {
           AMOUNT,
           anHourAgo,
         ),
-      ).rejects.toThrow();
+      ).rejects.toThrow('ProposalManager: expiry not in the future');
     });
 
     it('should accept a far-future expiry and report it Active', async () => {
