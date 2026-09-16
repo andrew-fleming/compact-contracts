@@ -96,8 +96,13 @@ module Ownable {
 
   /**
    * @description The current owner, canonicalized on write. A `left` holds an
-   * account id derived from the caller's secret key; a `right` holds a contract
-   * address. The zero value means ownership has been renounced.
+   * account identifier, stored as supplied and never checked against the secret
+   * key it should derive from; a `right` holds a contract address. The zero
+   * value means ownership has been renounced.
+   *
+   * `assertOnlyOwner` compares `persistentHash(wit_OwnableSK())` against
+   * `_owner.left`, so a `left` must equal the intended owner's account
+   * identifier for authentication to succeed.
    */
   export ledger _owner: Either<Bytes<32>, ContractAddress>;
 
