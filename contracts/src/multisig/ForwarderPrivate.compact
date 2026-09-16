@@ -35,8 +35,8 @@ module ForwarderPrivate {
 
   /**
    * @description Commitment to the parent's identity, published in place of the
-   * parent itself. A caller proves control by supplying the preimage, so the
-   * parent stays private.
+   * parent itself. A caller proves knowledge of the preimage, so the parent
+   * stays private.
    */
   export ledger _parentCommitment: Bytes<32>;
 
