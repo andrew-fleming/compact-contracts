@@ -57,8 +57,10 @@ export { ZswapCoinPublicKey };
  */
 export ledger _counter: Counter;
 /**
- * @description The nonce for the next minted coin. Set at construction and
- * evolved from `_counter` on every mint.
+ * @description Seed for coin-nonce derivation. Set at construction, then
+ * replaced by `evolveNonce(_counter, _coinNonce)` at the start of each mint, so
+ * it holds the initial seed before the first mint and the most recent mint's
+ * nonce after.
  */
 export ledger _coinNonce: Bytes<32>;
 /**
