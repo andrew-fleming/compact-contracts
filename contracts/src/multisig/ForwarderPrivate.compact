@@ -34,9 +34,10 @@ module ForwarderPrivate {
   // ─── State ──────────────────────────────────────────────────────
 
   /**
-   * @description Commitment to the parent's identity, published in place of the
-   * parent itself. A caller proves knowledge of the preimage, so the parent
-   * stays private.
+   * @description Commitment to `(parentAddr, opSecret)`, published in place of
+   * the parent itself. A caller proves knowledge of both. The parent key alone
+   * is not secret, so `opSecret` supplies the hiding: without it a candidate
+   * parent could be hashed and matched against this value.
    */
   export ledger _parentCommitment: Bytes<32>;
 
