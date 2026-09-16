@@ -7,9 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Changed (breaking)
+### Changed
 
-- Refactor `ProposalManager` (#780)
+- **Breaking:** Refactor `ProposalManager` (#780)
   - `Proposal.status` → `state: Uint<64>`, overlaying lifecycle and expiry
   - `_createProposal` / `createShieldedProposal` require `expiry`
   - `getProposalStatus` returns `Inactive` for unknown ids instead of failing
