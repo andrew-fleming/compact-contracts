@@ -53,9 +53,9 @@ module ShieldedTreasury {
   export ledger _coins: Map<Bytes<32>, QualifiedShieldedCoinInfo>;
   /**
    * @description Lifetime deposits per token color. Only ever increases, so it
-   * is a running total rather than a balance. `_received - _sent` matches what
-   * the treasury holds only while every change flows through `_deposit` and
-   * `_send`; `getTokenBalance` reads `_coins` and is the canonical balance.
+   * is a running total rather than a balance. `getTokenBalance` reads `_coins`
+   * and is the canonical balance; `getReceivedMinusSent` derives it from the
+   * totals and documents when that derivation holds.
    * @type {Bytes<32>} color - The token color.
    * @type {Uint<128>} total - The amount deposited over the contract's life.
    * @type {Map<color, total>}
