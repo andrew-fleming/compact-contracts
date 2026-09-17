@@ -1,0 +1,132 @@
+import type { Secp256k1Point } from '@midnight-ntwrk/compact-runtime';
+import {
+  createSimulator,
+  type SimulatorOptions,
+} from '@openzeppelin/compact-simulator';
+import type { EcdsaSignature } from '#test-utils/fixtures/ecdsa.js';
+import {
+  type ContractAddress,
+  type Either,
+  ledger,
+  Contract as MockShieldedMultiSigV3,
+  pureCircuits,
+  type ZswapCoinPublicKey,
+} from '../../../../../artifacts/MockShieldedMultiSigV3/contract/index.js';
+import {
+  EmptyPrivateState,
+  emptyWitnesses,
+} from '../../../test/EmptyWitnesses.js';
+
+type ShieldedMultiSigV3Args = readonly [
+  instanceSalt: Uint8Array,
+  initCoinNonce: Uint8Array,
+  tokenDomain: Uint8Array,
+  signerCommitments: Uint8Array[],
+  isInit: boolean,
+];
+
+const ShieldedMultiSigV3SimulatorBase = createSimulator<
+  EmptyPrivateState,
+  ReturnType<typeof ledger>,
+  ReturnType<typeof emptyWitnesses>,
+  MockShieldedMultiSigV3<EmptyPrivateState>,
+  ShieldedMultiSigV3Args
+>({
+  contractFactory: (witnesses) =>
+    new MockShieldedMultiSigV3<EmptyPrivateState>(witnesses),
+  defaultPrivateState: () => EmptyPrivateState,
+  contractArgs: (
+    instanceSalt,
+    initCoinNonce,
+    tokenDomain,
+    signerCommitments,
+    isInit,
+  ) => [instanceSalt, initCoinNonce, tokenDomain, signerCommitments, isInit],
+  ledgerExtractor: (state) => ledger(state),
+  witnessesFactory: () => emptyWitnesses(),
+  artifactName: 'MockShieldedMultiSigV3',
+});
+
+export class ShieldedMultiSigV3Simulator extends ShieldedMultiSigV3SimulatorBase {
+  static async create(
+    instanceSalt: Uint8Array,
+    initCoinNonce: Uint8Array,
+    tokenDomain: Uint8Array,
+    signerCommitments: Uint8Array[],
+    isInit: boolean,
+    options: SimulatorOptions<
+      EmptyPrivateState,
+      ReturnType<typeof emptyWitnesses>
+    > = {},
+  ): Promise<ShieldedMultiSigV3Simulator> {
+    // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
+    return super.create(
+      [instanceSalt, initCoinNonce, tokenDomain, signerCommitments, isInit],
+      options,
+    ) as Promise<ShieldedMultiSigV3Simulator>;
+  }
+
+  public _calculateSignerId(
+    pk: Secp256k1Point,
+    salt: Uint8Array,
+  ): Promise<Uint8Array> {
+    return this.circuits.pure._calculateSignerId(pk, salt);
+  }
+
+  public mint(
+    amount: bigint,
+    recipient: Either<ZswapCoinPublicKey, ContractAddress>,
+    pubkeys: Secp256k1Point[],
+    signatures: EcdsaSignature[],
+  ): Promise<[]> {
+    return this.circuits.impure.mint(amount, recipient, pubkeys, signatures);
+  }
+
+  public burn(
+    coin: {
+      nonce: Uint8Array;
+      color: Uint8Array;
+      value: bigint;
+      mt_index: bigint;
+    },
+    amount: bigint,
+    pubkeys: Secp256k1Point[],
+    signatures: EcdsaSignature[],
+  ): Promise<[]> {
+    return this.circuits.impure.burn(coin, amount, pubkeys, signatures);
+  }
+
+  public getNonce(): Promise<bigint> {
+    return this.circuits.impure.getNonce();
+  }
+
+  public getTokenDomain(): Promise<Uint8Array> {
+    return this.circuits.impure.getTokenDomain();
+  }
+
+  public getTokenType(): Promise<Uint8Array> {
+    return this.circuits.impure.getTokenType();
+  }
+
+  public getSignerCount(): Promise<bigint> {
+    return this.circuits.impure.getSignerCount();
+  }
+
+  public getThreshold(): Promise<bigint> {
+    return this.circuits.impure.getThreshold();
+  }
+
+  public isSigner(commitment: Uint8Array): Promise<boolean> {
+    return this.circuits.impure.isSigner(commitment);
+  }
+}
+
+// Computes signer commitment from `pk`, `salt`, and
+// domain ("multisig:signer:"). Pure standalone circuit so commitments can be
+// calculated before contract instantiation.
+export function calculateSignerId(
+  pk: Secp256k1Point,
+  salt: Uint8Array,
+): Uint8Array {
+  return pureCircuits._calculateSignerId(pk, salt);
+}
