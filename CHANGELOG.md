@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add evmAbi module (#???)
+- Add `evmAbi` and `Eip191` modules (#???)
+
+### Changed
+
+- **Breaking:** (#???)
+  - `ShieldedMultiSigV2`
+    - Remove `thresh` param from constructor
+    - Replace `persistentHash` with `keccak256` in `execute`
+  - `ShieldedMultiSigV3`
+    - Replace `persistentHash` with `keccak256` in `mint` and `burn`
 
 ## 0.4.0-alpha.1 (2026-09-02)
 

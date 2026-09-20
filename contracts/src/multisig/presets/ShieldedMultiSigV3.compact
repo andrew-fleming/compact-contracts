@@ -45,7 +45,9 @@ pragma language_version >= 0.26.0;
 import CompactStandardLibrary;
 
 import "../EcdsaSignerManager" prefix EcdsaSignerManager_;
+import "../../crypto/Eip191" prefix Eip191_;
 import "../../utils/Utils" prefix Utils_;
+import "../../utils/EvmAbi" prefix EvmAbi_;
 // For testing
 export { ZswapCoinPublicKey };
 
@@ -90,7 +92,8 @@ constructor(
 ) {
   _coinNonce = disclose(initCoinNonce);
   _tokenDomain = disclose(tokenDomain);
-  EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
+  const thresh = 2;
+  EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
 }
 
 // ─── Mint ───────────────────────────────────────────────────────
@@ -114,7 +117,7 @@ constructor(
  * after the counter has been incremented, binding each mint's nonce to a
  * distinct counter value.
  *
- * @constraints k=17, rows=84506 (zkir-v3)
+ * @constraints k=17, rows=89888 (zkir-v3)
  *
  * Requirements:
  *
@@ -139,15 +142,21 @@ export circuit mint(
 
   // Canonicalize recipient to ensure garbage values don't sully the hash
   const canonRecipient = Utils_canonicalize<ZswapCoinPublicKey, ContractAddress>(recipient);
-  const recipientHash = persistentHash<Either<ZswapCoinPublicKey, ContractAddress>>(canonRecipient);
 
-  const msgHash = persistentHash<Vector<5, Bytes<32>>>([
+  // Only the active arm reaches the digest, so a crafted value carrying data
+  // in its unused arm cannot alter what was signed.
+  const recipientWord = canonRecipient.is_left
+    ? canonRecipient.left.bytes
+    : canonRecipient.right.bytes;
+
+  const msgHash = Eip191_personalSignHash(keccak256<Vector<6, Bytes<32>>>([
     pad(32, "multisig:mint:"),
     kernel.self().bytes,
-    recipientHash,
-    opNonce as Bytes<32>,
-    amount as Bytes<32>
-  ]);
+    recipientWord,
+    EvmAbi_boolWord(!canonRecipient.is_left),
+    EvmAbi_uint64Word(opNonce as Uint<64>),
+    EvmAbi_uint64Word(amount)
+  ]));
 
   EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
 
@@ -178,7 +187,7 @@ export circuit mint(
  * The "multisig:burn:" domain prefix ensures burn signatures cannot be replayed
  * as mint operations for the same parameters.
  *
- * @constraints k=17, rows=92170 (zkir-v3)
+ * @constraints k=17, rows=97126 (zkir-v3)
  *
  * Requirements:
  *
@@ -203,12 +212,12 @@ export circuit burn(
   const opNonce = _counter;
   _counter.increment(1);
 
-  const msgHash = persistentHash<Vector<4, Bytes<32>>>([
+  const msgHash = Eip191_personalSignHash(keccak256<Vector<4, Bytes<32>>>([
     pad(32, "multisig:burn:"),
     kernel.self().bytes,
-    opNonce as Bytes<32>,
-    amount as Bytes<32>
-  ]);
+    EvmAbi_uint64Word(opNonce as Uint<64>),
+    EvmAbi_uint64Word(amount)
+  ]));
 
   EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
 

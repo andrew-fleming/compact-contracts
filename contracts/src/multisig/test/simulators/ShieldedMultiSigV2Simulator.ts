@@ -28,7 +28,6 @@ type ShieldedSendResult = {
 type ShieldedMultiSigV2Args = readonly [
   instanceSalt: Uint8Array,
   signerCommitments: Uint8Array[],
-  thresh: bigint,
 ];
 
 const ShieldedMultiSigV2SimulatorBase = createSimulator<
@@ -41,10 +40,9 @@ const ShieldedMultiSigV2SimulatorBase = createSimulator<
   contractFactory: (witnesses) =>
     new ShieldedMultiSigV2<EmptyPrivateState>(witnesses),
   defaultPrivateState: () => EmptyPrivateState,
-  contractArgs: (instanceSalt, signerCommitments, thresh) => [
+  contractArgs: (instanceSalt, signerCommitments) => [
     instanceSalt,
     signerCommitments,
-    thresh,
   ],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => emptyWitnesses(),
@@ -55,7 +53,6 @@ export class ShieldedMultiSigV2Simulator extends ShieldedMultiSigV2SimulatorBase
   static async create(
     instanceSalt: Uint8Array,
     signerCommitments: Uint8Array[],
-    thresh: bigint,
     options: SimulatorOptions<
       EmptyPrivateState,
       ReturnType<typeof emptyWitnesses>
@@ -63,7 +60,7 @@ export class ShieldedMultiSigV2Simulator extends ShieldedMultiSigV2SimulatorBase
   ): Promise<ShieldedMultiSigV2Simulator> {
     // biome-ignore lint/complexity/noThisInStatic: super.create must keep the subclass `this`
     return super.create(
-      [instanceSalt, signerCommitments, thresh],
+      [instanceSalt, signerCommitments],
       options,
     ) as Promise<ShieldedMultiSigV2Simulator>;
   }

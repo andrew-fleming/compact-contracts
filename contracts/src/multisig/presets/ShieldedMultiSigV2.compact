@@ -23,6 +23,8 @@ pragma language_version >= 0.26.0;
 import CompactStandardLibrary;
 
 import "../EcdsaSignerManager" prefix EcdsaSignerManager_;
+import "../../crypto/Eip191" prefix Eip191_;
+import "../../utils/EvmAbi" prefix EvmAbi_;
 import "../ProposalManager" prefix Proposal_;
 import "../ShieldedTreasuryStateless" prefix Treasury_;
 
@@ -33,8 +35,8 @@ ledger _nonce: Counter;
 // ─── Constructor ────────────────────────────────────────────────
 
 /**
- * @description Deploys the multisig with 3 signer commitments and
- * a threshold.
+ * @description Deploys the multisig with 3 signer commitments, fixed at a
+ * 2-of-3 threshold.
  *
  * Each commitment is `persistentHash(pkX, pkY, instanceSalt,
  * "multisig:signer:")`. Use the exported `_calculateSignerId` circuit to
@@ -44,28 +46,22 @@ ledger _nonce: Counter;
  * key from producing the same commitment across different multisig
  * deployments, breaking cross-contract signer correlation.
  *
- * @dev A threshold of 1 does not weaken `execute`, which always verifies two
- * distinct registered signers.
+ * @dev The threshold is set to 2 in the constructor. Allowing a threshold
+ * of 1 would still require two valid signers.
  *
  * Requirements:
  *
- * - `thresh` must be > 0 and <= 2 (matches the 2-signature `execute` surface).
  * - `signerCommitments` must not contain duplicates.
  * - `instanceSalt` should be cryptographically random.
  *
  * @param {Bytes<32>} instanceSalt - Random salt for commitment derivation.
  * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
- * @param {Uint<8>} thresh - Minimum approvals required.
  */
 constructor(
   instanceSalt: Bytes<32>,
   signerCommitments: Vector<3, Bytes<32>>,
-  thresh: Uint<8>,
 ) {
-  assert(
-    thresh <= 2,
-    "ShieldedMultiSigV2: threshold cannot exceed 2 (execute verifies at most 2 signatures)"
-  );
+  const thresh = 2;
   EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
 }
 
@@ -107,7 +103,7 @@ export circuit deposit(coin: ShieldedCoinInfo): [] {
  * commitment from their public key and the instance salt, rejects duplicates,
  * and enforces the threshold.
  *
- * @constraints k=17, rows=98061 (zkir-v3)
+ * @constraints k=17, rows=104620 (zkir-v3)
  *
  * Requirements:
  *
@@ -137,14 +133,15 @@ export circuit execute(
   _nonce.increment(1);
 
   // Construct message hash
-  const msgHash = persistentHash<Vector<6, Bytes<32>>>([
+  const msgHash = Eip191_personalSignHash(keccak256<Vector<7, Bytes<32>>>([
     pad(32, "multisig:execute:"),
     kernel.self().bytes,
-    currentNonce as Bytes<32>,
-    persistentHash<Proposal_Recipient>(to),
+    EvmAbi_uint64Word(currentNonce as Uint<64>),
+    EvmAbi_uint8Word(to.kind as Uint<8>),
+    to.address,
     coin.color,
-    amount as Bytes<32>
-  ]);
+    EvmAbi_uint128Word(amount)
+  ]));
 
   EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
 

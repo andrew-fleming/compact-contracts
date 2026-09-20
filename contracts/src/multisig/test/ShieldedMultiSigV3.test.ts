@@ -1,3 +1,10 @@
+import {
+  CompactTypeBytes,
+  CompactTypeVector,
+  convertBigintToBytes,
+  persistentHash,
+} from '@midnight-ntwrk/compact-runtime';
+import { keccak_256 } from '@noble/hashes/sha3.js';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import * as utils from '#test-utils/fixtures/address.js';
@@ -116,6 +123,46 @@ function makeQualifiedCoin(
     mt_index: mtIndex,
   };
 }
+
+const B32 = new CompactTypeBytes(32);
+const abiUintBE = (v: bigint): Uint8Array => {
+  const out = new Uint8Array(32);
+  let acc = v;
+  for (let i = 31; i >= 0 && acc > 0n; i--) {
+    out[i] = Number(acc & 0xffn);
+    acc >>= 8n;
+  }
+  return out;
+};
+const abiBool = (b: boolean): Uint8Array => {
+  const out = new Uint8Array(32);
+  out[31] = b ? 1 : 0;
+  return out;
+};
+const domain32 = (t: string): Uint8Array => {
+  const out = new Uint8Array(32);
+  out.set(new TextEncoder().encode(t));
+  return out;
+};
+
+/** The mint message words, before any outer hash. */
+const mintWords = (
+  addr: Uint8Array,
+  r: EitherRecipient,
+  nonce: bigint,
+  amount: bigint,
+  encodeUint: (v: bigint) => Uint8Array = abiUintBE,
+): Uint8Array[] => [
+  domain32('multisig:mint:'),
+  addr,
+  r.is_left ? r.left.bytes : r.right.bytes,
+  abiBool(!r.is_left),
+  encodeUint(nonce),
+  encodeUint(amount),
+];
+
+const keccakWords = (w: Uint8Array[]): Uint8Array =>
+  keccak_256(Buffer.concat(w.map(Buffer.from)));
 
 let multisig: ShieldedMultiSigV3Simulator;
 
@@ -335,6 +382,157 @@ describe('ShieldedMultiSigV3', () => {
             [sign(S1, digest), sign(S2, wrongDigest)],
           ),
         ).rejects.toThrow('Multisig: invalid signature');
+      });
+
+      describe('parameter binding', () => {
+        it('should reject a signature bound to a different amount', async () => {
+          const digest = await mintDigest(multisig, USER_RECIPIENT, 999n);
+
+          await expect(
+            multisig.mint(
+              100n,
+              USER_RECIPIENT,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a signature bound to a different recipient', async () => {
+          // `shieldedTestKey()` is deterministic, so a second call would return
+          // the same key and the digests would match
+          const other = utils.eitherUserFromCoinPublicKey(
+            utils.toHexPadded('OTHER_RECIPIENT'),
+          );
+          const digest = await mintDigest(multisig, USER_RECIPIENT, 100n);
+
+          await expect(
+            multisig.mint(
+              100n,
+              other,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a burn signature replayed as a mint', async () => {
+          const digest = await burnDigest(multisig, 100n);
+
+          await expect(
+            multisig.mint(
+              100n,
+              USER_RECIPIENT,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a mint signature replayed as a burn', async () => {
+          const digest = await mintDigest(multisig, USER_RECIPIENT, 100n);
+          const coin = makeQualifiedCoin(await multisig.getTokenType(), 100n);
+
+          await expect(
+            multisig.burn(
+              coin,
+              100n,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+      });
+
+      describe('encoding scheme', () => {
+        it('should reject a signature over the un-enveloped message hash', async () => {
+          const inner = keccakWords(
+            mintWords(
+              addrBytes(multisig),
+              USER_RECIPIENT,
+              await multisig.getNonce(),
+              100n,
+            ),
+          );
+
+          await expect(
+            multisig.mint(
+              100n,
+              USER_RECIPIENT,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, inner), sign(S2, inner)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a signature over a persistentHash digest', async () => {
+          const words = mintWords(
+            addrBytes(multisig),
+            USER_RECIPIENT,
+            await multisig.getNonce(),
+            100n,
+          );
+          const ph = persistentHash(
+            new CompactTypeVector(words.length, B32),
+            words,
+          );
+
+          await expect(
+            multisig.mint(
+              100n,
+              USER_RECIPIENT,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, ph), sign(S2, ph)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a signature over little-endian encoded integers', async () => {
+          const le = (v: bigint) => convertBigintToBytes(32, v, 'V3.test');
+          const inner = keccakWords(
+            mintWords(
+              addrBytes(multisig),
+              USER_RECIPIENT,
+              await multisig.getNonce(),
+              100n,
+              le,
+            ),
+          );
+          const digest = keccak_256(
+            Buffer.concat([
+              Buffer.from('\x19Ethereum Signed Message:\n32', 'binary'),
+              Buffer.from(inner),
+            ]),
+          );
+
+          await expect(
+            multisig.mint(
+              100n,
+              USER_RECIPIENT,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should not let a user-recipient signature redirect to a contract', async () => {
+          const asUser = USER_RECIPIENT;
+          const asContract: EitherRecipient = {
+            is_left: false,
+            left: { bytes: new Uint8Array(32) },
+            right: { bytes: asUser.left.bytes },
+          };
+          const digest = await mintDigest(multisig, asUser, 100n);
+
+          await expect(
+            multisig.mint(
+              100n,
+              asContract,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
       });
 
       it('should reject a high-s signature', async () => {

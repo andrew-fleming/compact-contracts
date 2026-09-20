@@ -1,3 +1,4 @@
+import { keccak_256 } from '@noble/hashes/sha3.js';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -43,6 +44,40 @@ const COMMITMENT3 = ShieldedMultiSigV2Simulator.calculateSignerId(
   INSTANCE_SALT,
 );
 const SIGNER_COMMITMENTS = [COMMITMENT1, COMMITMENT2, COMMITMENT3];
+
+const abiUintBE = (v: bigint): Uint8Array => {
+  const out = new Uint8Array(32);
+  let acc = v;
+  for (let i = 31; i >= 0 && acc > 0n; i--) {
+    out[i] = Number(acc & 0xffn);
+    acc >>= 8n;
+  }
+  return out;
+};
+
+const executeInnerHash = (
+  addr: Uint8Array,
+  nonce: bigint,
+  to: { kind: number; address: Uint8Array },
+  coinColor: Uint8Array,
+  amount: bigint,
+): Uint8Array => {
+  const domain = new Uint8Array(32);
+  domain.set(new TextEncoder().encode('multisig:execute:'));
+  return keccak_256(
+    Buffer.concat(
+      [
+        domain,
+        addr,
+        abiUintBE(nonce),
+        abiUintBE(BigInt(to.kind)),
+        to.address,
+        coinColor,
+        abiUintBE(amount),
+      ].map(Buffer.from),
+    ),
+  );
+};
 
 function makeRecipient(address: Uint8Array): {
   kind: number;
@@ -95,7 +130,7 @@ async function executeDigest(
 // A fresh 2-of-3 stateless multisig. Mutating groups build one per test
 // (`beforeEach`); the read-only `view` group shares one deploy (`beforeAll`).
 const freshMultisig = () =>
-  ShieldedMultiSigV2Simulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS, 2n);
+  ShieldedMultiSigV2Simulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS);
 
 describe('ShieldedMultiSigV2', () => {
   describe('constructor', () => {
@@ -103,48 +138,21 @@ describe('ShieldedMultiSigV2', () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        2n,
       );
       expect(await multisig.getSignerCount()).toEqual(3n);
       expect(await multisig.getThreshold()).toEqual(2n);
     });
 
-    it('should initialize with 1-of-3 threshold', async () => {
-      multisig = await ShieldedMultiSigV2Simulator.create(
-        INSTANCE_SALT,
-        SIGNER_COMMITMENTS,
-        1n,
-      );
-      expect(await multisig.getThreshold()).toEqual(1n);
-    });
-
-    it('should fail with zero threshold', async () => {
-      await expect(
-        ShieldedMultiSigV2Simulator.create(
-          INSTANCE_SALT,
-          SIGNER_COMMITMENTS,
-          0n,
-        ),
-      ).rejects.toThrow('Signer: threshold must not be zero');
-    });
-
-    it('should fail with threshold greater than 2', async () => {
-      await expect(
-        ShieldedMultiSigV2Simulator.create(
-          INSTANCE_SALT,
-          SIGNER_COMMITMENTS,
-          3n,
-        ),
-      ).rejects.toThrow(
-        'ShieldedMultiSigV2: threshold cannot exceed 2 (execute verifies at most 2 signatures)',
-      );
+    it('should fix the threshold at 2', async () => {
+      multisig = await freshMultisig();
+      expect(await multisig.getThreshold()).toEqual(2n);
+      expect(await multisig.getSignerCount()).toEqual(3n);
     });
 
     it('should register all signer commitments', async () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        2n,
       );
       for (const commitment of SIGNER_COMMITMENTS) {
         expect(await multisig.isSigner(commitment)).toEqual(true);
@@ -155,7 +163,6 @@ describe('ShieldedMultiSigV2', () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
-        2n,
       );
       const unknown = ShieldedMultiSigV2Simulator.calculateSignerId(
         OUTSIDER.publicKey,
@@ -345,6 +352,106 @@ describe('ShieldedMultiSigV2', () => {
         ).rejects.toThrow('Multisig: invalid signature');
       });
 
+      describe('parameter binding', () => {
+        it('should reject a signature bound to a different amount', async () => {
+          const to = makeRecipient(new Uint8Array(32).fill(7));
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const digest = await executeDigest(multisig, to, coin, 999n);
+
+          await expect(
+            multisig.execute(
+              to,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a signature bound to a different recipient address', async () => {
+          const signedFor = makeRecipient(new Uint8Array(32).fill(7));
+          const redirected = makeRecipient(new Uint8Array(32).fill(8));
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const digest = await executeDigest(multisig, signedFor, coin, 100n);
+
+          await expect(
+            multisig.execute(
+              redirected,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should reject a signature bound to a different coin color', async () => {
+          const to = makeRecipient(new Uint8Array(32).fill(7));
+          const otherColor =
+            GENESIS_NATIVE_SHIELDED_TOKEN_COLORS.nativeShieldedToken2;
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const digest = await executeDigest(
+            multisig,
+            to,
+            { color: otherColor },
+            100n,
+          );
+
+          await expect(
+            multisig.execute(
+              to,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+      });
+
+      describe('encoding scheme', () => {
+        it('should reject a signature over the un-enveloped message hash', async () => {
+          const to = makeRecipient(new Uint8Array(32).fill(7));
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const inner = executeInnerHash(
+            Uint8Array.from(Buffer.from(multisig.contractAddress, 'hex')),
+            await multisig.getNonce(),
+            to,
+            coin.color,
+            100n,
+          );
+
+          await expect(
+            multisig.execute(
+              to,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, inner), sign(S2, inner)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
+        it('should not let a signature redirect to a different recipient kind', async () => {
+          const address = new Uint8Array(32).fill(7);
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const signedFor = { kind: RecipientKind.ShieldedUser, address };
+          const redirected = { kind: RecipientKind.Contract, address };
+          const digest = await executeDigest(multisig, signedFor, coin, 100n);
+
+          await expect(
+            multisig.execute(
+              redirected,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+      });
+
       it('should reject a high-s signature', async () => {
         const to = makeRecipient(new Uint8Array(32).fill(7));
         const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
@@ -397,7 +504,6 @@ describe('ShieldedMultiSigV2', () => {
         const instance2 = await ShieldedMultiSigV2Simulator.create(
           INSTANCE_SALT,
           SIGNER_COMMITMENTS,
-          2n,
           isLiveBackend() ? {} : { contractAddress: OTHER_ADDRESS },
         );
         const to = makeRecipient(new Uint8Array(32).fill(7));

@@ -15,7 +15,7 @@ import { EvmAbiSimulator } from './simulators/EvmAbiSimulator.js';
 
 // An independent `abi.encode(uint256)`: the value big-endian in a 32-byte word.
 // Deliberately not a restatement of the circuit's byte shuffle. It is written
-// from the ABI spec so the test can disagree with the implementation.
+// from the EVM ABI spec so the test can disagree with the implementation.
 const abiEncodeUint256 = (value: bigint): Uint8Array => {
   const out = new Uint8Array(32);
   let acc = value;
@@ -189,10 +189,6 @@ describe('EvmAbi', () => {
     });
   });
 
-  // The property the module exists to serve: a message assembled from ABI
-  // words and hashed with `keccak256` reproduces Solidity's
-  // `keccak256(abi.encode(...))` byte for byte. If a toolchain bump ever
-  // changes Compact's binary representation, this is what catches it.
   describe('abi.encode equivalence', () => {
     it('hashes a word vector identically to keccak256(abi.encode(...))', async () => {
       const domain = new Uint8Array(32);
@@ -216,10 +212,6 @@ describe('EvmAbi', () => {
       expect(hex(inCircuit)).toEqual(hex(onEvm));
     });
 
-    // `abi.encode` carries no type information: uint8(1), uint256(1) and
-    // true all encode to the same word. So the digest cannot distinguish a
-    // field's type, only its value -- which is precisely why the message
-    // needs its own domain separation, and why field order is load-bearing.
     it('encodes equal values identically across types', async () => {
       const [u8, u64, u128, b] = await Promise.all([
         contract.uint8Word(1n),
