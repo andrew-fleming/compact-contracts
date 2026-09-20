@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `evmAbi` and `Eip191` modules (#???)
+- Add `evmAbi` and `Eip712` modules (#???)
+- `_domainSeparator` ledger field (#???)
+  - `ShieldedMultiSigV2`
+  - `ShieldedMultiSigV3`
 
 ### Changed
 
