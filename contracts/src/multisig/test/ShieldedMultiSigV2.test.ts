@@ -120,6 +120,7 @@ async function executeDigest(
 ): Promise<Uint8Array> {
   return executeMsgHash({
     contractAddress: Uint8Array.from(Buffer.from(m.contractAddress, 'hex')),
+    instanceSalt: INSTANCE_SALT,
     nonce: await m.getNonce(),
     to,
     coinColor: coin.color,

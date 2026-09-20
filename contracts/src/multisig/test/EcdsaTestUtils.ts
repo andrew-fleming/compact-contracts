@@ -1,54 +1,38 @@
 /**
  * Reconstructs, byte-for-byte, the message digest each multisig circuit hashes
- * and verifies. This mirrors what a real operator must do off-chain, and it is
- * written from the Ethereum specs rather than from the circuits: EVM ABI-encoded
- * words, hashed with Keccak-256, wrapped in the EIP-191 `personal_sign`
- * envelope. If the contract and this file ever disagree, one of them is wrong
- * about what an EVM signer produces.
+ * and verifies. This mirrors what a real operator must do off-chain.
+ *
+ * The reconstruction goes through ethers' `TypedDataEncoder` rather than a
+ * hand-rolled implementation, so these specs check the circuits against an
+ * EIP-712 implementation written by neither this repository nor this file. A
+ * disagreement means the contract does not match what an EVM signer produces,
+ * rather than merely that two of our own encoders drifted apart.
  *
  * Key and signature fixtures live in `#test-utils/fixtures/ecdsa.js`.
  */
-import { keccak_256 } from '@noble/hashes/sha3.js';
+import { TypedDataEncoder } from 'ethers';
 
-// ─── EVM ABI word encoding ──────────────────────────────────────
+// ─── Domain ─────────────────────────────────────────────────────
 
-/** `abi.encode(uint256)`: the value big-endian in a 32-byte word. */
-const abiUint = (value: bigint): Uint8Array => {
-  const out = new Uint8Array(32);
-  let acc = value;
-  for (let i = 31; i >= 0 && acc > 0n; i--) {
-    out[i] = Number(acc & 0xffn);
-    acc >>= 8n;
-  }
-  return out;
-};
+const hexOf = (bytes: Uint8Array): string =>
+  `0x${Buffer.from(bytes).toString('hex')}`;
 
-/** `abi.encode(bool)`: zero except the least significant byte. */
-const abiBool = (value: boolean): Uint8Array => {
-  const out = new Uint8Array(32);
-  out[31] = value ? 1 : 0;
-  return out;
-};
+const bytesOf = (hex: string): Uint8Array =>
+  Uint8Array.from(Buffer.from(hex.slice(2), 'hex'));
 
-/** `pad(32, s)`: ASCII bytes of `s`, right-padded with zeros to 32 bytes. */
-export function domainBytes(s: string): Uint8Array {
-  const out = new Uint8Array(32);
-  out.set(new TextEncoder().encode(s));
-  return out;
-}
-
-/** `keccak256(abi.encode(w0, ..., wn))` over a vector of 32-byte words. */
-const hashWords = (words: Uint8Array[]): Uint8Array =>
-  keccak_256(Buffer.concat(words.map(Buffer.from)));
-
-/** The EIP-191 `personal_sign` envelope over a 32-byte message hash. */
-const personalSign = (messageHash: Uint8Array): Uint8Array =>
-  keccak_256(
-    Buffer.concat([
-      Buffer.from('\x19Ethereum Signed Message:\n32', 'binary'),
-      Buffer.from(messageHash),
-    ]),
-  );
+/**
+ * The domain each preset fixes at deployment. `chainId` and
+ * `verifyingContract` are absent: no network id is available in-circuit, and a
+ * 32-byte Midnight address does not fit `verifyingContract`'s `address` type.
+ * The contract's own address is bound inside every operation struct instead,
+ * which is what separates deployments -- addresses carry per-deployment
+ * randomness and cannot be predicted.
+ */
+const domain = (name: string, instanceSalt: Uint8Array) => ({
+  name,
+  version: '1',
+  salt: hexOf(instanceSalt),
+});
 
 // ─── Recipients ─────────────────────────────────────────────────
 
@@ -59,16 +43,6 @@ export interface EitherRecipient {
   right: { bytes: Uint8Array };
 }
 
-/**
- * The two words a recipient contributes: the active arm's bytes, then the
- * discriminant. Only the active arm is read, matching the circuit, so data in
- * the unused arm cannot reach the digest.
- */
-const recipientWords = (r: EitherRecipient): Uint8Array[] => [
-  r.is_left ? r.left.bytes : r.right.bytes,
-  abiBool(!r.is_left),
-];
-
 /** A `Proposal_Recipient` as the artifact encodes it: kind enum + address. */
 export interface KindRecipient {
   kind: number;
@@ -77,57 +51,101 @@ export interface KindRecipient {
 
 // ─── Per-preset message hashes ──────────────────────────────────
 
+const MINT_TYPES = {
+  Mint: [
+    { name: 'contractAddress', type: 'bytes32' },
+    { name: 'recipient', type: 'bytes32' },
+    { name: 'isContract', type: 'bool' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'amount', type: 'uint256' },
+  ],
+};
+
+const BURN_TYPES = {
+  Burn: [
+    { name: 'contractAddress', type: 'bytes32' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'amount', type: 'uint256' },
+  ],
+};
+
+const EXECUTE_TYPES = {
+  Execute: [
+    { name: 'contractAddress', type: 'bytes32' },
+    { name: 'nonce', type: 'uint256' },
+    { name: 'recipientKind', type: 'uint8' },
+    { name: 'recipient', type: 'bytes32' },
+    { name: 'coinColor', type: 'bytes32' },
+    { name: 'amount', type: 'uint256' },
+  ],
+};
+
 /** ShieldedMultiSigV3 `mint` digest. `contractAddress` is `kernel.self().bytes`. */
 export function mintMsgHash(params: {
   contractAddress: Uint8Array;
+  instanceSalt: Uint8Array;
   recipient: EitherRecipient;
   opNonce: bigint;
   amount: bigint;
 }): Uint8Array {
-  return personalSign(
-    hashWords([
-      domainBytes('multisig:mint:'),
-      params.contractAddress,
-      ...recipientWords(params.recipient),
-      abiUint(params.opNonce),
-      abiUint(params.amount),
-    ]),
+  const r = params.recipient;
+  return bytesOf(
+    TypedDataEncoder.hash(
+      domain('ShieldedMultiSigV3', params.instanceSalt),
+      MINT_TYPES,
+      {
+        contractAddress: hexOf(params.contractAddress),
+        // Only the active arm reaches the digest, matching the circuit.
+        recipient: hexOf(r.is_left ? r.left.bytes : r.right.bytes),
+        isContract: !r.is_left,
+        nonce: params.opNonce,
+        amount: params.amount,
+      },
+    ),
   );
 }
 
 /** ShieldedMultiSigV3 `burn` digest. */
 export function burnMsgHash(params: {
   contractAddress: Uint8Array;
+  instanceSalt: Uint8Array;
   opNonce: bigint;
   amount: bigint;
 }): Uint8Array {
-  return personalSign(
-    hashWords([
-      domainBytes('multisig:burn:'),
-      params.contractAddress,
-      abiUint(params.opNonce),
-      abiUint(params.amount),
-    ]),
+  return bytesOf(
+    TypedDataEncoder.hash(
+      domain('ShieldedMultiSigV3', params.instanceSalt),
+      BURN_TYPES,
+      {
+        contractAddress: hexOf(params.contractAddress),
+        nonce: params.opNonce,
+        amount: params.amount,
+      },
+    ),
   );
 }
 
 /** ShieldedMultiSigV2 `execute` digest. `contractAddress` is `kernel.self().bytes`. */
 export function executeMsgHash(params: {
   contractAddress: Uint8Array;
+  instanceSalt: Uint8Array;
   nonce: bigint;
   to: KindRecipient;
   coinColor: Uint8Array;
   amount: bigint;
 }): Uint8Array {
-  return personalSign(
-    hashWords([
-      domainBytes('multisig:execute:'),
-      params.contractAddress,
-      abiUint(params.nonce),
-      abiUint(BigInt(params.to.kind)),
-      params.to.address,
-      params.coinColor,
-      abiUint(params.amount),
-    ]),
+  return bytesOf(
+    TypedDataEncoder.hash(
+      domain('ShieldedMultiSigV2', params.instanceSalt),
+      EXECUTE_TYPES,
+      {
+        contractAddress: hexOf(params.contractAddress),
+        nonce: params.nonce,
+        recipientKind: params.to.kind,
+        recipient: hexOf(params.to.address),
+        coinColor: hexOf(params.coinColor),
+        amount: params.amount,
+      },
+    ),
   );
 }
