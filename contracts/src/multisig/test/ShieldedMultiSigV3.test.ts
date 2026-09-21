@@ -399,6 +399,33 @@ describe('ShieldedMultiSigV3', () => {
           ).rejects.toThrow('Multisig: invalid signature');
         });
 
+        it('should reject a signature over a different recipient kind', async () => {
+          const address = new Uint8Array(32).fill(7);
+          const zero = new Uint8Array(32);
+          const asUser: EitherRecipient = {
+            is_left: true,
+            left: { bytes: address },
+            right: { bytes: zero },
+          };
+          const asContract: EitherRecipient = {
+            is_left: false,
+            left: { bytes: zero },
+            right: { bytes: address },
+          };
+          // Signed for a shielded user; submitted for a contract at the same
+          // address bytes.
+          const digest = await mintDigest(multisig, asUser, 100n);
+
+          await expect(
+            multisig.mint(
+              100n,
+              asContract,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('Multisig: invalid signature');
+        });
+
         it('should reject a burn signature replayed as a mint', async () => {
           const digest = await burnDigest(multisig, 100n);
 
@@ -715,6 +742,19 @@ describe('ShieldedMultiSigV3', () => {
         ).rejects.toThrow('Multisig: invalid signature');
       });
 
+      it('should reject a signature bound to a different amount', async () => {
+        const coin = makeQualifiedCoin(await multisig.getTokenType(), 100n);
+        const digest = await burnDigest(multisig, 50n);
+        await expect(
+          multisig.burn(
+            coin,
+            100n,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Multisig: invalid signature');
+      });
+
       it('should reject wrong token color', async () => {
         const wrongColor = new Uint8Array(32).fill(0xde);
         const coin = makeQualifiedCoin(wrongColor, 100n);
@@ -859,6 +899,31 @@ describe('ShieldedMultiSigV3', () => {
 
         await expect(
           instance2.mint(100n, USER_RECIPIENT, pubkeys, sigs),
+        ).rejects.toThrow('Multisig: invalid signature');
+      });
+
+      it('should reject a burn signature bound to another instance', async () => {
+        const instance1 = await freshMultisig();
+        const instance2 = await ShieldedMultiSigV3Simulator.create(
+          INSTANCE_SALT,
+          INIT_COIN_NONCE,
+          TOKEN_DOMAIN,
+          SIGNER_COMMITMENTS,
+          isLiveBackend() ? {} : { contractAddress: OTHER_ADDRESS },
+        );
+
+        // Same salt, same nonce, same amount: the two digests differ only in
+        // the `contractAddress` word.
+        const digest = await burnDigest(instance1, 100n);
+        const coin = makeQualifiedCoin(await instance2.getTokenType(), 100n);
+
+        await expect(
+          instance2.burn(
+            coin,
+            100n,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
         ).rejects.toThrow('Multisig: invalid signature');
       });
     });

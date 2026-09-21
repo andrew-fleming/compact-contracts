@@ -1,4 +1,3 @@
-import { keccak_256 } from '@noble/hashes/sha3.js';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { TypedDataEncoder } from 'ethers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -50,39 +49,9 @@ const COMMITMENT3 = ShieldedMultiSigV2Simulator.calculateSignerId(
 );
 const SIGNER_COMMITMENTS = [COMMITMENT1, COMMITMENT2, COMMITMENT3];
 
-const abiUintBE = (v: bigint): Uint8Array => {
-  const out = new Uint8Array(32);
-  let acc = v;
-  for (let i = 31; i >= 0 && acc > 0n; i--) {
-    out[i] = Number(acc & 0xffn);
-    acc >>= 8n;
-  }
-  return out;
-};
-
-const executeInnerHash = (
-  addr: Uint8Array,
-  nonce: bigint,
-  to: { kind: number; address: Uint8Array },
-  coinColor: Uint8Array,
-  amount: bigint,
-): Uint8Array => {
-  const domain = new Uint8Array(32);
-  domain.set(new TextEncoder().encode('multisig:execute:'));
-  return keccak_256(
-    Buffer.concat(
-      [
-        domain,
-        addr,
-        abiUintBE(nonce),
-        abiUintBE(BigInt(to.kind)),
-        to.address,
-        coinColor,
-        abiUintBE(amount),
-      ].map(Buffer.from),
-    ),
-  );
-};
+const hexOf = (b: Uint8Array): string => `0x${Buffer.from(b).toString('hex')}`;
+const bytesOf = (h: string): Uint8Array =>
+  Uint8Array.from(Buffer.from(h.slice(2), 'hex'));
 
 function makeRecipient(address: Uint8Array): {
   kind: number;
@@ -433,26 +402,107 @@ describe('ShieldedMultiSigV2', () => {
       });
 
       describe('encoding scheme', () => {
-        it('should reject a signature over the un-enveloped message hash', async () => {
-          const to = makeRecipient(new Uint8Array(32).fill(7));
-          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
-          const inner = executeInnerHash(
+        const EXECUTE_TYPES = {
+          Execute: [
+            { name: 'contractAddress', type: 'bytes32' },
+            { name: 'nonce', type: 'uint256' },
+            { name: 'recipientKind', type: 'uint8' },
+            { name: 'recipient', type: 'bytes32' },
+            { name: 'coinColor', type: 'bytes32' },
+            { name: 'amount', type: 'uint256' },
+          ],
+        };
+
+        const ourDomain = {
+          name: 'ShieldedMultiSigV2',
+          version: '1',
+          salt: hexOf(INSTANCE_SALT),
+        };
+
+        const executeValue = async (coinColor: Uint8Array) => ({
+          contractAddress: hexOf(
             Uint8Array.from(Buffer.from(multisig.contractAddress, 'hex')),
-            await multisig.getNonce(),
-            to,
-            coin.color,
+          ),
+          nonce: await multisig.getNonce(),
+          recipientKind: RecipientKind.ShieldedUser,
+          recipient: hexOf(new Uint8Array(32).fill(7)),
+          coinColor: hexOf(coinColor),
+          amount: 100n,
+        });
+
+        const executeWith = async (digest: Uint8Array) =>
+          multisig.execute(
+            makeRecipient(new Uint8Array(32).fill(7)),
             100n,
+            makeQualifiedCoin(COLOR, AMOUNT, 0n),
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
           );
 
-          await expect(
-            multisig.execute(
-              to,
-              100n,
-              coin,
-              [S1.publicKey, S2.publicKey],
-              [sign(S1, inner), sign(S2, inner)],
+        it('should reject a signature over the bare struct hash', async () => {
+          const structHash = bytesOf(
+            TypedDataEncoder.hashStruct(
+              'Execute',
+              EXECUTE_TYPES,
+              await executeValue(COLOR),
             ),
-          ).rejects.toThrow('Multisig: invalid signature');
+          );
+
+          await expect(executeWith(structHash)).rejects.toThrow(
+            'Multisig: invalid signature',
+          );
+        });
+
+        // The property EIP-712 is here for: a signature obtained under any
+        // other application's domain cannot be replayed against this one.
+        it('should reject a digest built under a different domain', async () => {
+          const digest = bytesOf(
+            TypedDataEncoder.hash(
+              { ...ourDomain, name: 'SomeOtherApp' },
+              EXECUTE_TYPES,
+              await executeValue(COLOR),
+            ),
+          );
+
+          await expect(executeWith(digest)).rejects.toThrow(
+            'Multisig: invalid signature',
+          );
+        });
+
+        it('should reject a digest built under a different salt', async () => {
+          const digest = bytesOf(
+            TypedDataEncoder.hash(
+              { ...ourDomain, salt: hexOf(new Uint8Array(32).fill(0xee)) },
+              EXECUTE_TYPES,
+              await executeValue(COLOR),
+            ),
+          );
+
+          await expect(executeWith(digest)).rejects.toThrow(
+            'Multisig: invalid signature',
+          );
+        });
+
+        // Renaming a field leaves every value identical but changes the type
+        // hash, which is the struct's first word.
+        it('should reject a digest whose type hash differs', async () => {
+          const renamed = {
+            Execute: EXECUTE_TYPES.Execute.map((f) =>
+              f.name === 'amount' ? { ...f, name: 'value' } : f,
+            ),
+          };
+          const v = await executeValue(COLOR);
+          const { amount, ...rest } = v;
+          const digest = bytesOf(
+            TypedDataEncoder.hash(ourDomain, renamed, {
+              ...rest,
+              value: amount,
+            }),
+          );
+
+          await expect(executeWith(digest)).rejects.toThrow(
+            'Multisig: invalid signature',
+          );
         });
 
         it('should not let a signature redirect to a different recipient kind', async () => {
