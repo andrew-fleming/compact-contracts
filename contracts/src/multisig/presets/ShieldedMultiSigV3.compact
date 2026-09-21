@@ -134,6 +134,7 @@ module ShieldedMultiSigV3 {
    *   - the `Mint` type hash (so a burn signature cannot authorize a mint)
    *   - contract address (cross-instance replay protection)
    *   - recipient (redirection protection)
+   *   - recipient kind (user vs contract at the same address bytes)
    *   - counter value (replay protection)
    *   - amount
    *
