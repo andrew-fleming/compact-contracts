@@ -15,7 +15,7 @@ import {
   type EitherRecipient,
   executeMsgHash,
   mintMsgHash,
-} from './EcdsaTestUtils.js';
+} from '../../test/EcdsaTestUtils.js';
 import { ShieldedMultiSigV2Simulator } from './simulators/ShieldedMultiSigV2Simulator.js';
 
 const RecipientKind = { ShieldedUser: 0, UnshieldedUser: 1, Contract: 2 };
@@ -105,7 +105,12 @@ async function executeDigest(
 // A fresh 2-of-3 stateless multisig. Mutating groups build one per test
 // (`beforeEach`); the read-only `view` group shares one deploy (`beforeAll`).
 const freshMultisig = () =>
-  ShieldedMultiSigV2Simulator.create(INSTANCE_SALT, SIGNER_COMMITMENTS);
+  ShieldedMultiSigV2Simulator.create(
+    INSTANCE_SALT,
+    SIGNER_COMMITMENTS,
+    2n,
+    true,
+  );
 
 describe('ShieldedMultiSigV2', () => {
   describe('constructor', () => {
@@ -129,21 +134,53 @@ describe('ShieldedMultiSigV2', () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
+        2n,
+        true,
       );
       expect(await multisig.getSignerCount()).toEqual(3n);
       expect(await multisig.getThreshold()).toEqual(2n);
     });
 
-    it('should fix the threshold at 2', async () => {
-      multisig = await freshMultisig();
-      expect(await multisig.getThreshold()).toEqual(2n);
-      expect(await multisig.getSignerCount()).toEqual(3n);
+    it('should initialize with 1-of-3 threshold', async () => {
+      multisig = await ShieldedMultiSigV2Simulator.create(
+        INSTANCE_SALT,
+        SIGNER_COMMITMENTS,
+        1n,
+        true,
+      );
+      expect(await multisig.getThreshold()).toEqual(1n);
+    });
+
+    it('should fail with zero threshold', async () => {
+      await expect(
+        ShieldedMultiSigV2Simulator.create(
+          INSTANCE_SALT,
+          SIGNER_COMMITMENTS,
+          0n,
+          true,
+        ),
+      ).rejects.toThrow('Signer: threshold must not be zero');
+    });
+
+    it('should fail with threshold greater than 2', async () => {
+      await expect(
+        ShieldedMultiSigV2Simulator.create(
+          INSTANCE_SALT,
+          SIGNER_COMMITMENTS,
+          3n,
+          true,
+        ),
+      ).rejects.toThrow(
+        'EcdsaSignerManager: threshold cannot exceed 2 (assertApprovals verifies 2 signatures)',
+      );
     });
 
     it('should register all signer commitments', async () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
+        2n,
+        true,
       );
       for (const commitment of SIGNER_COMMITMENTS) {
         expect(await multisig.isSigner(commitment)).toEqual(true);
@@ -154,12 +191,26 @@ describe('ShieldedMultiSigV2', () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
         SIGNER_COMMITMENTS,
+        2n,
+        true,
       );
       const unknown = ShieldedMultiSigV2Simulator.calculateSignerId(
         OUTSIDER.publicKey,
         INSTANCE_SALT,
       );
       expect(await multisig.isSigner(unknown)).toEqual(false);
+    });
+
+    it('fails when initialized twice', async () => {
+      multisig = await ShieldedMultiSigV2Simulator.create(
+        INSTANCE_SALT,
+        SIGNER_COMMITMENTS,
+        2n,
+        true,
+      );
+      await expect(
+        multisig.initialize(INSTANCE_SALT, SIGNER_COMMITMENTS, 2n),
+      ).rejects.toThrow('Signer: contract already initialized');
     });
   });
 
@@ -607,6 +658,8 @@ describe('ShieldedMultiSigV2', () => {
         const instance2 = await ShieldedMultiSigV2Simulator.create(
           INSTANCE_SALT,
           SIGNER_COMMITMENTS,
+          2n,
+          true,
           isLiveBackend() ? {} : { contractAddress: OTHER_ADDRESS },
         );
         const to = makeRecipient(new Uint8Array(32).fill(7));

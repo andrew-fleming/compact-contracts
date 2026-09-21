@@ -9,19 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `evmAbi` and `Eip712` modules (#???)
-- `_domainSeparator` ledger field (#???)
+- Add `evmAbi` and `Eip712` modules (#906)
+- `_domainSeparator` ledger field (#906)
   - `ShieldedMultiSigV2`
   - `ShieldedMultiSigV3`
 
 ### Changed
 
-- **Breaking:** (#???)
+- **Breaking:** (#906)
   - `ShieldedMultiSigV2`
     - Remove `thresh` param from constructor
     - Replace `persistentHash` with `keccak256` in `execute`
   - `ShieldedMultiSigV3`
     - Replace `persistentHash` with `keccak256` in `mint` and `burn`
+
+- **Breaking:** Turn the `ShieldedMultiSigV2` and `ShieldedMultiSigV3` presets into modules, deployable through the new `multisig/examples/` contracts; the forwarder presets move there too. Ledger slot indices change, so fresh deploys only. (#885)
+
+### Removed
+
+- **Breaking:** Remove the `ShieldedMultiSig` preset. A rebuild on `EcdsaSignerManager` is tracked in #905. (#885)
 
 ## 0.4.0-alpha.1 (2026-09-02)
 
