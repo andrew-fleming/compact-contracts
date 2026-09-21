@@ -19,6 +19,7 @@ import { shieldedTestKey } from '#test-utils/fixtures/shieldedKey.js';
 import {
   burnMsgHash,
   type EitherRecipient,
+  executeMsgHash,
   mintMsgHash,
 } from './EcdsaTestUtils.js';
 import {
@@ -186,6 +187,26 @@ const freshMultisig = () =>
 
 describe('ShieldedMultiSigV3', () => {
   describe('constructor', () => {
+    // The constructor derives the domain separator from hand-counted string
+    // literals (`pad(18, "…")`). A miscount there fails every signature with
+    // "invalid signature", which points at the signature rather than at the
+    // length. Asserting the deployed separator against ethers localises it.
+    it('should derive a domain separator matching ethers', async () => {
+      multisig = await freshMultisig();
+
+      expect(
+        Buffer.from(
+          (await multisig.getPublicState())._domainSeparator,
+        ).toString('hex'),
+      ).toEqual(
+        TypedDataEncoder.hashDomain({
+          name: 'ShieldedMultiSigV3',
+          version: '1',
+          salt: `0x${Buffer.from(INSTANCE_SALT).toString('hex')}`,
+        }).slice(2),
+      );
+    });
+
     it('should initialize', async () => {
       multisig = await ShieldedMultiSigV3Simulator.create(
         INSTANCE_SALT,
@@ -831,11 +852,37 @@ describe('ShieldedMultiSigV3', () => {
       });
     });
 
+    // The presets share signers, salt and often an operator, so a signature
+    // meant for one must not authorize the other
+    describe('cross-preset replay', () => {
+      beforeEach(async () => {
+        multisig = await freshMultisig();
+      });
+
+      it('should reject a ShieldedMultiSigV2 execute signature', async () => {
+        const digest = executeMsgHash({
+          contractAddress: addrBytes(multisig),
+          instanceSalt: INSTANCE_SALT,
+          nonce: await multisig.getNonce(),
+          to: { kind: 0, address: USER_RECIPIENT.left.bytes },
+          coinColor: await multisig.getTokenType(),
+          amount: 100n,
+        });
+
+        await expect(
+          multisig.mint(
+            100n,
+            USER_RECIPIENT,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Multisig: invalid signature');
+      });
+    });
+
     describe('cross-instance replay', () => {
-      // The second instance needs a distinct deployed address so its message
-      // hash, which commits to `kernel.self()`, differs from the first's. Dry
-      // only: live deploys already differ, and live `create()` refuses an
-      // address other than the one actually deployed.
+      // A distinct deployed address for the second instance,
+      // so its digest differs
       const OTHER_ADDRESS = '11'.repeat(32);
 
       it('should reject a signature bound to another instance', async () => {

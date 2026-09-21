@@ -1,5 +1,6 @@
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
+import { TypedDataEncoder } from 'ethers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   highSTwin,
@@ -11,7 +12,11 @@ import {
   GENESIS_NATIVE_SHIELDED_TOKEN_COLORS,
   encodeShieldedCoinInfo as makeCoin,
 } from '#test-utils/fixtures/nativeShieldedToken.js';
-import { executeMsgHash } from './EcdsaTestUtils.js';
+import {
+  type EitherRecipient,
+  executeMsgHash,
+  mintMsgHash,
+} from './EcdsaTestUtils.js';
 import { ShieldedMultiSigV2Simulator } from './simulators/ShieldedMultiSigV2Simulator.js';
 
 const RecipientKind = { ShieldedUser: 0, UnshieldedUser: 1, Contract: 2 };
@@ -135,6 +140,22 @@ const freshMultisig = () =>
 
 describe('ShieldedMultiSigV2', () => {
   describe('constructor', () => {
+    it('should derive a domain separator matching ethers', async () => {
+      multisig = await freshMultisig();
+
+      expect(
+        Buffer.from(
+          (await multisig.getPublicState())._domainSeparator,
+        ).toString('hex'),
+      ).toEqual(
+        TypedDataEncoder.hashDomain({
+          name: 'ShieldedMultiSigV2',
+          version: '1',
+          salt: `0x${Buffer.from(INSTANCE_SALT).toString('hex')}`,
+        }).slice(2),
+      );
+    });
+
     it('should initialize with 2-of-3 threshold', async () => {
       multisig = await ShieldedMultiSigV2Simulator.create(
         INSTANCE_SALT,
@@ -493,11 +514,42 @@ describe('ShieldedMultiSigV2', () => {
       });
     });
 
+    // The mirror of the V3 spec's check
+    describe('cross-preset replay', () => {
+      it('should reject a ShieldedMultiSigV3 mint signature', async () => {
+        const address = new Uint8Array(32).fill(7);
+        const to = makeRecipient(address);
+        const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+        const recipient: EitherRecipient = {
+          is_left: true,
+          left: { bytes: address },
+          right: { bytes: new Uint8Array(32) },
+        };
+        const digest = mintMsgHash({
+          contractAddress: Uint8Array.from(
+            Buffer.from(multisig.contractAddress, 'hex'),
+          ),
+          instanceSalt: INSTANCE_SALT,
+          recipient,
+          opNonce: await multisig.getNonce(),
+          amount: 100n,
+        });
+
+        await expect(
+          multisig.execute(
+            to,
+            100n,
+            coin,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Multisig: invalid signature');
+      });
+    });
+
     describe('cross-instance replay', () => {
-      // A distinct deployed address for the second instance, so its digest
-      // (which commits to `kernel.self()`) differs from the first's. Dry only:
-      // live deploys already differ, and live `create()` refuses an address
-      // other than the one actually deployed.
+      // A distinct deployed address for the second instance,
+      // so its digest differs
       const OTHER_ADDRESS = '11'.repeat(32);
 
       it('should reject a signature bound to another instance', async () => {
