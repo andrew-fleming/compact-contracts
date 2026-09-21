@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `evmAbi` and `Eip712` modules (#906)
+- Add `EvmAbi` and `Eip712` modules (#906)
 - `_domainSeparator` ledger field (#906)
   - `ShieldedMultiSigV2`
   - `ShieldedMultiSigV3`
@@ -19,9 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking:** (#906)
   - `ShieldedMultiSigV2`
     - Remove `thresh` param from constructor
-    - Replace `persistentHash` with `keccak256` in `execute`
+    - Sign `execute` as EIP-712 typed data instead of
+    a `persistentHash` digest
+
   - `ShieldedMultiSigV3`
-    - Replace `persistentHash` with `keccak256` in `mint` and `burn`
+    - Sign `mint` and `burn` as EIP-712 typed data instead of `persistentHash` digests
 
 - **Breaking:** Turn the `ShieldedMultiSigV2` and `ShieldedMultiSigV3` presets into modules, deployable through the new `multisig/examples/` contracts; the forwarder presets move there too. Ledger slot indices change, so fresh deploys only. (#885)
 
