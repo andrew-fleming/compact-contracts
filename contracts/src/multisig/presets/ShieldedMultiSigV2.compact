@@ -161,7 +161,7 @@ module ShieldedMultiSigV2 {
       // address, so removing this word removes cross-instance replay
       // protection.
       kernel.self().bytes,
-      EvmAbi_uint64Word(currentNonce as Uint<64>),
+      EvmAbi_uint64Word(currentNonce),
       EvmAbi_uint8Word(to.kind as Uint<8>),
       to.address,
       coin.color,

@@ -182,7 +182,7 @@ module ShieldedMultiSigV3 {
       kernel.self().bytes,
       recipientWord,
       EvmAbi_boolWord(!canonRecipient.is_left),
-      EvmAbi_uint64Word(opNonce as Uint<64>),
+      EvmAbi_uint64Word(opNonce),
       EvmAbi_uint64Word(amount)
     ]));
 
@@ -246,7 +246,7 @@ module ShieldedMultiSigV3 {
       // address, so removing this word removes cross-instance replay
       // protection.
       kernel.self().bytes,
-      EvmAbi_uint64Word(opNonce as Uint<64>),
+      EvmAbi_uint64Word(opNonce),
       EvmAbi_uint64Word(amount)
     ]));
 
