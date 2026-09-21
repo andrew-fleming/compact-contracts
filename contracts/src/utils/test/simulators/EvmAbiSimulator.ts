@@ -51,7 +51,7 @@ export class EvmAbiSimulator extends EvmAbiSimulatorBase {
    * @description Encodes a `Uint<8>` as an `abi.encode(uint8)` word.
    */
   public uint8Word(value: bigint): Promise<Uint8Array> {
-    return this.circuits.pure.uint8Word(value);
+    return this.circuits.impure.uint8Word(value);
   }
 
   /**
@@ -60,14 +60,14 @@ export class EvmAbiSimulator extends EvmAbiSimulatorBase {
    * @returns The value as a big-endian ABI word.
    */
   public uint64Word(value: bigint): Promise<Uint8Array> {
-    return this.circuits.pure.uint64Word(value);
+    return this.circuits.impure.uint64Word(value);
   }
 
   /**
    * @description Encodes a `Uint<128>` as an `abi.encode(uint256)` word.
    */
   public uint128Word(value: bigint): Promise<Uint8Array> {
-    return this.circuits.pure.uint128Word(value);
+    return this.circuits.impure.uint128Word(value);
   }
 
   /**
@@ -76,6 +76,6 @@ export class EvmAbiSimulator extends EvmAbiSimulatorBase {
    * @returns The value as an ABI word.
    */
   public boolWord(value: boolean): Promise<Uint8Array> {
-    return this.circuits.pure.boolWord(value);
+    return this.circuits.impure.boolWord(value);
   }
 }

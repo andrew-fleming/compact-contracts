@@ -55,7 +55,11 @@ export class Eip712Simulator extends Eip712SimulatorBase {
     hashedVersion: Uint8Array,
     salt: Uint8Array,
   ): Promise<Uint8Array> {
-    return this.circuits.pure.domainSeparator(hashedName, hashedVersion, salt);
+    return this.circuits.impure.domainSeparator(
+      hashedName,
+      hashedVersion,
+      salt,
+    );
   }
 
   /**
@@ -68,6 +72,6 @@ export class Eip712Simulator extends Eip712SimulatorBase {
     separator: Uint8Array,
     structHash: Uint8Array,
   ): Promise<Uint8Array> {
-    return this.circuits.pure.hashTypedData(separator, structHash);
+    return this.circuits.impure.hashTypedData(separator, structHash);
   }
 }
