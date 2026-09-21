@@ -72,6 +72,15 @@ export sealed ledger _tokenDomain: Bytes<32>;
  * `initCoinNonce` seeds the `evolveNonce` chain used to produce unique
  * mint nonces. It must be cryptographically random.
  *
+ * @notice The EIP-712 domain fixed here is `(name, version, salt)`. `chainId`
+ * and `verifyingContract` are absent: no network identifier is available
+ * in-circuit, and a 32-byte Midnight address does not fit
+ * `verifyingContract`'s `address` type. Replay protection therefore does not
+ * come from the domain but from `mint` and `burn` binding `kernel.self()` in
+ * their structs. `instanceSalt` is passed so the domain also distinguishes
+ * deployments for a signer that inspects it; no security property depends on
+ * that.
+ *
  * Requirements:
  *
  * - `signerCommitments` must not contain duplicates.
@@ -93,23 +102,11 @@ constructor(
   const thresh = 2;
   EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
 
-  // The domain the signer's typed data must name.
-  //
-  // `chainId` and `verifyingContract` are absent: no network identifier is
-  // available in-circuit, and a 32-byte Midnight address does not fit
-  // `verifyingContract`'s `address` type.
-  //
-  // Replay protection therefore does not come from the domain. Every
-  // operation struct binds `kernel.self()` as a field, and that is what
-  // prevents a signature for one deployment authorising another: a Midnight
-  // address is randomised at deployment and cannot be predicted, so no two
-  // instances share one. Removing that field removes the protection.
-  //
-  // `instanceSalt` is passed so the domain also distinguishes deployments for
-  // a signer that inspects it. No security property here depends on it.
+  const hashedName = keccak256<Bytes<18>>(pad(18, "ShieldedMultiSigV3"));
+  const hashedVersion = keccak256<Bytes<1>>(pad(1, "1"));
   _domainSeparator = Eip712_domainSeparator(
-    keccak256<Bytes<18>>(pad(18, "ShieldedMultiSigV3")),
-    keccak256<Bytes<1>>(pad(1, "1")),
+    hashedName,
+    hashedVersion,
     disclose(instanceSalt)
   );
 }
@@ -169,6 +166,9 @@ export circuit mint(
 
   const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<6, Bytes<32>>>([
     keccak256<Bytes<92>>(pad(92, "Mint(bytes32 contractAddress,bytes32 recipient,bool isContract,uint256 nonce,uint256 amount)")),
+    // Binds the digest to this deployment. The domain cannot carry the
+    // address, so removing this word removes cross-instance replay
+    // protection.
     kernel.self().bytes,
     recipientWord,
     EvmAbi_boolWord(!canonRecipient.is_left),
@@ -232,6 +232,9 @@ export circuit burn(
 
   const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<4, Bytes<32>>>([
     keccak256<Bytes<58>>(pad(58, "Burn(bytes32 contractAddress,uint256 nonce,uint256 amount)")),
+    // Binds the digest to this deployment. The domain cannot carry the
+    // address, so removing this word removes cross-instance replay
+    // protection.
     kernel.self().bytes,
     EvmAbi_uint64Word(opNonce as Uint<64>),
     EvmAbi_uint64Word(amount)
