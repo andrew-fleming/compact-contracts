@@ -1,9 +1,4 @@
-import {
-  CompactTypeBytes,
-  CompactTypeVector,
-  convertBigintToBytes,
-  persistentHash,
-} from '@midnight-ntwrk/compact-runtime';
+import { convertBigintToBytes } from '@midnight-ntwrk/compact-runtime';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { id, TypedDataEncoder } from 'ethers';
@@ -128,49 +123,9 @@ function makeQualifiedCoin(
   };
 }
 
-const B32 = new CompactTypeBytes(32);
-const abiUintBE = (v: bigint): Uint8Array => {
-  const out = new Uint8Array(32);
-  let acc = v;
-  for (let i = 31; i >= 0 && acc > 0n; i--) {
-    out[i] = Number(acc & 0xffn);
-    acc >>= 8n;
-  }
-  return out;
-};
-const abiBool = (b: boolean): Uint8Array => {
-  const out = new Uint8Array(32);
-  out[31] = b ? 1 : 0;
-  return out;
-};
-const domain32 = (t: string): Uint8Array => {
-  const out = new Uint8Array(32);
-  out.set(new TextEncoder().encode(t));
-  return out;
-};
-
-/** The mint message words, before any outer hash. */
-const mintWords = (
-  addr: Uint8Array,
-  r: EitherRecipient,
-  nonce: bigint,
-  amount: bigint,
-  encodeUint: (v: bigint) => Uint8Array = abiUintBE,
-): Uint8Array[] => [
-  domain32('multisig:mint:'),
-  addr,
-  r.is_left ? r.left.bytes : r.right.bytes,
-  abiBool(!r.is_left),
-  encodeUint(nonce),
-  encodeUint(amount),
-];
-
 const hexOf = (b: Uint8Array): string => `0x${Buffer.from(b).toString('hex')}`;
 const bytesOf = (h: string): Uint8Array =>
   Uint8Array.from(Buffer.from(h.slice(2), 'hex'));
-
-const keccakWords = (w: Uint8Array[]): Uint8Array =>
-  keccak_256(Buffer.concat(w.map(Buffer.from)));
 
 let multisig: ShieldedMultiSigV3Simulator;
 
