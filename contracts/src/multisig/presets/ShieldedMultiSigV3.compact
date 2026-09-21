@@ -62,9 +62,10 @@ module ShieldedMultiSigV3 {
    * EIP-712 domain separator.
    *
    * @notice Call from the implementing contract's constructor only. It writes
-   * the `sealed` `_tokenDomain`, so implementing contracts MUST NOT expose it
-   * as a post-deploy circuit. The same constructor must register the signer set
-   * through `EcdsaSignerManager_initialize<3>` with a threshold of 2.
+   * the `sealed` `_tokenDomain` and `_domainSeparator`, so implementing
+   * contracts MUST NOT expose `initialize` as a post-deploy circuit. The same
+   * constructor must register the signer set through
+   * `EcdsaSignerManager_initialize<3>` with a threshold of 2.
    *
    * `tokenDomain` is used with `kernel.self()` to derive the token color
    * via `tokenType(_tokenDomain, kernel.self())`. Only coins of this color
