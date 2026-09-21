@@ -53,14 +53,21 @@ module ShieldedMultiSigV2 {
    * The domain fixed here is `(name, version, salt)`. `chainId` and
    * `verifyingContract` are absent: no network identifier is available
    * in-circuit, and a 32-byte Midnight address does not fit
-   * `verifyingContract`'s `address` type. Replay protection therefore does not
-   * come from the domain but from `execute` binding `kernel.self()` in its
-   * struct. `instanceSalt` is passed so the domain also distinguishes
-   * deployments for a signer that inspects it; no security property depends on
-   * that.
+   * `verifyingContract`'s `address` type.
+   *
+   * Replay protection comes from `execute` binding `kernel.self()` in its
+   * struct rather than from the domain. The ledger randomizes a contract's
+   * address at deployment, so no two deployments share one on any network.
+   * A signature for one cannot authorize another.
+   *
+   * `instanceSalt` also keys the signer commitments. A fresh value per
+   * deployment keeps one public key from producing the same commitment in two
+   * deployments which would link the signer set across them.
    *
    * Requirements:
    *
+   * - `instanceSalt` should be cryptographically random and freshly generated
+   *   for each deployment.
    * - `instanceSalt` must be the same value passed to
    *   `EcdsaSignerManager_initialize<3>`.
    *

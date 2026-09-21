@@ -27,6 +27,12 @@ export { ShieldedCoinInfo, QualifiedShieldedCoinInfo, ShieldedSendResult };
  * @dev The threshold is hardcoded to 2: the approval vectors are
  * `Vector<2, ...>`, so a lower value would still require two valid signers.
  *
+ * Requirements:
+ *
+ * - `signerCommitments` must not contain duplicates.
+ * - `instanceSalt` should be cryptographically random and freshly generated
+ *   for each deployment.
+ *
  * @param {Bytes<32>} instanceSalt - Random salt for commitment derivation.
  * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
  */
