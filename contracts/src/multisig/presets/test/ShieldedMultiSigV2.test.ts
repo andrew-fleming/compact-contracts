@@ -573,6 +573,46 @@ describe('ShieldedMultiSigV2', () => {
             ),
           ).rejects.toThrow('Multisig: invalid signature');
         });
+
+        it.skipIf(isLiveBackend())(
+          'should execute to a contract recipient',
+          async () => {
+            const to = {
+              kind: RecipientKind.Contract,
+              address: new Uint8Array(32).fill(7),
+            };
+            const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+            const digest = await executeDigest(multisig, to, coin, 100n);
+
+            await multisig.execute(
+              to,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            );
+            expect(await multisig.getNonce()).toEqual(1n);
+          },
+        );
+
+        it('should carry an unshielded recipient kind into the digest', async () => {
+          const to = {
+            kind: RecipientKind.UnshieldedUser,
+            address: new Uint8Array(32).fill(7),
+          };
+          const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+          const digest = await executeDigest(multisig, to, coin, 100n);
+
+          await expect(
+            multisig.execute(
+              to,
+              100n,
+              coin,
+              [S1.publicKey, S2.publicKey],
+              [sign(S1, digest), sign(S2, digest)],
+            ),
+          ).rejects.toThrow('ProposalManager: invalid shielded recipient');
+        });
       });
 
       it('should reject a high-s signature', async () => {
@@ -588,28 +628,6 @@ describe('ShieldedMultiSigV2', () => {
             coin,
             [S1.publicKey, S2.publicKey],
             [sign(S1, digest), highSTwin(sign(S2, digest))],
-          ),
-        ).rejects.toThrow('Multisig: invalid signature');
-      });
-
-      it('should reject a signature over a different recipient kind', async () => {
-        const address = new Uint8Array(32).fill(7);
-        const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
-        // Signed for a shielded user; submitted for a contract at the same
-        // address bytes.
-        const digest = await executeDigest(
-          multisig,
-          makeRecipient(address),
-          coin,
-          100n,
-        );
-        await expect(
-          multisig.execute(
-            { kind: RecipientKind.Contract, address },
-            100n,
-            coin,
-            [S1.publicKey, S2.publicKey],
-            [sign(S1, digest), sign(S2, digest)],
           ),
         ).rejects.toThrow('Multisig: invalid signature');
       });
