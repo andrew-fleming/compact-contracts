@@ -14,10 +14,12 @@ import { TypedDataEncoder } from 'ethers';
 
 // ─── Domain ─────────────────────────────────────────────────────
 
-const hexOf = (bytes: Uint8Array): string =>
+/** `Uint8Array` -> `0x`-prefixed hex, the form ethers' encoders take. */
+export const hexOf = (bytes: Uint8Array): string =>
   `0x${Buffer.from(bytes).toString('hex')}`;
 
-const bytesOf = (hex: string): Uint8Array =>
+/** The inverse: `0x`-prefixed hex -> `Uint8Array`. */
+export const bytesOf = (hex: string): Uint8Array =>
   Uint8Array.from(Buffer.from(hex.slice(2), 'hex'));
 
 /**

@@ -13,8 +13,10 @@ import {
 import { shieldedTestKey } from '#test-utils/fixtures/shieldedKey.js';
 import {
   burnMsgHash,
+  bytesOf,
   type EitherRecipient,
   executeMsgHash,
+  hexOf,
   mintMsgHash,
 } from '../../test/EcdsaTestUtils.js';
 import {
@@ -122,10 +124,6 @@ function makeQualifiedCoin(
     mt_index: mtIndex,
   };
 }
-
-const hexOf = (b: Uint8Array): string => `0x${Buffer.from(b).toString('hex')}`;
-const bytesOf = (h: string): Uint8Array =>
-  Uint8Array.from(Buffer.from(h.slice(2), 'hex'));
 
 let multisig: ShieldedMultiSigV3Simulator;
 

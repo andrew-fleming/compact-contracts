@@ -12,8 +12,10 @@ import {
   encodeShieldedCoinInfo as makeCoin,
 } from '#test-utils/fixtures/nativeShieldedToken.js';
 import {
+  bytesOf,
   type EitherRecipient,
   executeMsgHash,
+  hexOf,
   mintMsgHash,
 } from '../../test/EcdsaTestUtils.js';
 import { ShieldedMultiSigV2Simulator } from './simulators/ShieldedMultiSigV2Simulator.js';
@@ -48,10 +50,6 @@ const COMMITMENT3 = ShieldedMultiSigV2Simulator.calculateSignerId(
   INSTANCE_SALT,
 );
 const SIGNER_COMMITMENTS = [COMMITMENT1, COMMITMENT2, COMMITMENT3];
-
-const hexOf = (b: Uint8Array): string => `0x${Buffer.from(b).toString('hex')}`;
-const bytesOf = (h: string): Uint8Array =>
-  Uint8Array.from(Buffer.from(h.slice(2), 'hex'));
 
 function makeRecipient(address: Uint8Array): {
   kind: number;
