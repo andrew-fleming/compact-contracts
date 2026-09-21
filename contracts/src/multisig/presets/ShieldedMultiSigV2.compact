@@ -60,15 +60,17 @@ module ShieldedMultiSigV2 {
    * address at deployment, so no two deployments share one on any network.
    * A signature for one cannot authorize another.
    *
-   * `instanceSalt` also keys the signer commitments. A fresh value per
-   * deployment keeps one public key from producing the same commitment in two
-   * deployments which would link the signer set across them.
+   * The same value is normally passed to `EcdsaSignerManager_initialize<3>`
+   * where it keys the signer commitments. A fresh value per deployment keeps
+   * one public key from producing the same commitment in two deployments
+   * which would link the signer set across them. Each module keeps its own
+   * copy and nothing cross-checks them so passing different values works.
    *
    * Requirements:
    *
    * - `instanceSalt` should be cryptographically random and freshly generated
    *   for each deployment.
-   * - `instanceSalt` must be the same value passed to
+   * - `instanceSalt` should be the same value passed to
    *   `EcdsaSignerManager_initialize<3>`.
    *
    * @param {Bytes<32>} instanceSalt - Random salt, shared with the signer registry.
