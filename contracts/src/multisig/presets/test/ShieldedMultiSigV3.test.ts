@@ -875,8 +875,34 @@ describe('ShieldedMultiSigV3', () => {
       });
     });
 
-    // The presets share signers, salt and often an operator, so a signature
-    // meant for one must not authorize the other
+    describe('uninitialized', () => {
+      it('cannot mint, and holds a zero domain separator', async () => {
+        const uninit = await ShieldedMultiSigV3Simulator.create(
+          INSTANCE_SALT,
+          INIT_COIN_NONCE,
+          TOKEN_DOMAIN,
+          SIGNER_COMMITMENTS,
+          false,
+        );
+
+        expect(
+          Buffer.from((await uninit.getPublicState())._domainSeparator).every(
+            (b) => b === 0,
+          ),
+        ).toEqual(true);
+
+        const digest = await mintDigest(uninit, USER_RECIPIENT, 100n);
+        await expect(
+          uninit.mint(
+            100n,
+            USER_RECIPIENT,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Eip712: domain separator not set');
+      });
+    });
+
     describe('cross-preset replay', () => {
       beforeEach(async () => {
         multisig = await freshMultisig();

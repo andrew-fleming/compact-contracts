@@ -627,6 +627,37 @@ describe('ShieldedMultiSigV2', () => {
       });
     });
 
+    describe('uninitialized', () => {
+      it('cannot execute, and holds a zero domain separator', async () => {
+        const uninit = await ShieldedMultiSigV2Simulator.create(
+          INSTANCE_SALT,
+          SIGNER_COMMITMENTS,
+          2n,
+          false,
+        );
+
+        expect(
+          Buffer.from((await uninit.getPublicState())._domainSeparator).every(
+            (b) => b === 0,
+          ),
+        ).toEqual(true);
+
+        const to = makeRecipient(new Uint8Array(32).fill(7));
+        const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
+        const digest = await executeDigest(uninit, to, coin, 100n);
+
+        await expect(
+          uninit.execute(
+            to,
+            100n,
+            coin,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Eip712: domain separator not set');
+      });
+    });
+
     // The mirror of the V3 spec's check
     describe('cross-preset replay', () => {
       it('should reject a ShieldedMultiSigV3 mint signature', async () => {
