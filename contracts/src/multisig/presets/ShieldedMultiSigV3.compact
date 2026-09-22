@@ -145,6 +145,48 @@ module ShieldedMultiSigV3 {
     );
   }
 
+  /**
+   * @description `keccak256` of the `Mint` type string:
+   * `Mint(bytes32 contractAddress,bytes32 recipient,bool isContract,uint256 nonce,uint256 amount)`
+   *
+   * @dev Written as a literal word; see `BURN_TYPEHASH`. The spec checks this
+   * word against the type string above.
+   *
+   * @returns {Bytes<32>} The `Mint` type hash.
+   */
+  pure circuit MINT_TYPEHASH(): Bytes<32> {
+    const typeHash: Vector<32, Uint<8>> = [
+      0x28, 0xd4, 0xc8, 0x40, 0xbc, 0x95, 0xfe, 0x08,
+      0x4e, 0xa5, 0xe3, 0x20, 0x94, 0x43, 0xba, 0x67,
+      0x21, 0xb7, 0x17, 0x09, 0x71, 0xee, 0x05, 0xef,
+      0xaf, 0x0a, 0x98, 0x51, 0xee, 0x5f, 0xd1, 0xf5
+    ];
+
+    return typeHash as Bytes<32>;
+  }
+
+  /**
+   * @description `keccak256` of the `Burn` type string:
+   * `Burn(bytes32 contractAddress,uint256 nonce,uint256 amount)`
+   *
+   * @dev Written as a literal word. `compactc` emits a full keccak
+   * permutation even for a constant argument, so hashing the type string
+   * in-circuit would add ~4.2k rows to every operation. The spec checks this
+   * word against the type string above.
+   *
+   * @returns {Bytes<32>} The `Burn` type hash.
+   */
+  pure circuit BURN_TYPEHASH(): Bytes<32> {
+    const typeHash: Vector<32, Uint<8>> = [
+      0xdf, 0x62, 0xd6, 0x7d, 0x39, 0x08, 0x06, 0xa6,
+      0xb6, 0x3f, 0xbd, 0x9f, 0xb5, 0xb8, 0x90, 0x4e,
+      0xf8, 0x6a, 0x4d, 0x67, 0xf3, 0x82, 0x4a, 0x3d,
+      0x85, 0x5f, 0x6e, 0xef, 0xb8, 0xe7, 0x98, 0x09
+    ];
+
+    return typeHash as Bytes<32>;
+  }
+
   // ─── Mint ───────────────────────────────────────────────────────
 
   /**
@@ -167,7 +209,7 @@ module ShieldedMultiSigV3 {
    * after the counter has been incremented, binding each mint's nonce to a
    * distinct counter value.
    *
-   * @constraints k=17, rows=94133 (zkir-v3)
+   * @constraints k=17, rows=89904 (zkir-v3)
    *
    * Requirements:
    *
@@ -200,7 +242,7 @@ module ShieldedMultiSigV3 {
       : canonRecipient.right.bytes;
 
     const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<6, Bytes<32>>>([
-      keccak256<Bytes<92>>(pad(92, "Mint(bytes32 contractAddress,bytes32 recipient,bool isContract,uint256 nonce,uint256 amount)")),
+      MINT_TYPEHASH(),
       // Binds the digest to this deployment. The domain cannot carry the
       // address, so removing this word removes cross-instance replay
       // protection.
@@ -240,7 +282,7 @@ module ShieldedMultiSigV3 {
    * Signing `Burn` as its own EIP-712 type ensures burn signatures cannot be
    * replayed as mint operations for the same parameters.
    *
-   * @constraints k=17, rows=101362 (zkir-v3)
+   * @constraints k=17, rows=97142 (zkir-v3)
    *
    * Requirements:
    *
@@ -266,7 +308,7 @@ module ShieldedMultiSigV3 {
     _counter.increment(1);
 
     const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<4, Bytes<32>>>([
-      keccak256<Bytes<58>>(pad(58, "Burn(bytes32 contractAddress,uint256 nonce,uint256 amount)")),
+      BURN_TYPEHASH(),
       // Binds the digest to this deployment. The domain cannot carry the
       // address, so removing this word removes cross-instance replay
       // protection.

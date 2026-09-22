@@ -119,6 +119,33 @@ describe('Eip712', () => {
     });
   });
 
+  describe('type hash', () => {
+    it('matches keccak256 of the EIP712Domain type string', () => {
+      const typeString =
+        'EIP712Domain(string name,string version,bytes32 salt)';
+
+      expect(keccak256(toUtf8Bytes(typeString))).toEqual(
+        '0x599a80fcaa47b95e2323ab4d34d34e0cc9feda4b843edafcc30c7bdf60ea15bf',
+      );
+    });
+
+    it('matches the domain field set ethers encodes', () => {
+      // `hashDomain` picks its type string from the fields present, so a domain
+      // carrying exactly name/version/salt must reproduce our string.
+      const encoded = TypedDataEncoder.from({
+        EIP712Domain: [
+          { name: 'name', type: 'string' },
+          { name: 'version', type: 'string' },
+          { name: 'salt', type: 'bytes32' },
+        ],
+      }).encodeType('EIP712Domain');
+
+      expect(encoded).toEqual(
+        'EIP712Domain(string name,string version,bytes32 salt)',
+      );
+    });
+  });
+
   describe('hashTypedData', () => {
     // A representative operation struct, encoded the way the presets do:
     // a type hash followed by fixed 32-byte words.

@@ -86,17 +86,27 @@ module Eip712 {
   /**
    * @description `keccak256("EIP712Domain(string name,string version,bytes32 salt)")`.
    *
-   * @dev Derived from the literal type string rather than pinned as an opaque
-   * constant, so the domain this module implements can be checked by reading
-   * it. The string must match the domain's field set exactly: a difference of
-   * one character yields a different separator and every signature fails.
+   * @dev Written as a literal word. `compactc` emits a full keccak
+   * permutation even for a constant argument, so hashing the type string
+   * in-circuit would roughly double `domainSeparator`. The spec checks this
+   * word against the type string above.
+   *
+   * The string must match the domain's field set exactly: a difference of one
+   * character yields a different separator and every signature fails.
    *
    * @returns {Bytes<32>} The domain type hash.
    */
   pure circuit DOMAIN_TYPEHASH(): Bytes<32> {
-    return keccak256<Bytes<53>>(
-      pad(53, "EIP712Domain(string name,string version,bytes32 salt)")
-    );
+    // keccak256("EIP712Domain(string name,string version,bytes32 salt)")
+    // = 0x599a80fcaa47b95e2323ab4d34d34e0cc9feda4b843edafcc30c7bdf60ea15bf
+    const typeHash: Vector<32, Uint<8>> = [
+      0x59, 0x9a, 0x80, 0xfc, 0xaa, 0x47, 0xb9, 0x5e,
+      0x23, 0x23, 0xab, 0x4d, 0x34, 0xd3, 0x4e, 0x0c,
+      0xc9, 0xfe, 0xda, 0x4b, 0x84, 0x3e, 0xda, 0xfc,
+      0xc3, 0x0c, 0x7b, 0xdf, 0x60, 0xea, 0x15, 0xbf
+    ];
+
+    return typeHash as Bytes<32>;
   }
 
   /**
@@ -106,7 +116,7 @@ module Eip712 {
    * so the name and version arrive already hashed. Compact has no dynamic
    * types, so a consumer hashes its own fixed-length literals.
    *
-   * @constraints k=14, rows=8781 (zkir-v3)
+   * @constraints k=14, rows=4561 (zkir-v3)
    *
    * @param {Bytes<32>} hashedName - `keccak256(bytes(name))`.
    * @param {Bytes<32>} hashedVersion - `keccak256(bytes(version))`.

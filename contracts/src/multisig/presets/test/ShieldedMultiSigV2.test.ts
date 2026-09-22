@@ -1,5 +1,5 @@
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
-import { TypedDataEncoder } from 'ethers';
+import { id, TypedDataEncoder } from 'ethers';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   highSTwin,
@@ -475,6 +475,14 @@ describe('ShieldedMultiSigV2', () => {
             [S1.publicKey, S2.publicKey],
             [sign(S1, digest), sign(S2, digest)],
           );
+
+        it('should use the type hash ethers derives', () => {
+          expect(
+            id(TypedDataEncoder.from(EXECUTE_TYPES).encodeType('Execute')),
+          ).toEqual(
+            '0x8e36c978f20015e81d7a53efc32e2b08f12497a5057c70207f8bc4b7c6cf5e15',
+          );
+        });
 
         it('should reject a signature over the bare struct hash', async () => {
           const structHash = bytesOf(

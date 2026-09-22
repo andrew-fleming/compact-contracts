@@ -495,6 +495,29 @@ describe('ShieldedMultiSigV3', () => {
             [sign(S1, digest), sign(S2, digest)],
           );
 
+        it('should use the type hashes ethers derives', () => {
+          const BURN_TYPES = {
+            Burn: [
+              { name: 'contractAddress', type: 'bytes32' },
+              { name: 'nonce', type: 'uint256' },
+              { name: 'amount', type: 'uint256' },
+            ],
+          };
+
+          // `id` is keccak256 over the UTF-8 bytes, which is how EIP-712
+          // defines a type hash.
+          expect(
+            id(TypedDataEncoder.from(MINT_TYPES).encodeType('Mint')),
+          ).toEqual(
+            '0x28d4c840bc95fe084ea5e3209443ba6721b7170971ee05efaf0a9851ee5fd1f5',
+          );
+          expect(
+            id(TypedDataEncoder.from(BURN_TYPES).encodeType('Burn')),
+          ).toEqual(
+            '0xdf62d67d390806a6b63fbd9fb5b8904ef86a4d67f3824a3d855f6eefb8e79809',
+          );
+        });
+
         // Without the 0x1901 envelope the struct hash is not a typed-data
         // digest, so signing it must not authorize anything.
         it('should reject a signature over the bare struct hash', async () => {
