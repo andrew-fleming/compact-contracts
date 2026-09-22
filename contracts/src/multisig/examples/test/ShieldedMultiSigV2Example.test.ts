@@ -1,18 +1,25 @@
 import { createSimulator } from '@openzeppelin/compact-simulator';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type Signer, sign, signerFromLabel } from '#test-utils/fixtures/ecdsa.js';
+import {
+  type Signer,
+  sign,
+  signerFromLabel,
+} from '#test-utils/fixtures/ecdsa.js';
 import {
   GENESIS_NATIVE_SHIELDED_TOKEN_COLORS,
   encodeShieldedCoinInfo as makeCoin,
 } from '#test-utils/fixtures/nativeShieldedToken.js';
 import { shieldedTestKey } from '#test-utils/fixtures/shieldedKey.js';
 import {
-  ledger,
   Contract as Example,
+  ledger,
 } from '../../../../artifacts/ShieldedMultiSigV2Example/contract/index.js';
-import { executeMsgHash } from '../../test/EcdsaTestUtils.js';
-import { EmptyPrivateState, emptyWitnesses } from '../../test/EmptyWitnesses.js';
 import { ShieldedMultiSigV2Simulator } from '../../presets/test/simulators/ShieldedMultiSigV2Simulator.js';
+import { executeMsgHash } from '../../test/EcdsaTestUtils.js';
+import {
+  EmptyPrivateState,
+  emptyWitnesses,
+} from '../../test/EmptyWitnesses.js';
 
 // The example is the deployable contract. It composes the preset, which in
 // turn composes `EcdsaSignerManager`. The contract must reach the manager
@@ -31,7 +38,11 @@ const S3 = signerFromLabel('v2-example-signer-3');
 
 const commitmentOf = (s: Signer) =>
   ShieldedMultiSigV2Simulator.calculateSignerId(s.publicKey, INSTANCE_SALT);
-const SIGNER_COMMITMENTS = [commitmentOf(S1), commitmentOf(S2), commitmentOf(S3)];
+const SIGNER_COMMITMENTS = [
+  commitmentOf(S1),
+  commitmentOf(S2),
+  commitmentOf(S3),
+];
 
 const makeRecipient = (address: Uint8Array) => ({
   kind: RecipientKind.ShieldedUser,
@@ -66,7 +77,6 @@ const ExampleSimulator = createSimulator<
 });
 
 describe('ShieldedMultiSigV2Example', () => {
-  // biome-ignore lint/suspicious/noExplicitAny: the generated simulator type is structural
   let example: any;
 
   beforeEach(async () => {

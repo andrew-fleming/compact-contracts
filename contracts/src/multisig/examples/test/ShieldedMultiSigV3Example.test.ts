@@ -1,15 +1,17 @@
-import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { createSimulator } from '@openzeppelin/compact-simulator';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { sign, signerFromLabel } from '#test-utils/fixtures/ecdsa.js';
-import { mintMsgHash } from '../../test/EcdsaTestUtils.js';
-import { calculateSignerId } from '../../presets/test/simulators/ShieldedMultiSigV3Simulator.js';
 import { shieldedTestKey } from '#test-utils/fixtures/shieldedKey.js';
 import {
-  ledger,
   Contract as Ex,
+  ledger,
 } from '../../../../artifacts/ShieldedMultiSigV3Example/contract/index.js';
-import { EmptyPrivateState, emptyWitnesses } from '../../test/EmptyWitnesses.js';
+import { calculateSignerId } from '../../presets/test/simulators/ShieldedMultiSigV3Simulator.js';
+import { mintMsgHash } from '../../test/EcdsaTestUtils.js';
+import {
+  EmptyPrivateState,
+  emptyWitnesses,
+} from '../../test/EmptyWitnesses.js';
 
 const INSTANCE_SALT = new Uint8Array(32).fill(7);
 const INIT_NONCE = new Uint8Array(32).fill(8);
