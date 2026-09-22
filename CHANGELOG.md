@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `_createProposal` / `createShieldedProposal` require `expiry`
   - `getProposalStatus` returns `Inactive` for unknown ids instead of failing
 - **Breaking:** Turn the `ShieldedMultiSigV2` and `ShieldedMultiSigV3` presets into modules, deployable through the new `multisig/examples/` contracts; the forwarder presets move there too. Ledger slot indices change, so fresh deploys only. (#885)
-  - Fix the `EcdsaSignerManager` double import in the examples (#???)
+  - Fix the `EcdsaSignerManager` double import in the examples (#928)
 
 ### Removed
 
