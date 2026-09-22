@@ -209,7 +209,7 @@ module ShieldedMultiSigV3 {
    * after the counter has been incremented, binding each mint's nonce to a
    * distinct counter value.
    *
-   * @constraints k=17, rows=89904 (zkir-v3)
+   * @constraints k=17, rows=89912 (zkir-v3)
    *
    * Requirements:
    *
@@ -282,7 +282,7 @@ module ShieldedMultiSigV3 {
    * Signing `Burn` as its own EIP-712 type ensures burn signatures cannot be
    * replayed as mint operations for the same parameters.
    *
-   * @constraints k=17, rows=97142 (zkir-v3)
+   * @constraints k=17, rows=97150 (zkir-v3)
    *
    * Requirements:
    *

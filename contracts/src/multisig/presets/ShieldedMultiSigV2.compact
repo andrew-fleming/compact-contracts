@@ -165,7 +165,7 @@ module ShieldedMultiSigV2 {
    * commitment from their public key and the instance salt, rejects duplicates,
    * and enforces the threshold.
    *
-   * @constraints k=17, rows=104636 (zkir-v3)
+   * @constraints k=17, rows=104644 (zkir-v3)
    *
    * Requirements:
    *
