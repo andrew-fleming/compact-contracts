@@ -177,6 +177,16 @@ describe('Eip712', () => {
       );
     });
 
+    it('rejects a zero domain separator', async () => {
+      const structHash = bytes(
+        TypedDataEncoder.hashStruct('Mint', TYPES, VALUE),
+      );
+
+      await expect(
+        contract.hashTypedData(new Uint8Array(32), structHash),
+      ).rejects.toThrow('Eip712: domain separator not set');
+    });
+
     it('is not the bare struct hash', async () => {
       const separator = bytes(TypedDataEncoder.hashDomain(DOMAIN));
       const structHash = bytes(

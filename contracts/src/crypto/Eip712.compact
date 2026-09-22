@@ -140,7 +140,11 @@ module Eip712 {
    * @description Wraps a struct hash in the typed-data envelope, yielding the
    * digest an EVM signer actually signs.
    *
-   * @constraints k=14, rows=4455 (zkir-v3)
+   * @constraints k=14, rows=4463 (zkir-v3)
+   *
+   * Requirements:
+   *
+   * - `separator` must be non-zero, which an initialized domain always is.
    *
    * @param {Bytes<32>} separator - The domain separator, fixed at deployment.
    * @param {Bytes<32>} structHash - `keccak256(typeHash || the operation's ABI words)`.
@@ -150,6 +154,11 @@ module Eip712 {
     separator: Bytes<32>,
     structHash: Bytes<32>
   ): Bytes<32> {
+    // A zero separator is what an uninitialized ledger cell reads as, and a
+    // digest built from one still verifies signatures. Fail closed rather than
+    // authorize an operation under an unset domain.
+    assert(separator != pad(32, ""), "Eip712: domain separator not set");
+
     return keccak256<TypedDataPreimage>(TypedDataPreimage {
       prefixBytes: TYPED_DATA_PREFIX(),
       domainSeparator: separator,
