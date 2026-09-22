@@ -104,9 +104,7 @@ describe('ShieldedMultiSigV2Example', () => {
       const c = example.circuits.impure;
       await c.deposit(makeCoin(COLOR, AMOUNT));
 
-      // The deployer's own coin public key: on live it is the only recipient
-      // whose encryption key the node can resolve. Called after `create()`,
-      // which triggers the wallet sync that publishes it.
+      // `.left` is the bare coin public key; `Recipient` wants its 32 bytes.
       const to = makeRecipient(shieldedTestKey().left.bytes);
       const coin = makeQualifiedCoin(COLOR, AMOUNT, 0n);
       const digest = executeMsgHash({

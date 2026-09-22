@@ -56,8 +56,6 @@ describe('ShieldedMultiSigV3Example (the shipped contract)', () => {
 
   it('mints with two valid signatures', async () => {
     const c = ex.circuits.impure;
-    // No argument: resolves to the deployer's own coin public key on live
-    // (whose encryption key the node can resolve) and a synthetic user on dry.
     const recipient = shieldedTestKey();
     const addr = Uint8Array.from(Buffer.from(ex.contractAddress, 'hex'));
     const digest = mintMsgHash({
