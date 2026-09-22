@@ -72,10 +72,10 @@ const ExampleSimulator = createSimulator<
 });
 
 describe('ShieldedMultiSigV2Example', () => {
-  let example: any;
+  let example: InstanceType<typeof ExampleSimulator>;
 
   beforeEach(async () => {
-    example = await (ExampleSimulator as any).create(
+    example = await ExampleSimulator.create(
       [INSTANCE_SALT, SIGNER_COMMITMENTS, THRESHOLD],
       {},
     );

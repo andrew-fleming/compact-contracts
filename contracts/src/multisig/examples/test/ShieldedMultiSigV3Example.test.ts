@@ -27,19 +27,38 @@ const COMMITMENTS = [
   calculateSignerId(S3.publicKey, INSTANCE_SALT),
 ];
 
-const Base = createSimulator<any, any, any, any, any>({
-  contractFactory: (w: any) => new Ex(w),
+type ExampleArgs = readonly [
+  Uint8Array,
+  Uint8Array,
+  Uint8Array,
+  Uint8Array[],
+];
+
+const ExampleSimulator = createSimulator<
+  EmptyPrivateState,
+  ReturnType<typeof ledger>,
+  ReturnType<typeof emptyWitnesses>,
+  Ex<EmptyPrivateState>,
+  ExampleArgs
+>({
+  contractFactory: (witnesses) => new Ex<EmptyPrivateState>(witnesses),
   defaultPrivateState: () => EmptyPrivateState,
-  contractArgs: (salt: any, n: any, dom: any, cs: any) => [salt, n, dom, cs],
-  ledgerExtractor: (s: any) => ledger(s),
+  contractArgs: (instanceSalt, initCoinNonce, tokenDomain, signerCommitments) => [
+    instanceSalt,
+    initCoinNonce,
+    tokenDomain,
+    signerCommitments,
+  ],
+  ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => emptyWitnesses(),
   artifactName: 'ShieldedMultiSigV3Example',
 });
 
 describe('ShieldedMultiSigV3Example (the shipped contract)', () => {
-  let ex: any;
+  let ex: InstanceType<typeof ExampleSimulator>;
+
   beforeEach(async () => {
-    ex = await (Base as any).create(
+    ex = await ExampleSimulator.create(
       [INSTANCE_SALT, INIT_NONCE, TOKEN_DOMAIN, COMMITMENTS],
       {},
     );
