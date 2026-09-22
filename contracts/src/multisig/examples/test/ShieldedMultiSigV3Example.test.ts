@@ -47,9 +47,6 @@ describe('ShieldedMultiSigV3Example (the shipped contract)', () => {
 
   it('reports the signer set the constructor registered', async () => {
     const c = ex.circuits.impure;
-    console.log('  signerCount =', await c.getSignerCount());
-    console.log('  threshold   =', await c.getThreshold());
-    console.log('  isSigner(1) =', await c.isSigner(COMMITMENTS[0]));
     expect(await c.getSignerCount()).toEqual(3n);
     expect(await c.getThreshold()).toEqual(2n);
   });
