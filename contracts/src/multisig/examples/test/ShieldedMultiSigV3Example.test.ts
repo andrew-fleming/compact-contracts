@@ -27,12 +27,7 @@ const COMMITMENTS = [
   calculateSignerId(S3.publicKey, INSTANCE_SALT),
 ];
 
-type ExampleArgs = readonly [
-  Uint8Array,
-  Uint8Array,
-  Uint8Array,
-  Uint8Array[],
-];
+type ExampleArgs = readonly [Uint8Array, Uint8Array, Uint8Array, Uint8Array[]];
 
 const ExampleSimulator = createSimulator<
   EmptyPrivateState,
@@ -43,12 +38,12 @@ const ExampleSimulator = createSimulator<
 >({
   contractFactory: (witnesses) => new Ex<EmptyPrivateState>(witnesses),
   defaultPrivateState: () => EmptyPrivateState,
-  contractArgs: (instanceSalt, initCoinNonce, tokenDomain, signerCommitments) => [
+  contractArgs: (
     instanceSalt,
     initCoinNonce,
     tokenDomain,
     signerCommitments,
-  ],
+  ) => [instanceSalt, initCoinNonce, tokenDomain, signerCommitments],
   ledgerExtractor: (state) => ledger(state),
   witnessesFactory: () => emptyWitnesses(),
   artifactName: 'ShieldedMultiSigV3Example',
