@@ -9,7 +9,6 @@ pragma language_version >= 0.26.0;
 
 import CompactStandardLibrary;
 
-import "../../../EcdsaSignerManager" prefix EcdsaSignerManager_;
 import "../../ShieldedMultiSigV3" prefix ShieldedMultiSigV3_;
 
 export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
@@ -35,8 +34,12 @@ constructor(
   isInit: Boolean
 ) {
   if (disclose(isInit)) {
-    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
-    ShieldedMultiSigV3_initialize(initCoinNonce, tokenDomain);
+    ShieldedMultiSigV3_initialize(
+      instanceSalt,
+      initCoinNonce,
+      tokenDomain,
+      signerCommitments,
+    );
   }
 }
 
