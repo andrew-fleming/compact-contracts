@@ -54,7 +54,7 @@ const ExampleSimulator = createSimulator<
   artifactName: 'ShieldedMultiSigV3Example',
 });
 
-describe('ShieldedMultiSigV3Example (the shipped contract)', () => {
+describe('ShieldedMultiSigV3Example', () => {
   let ex: InstanceType<typeof ExampleSimulator>;
 
   beforeEach(async () => {
