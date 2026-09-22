@@ -19,9 +19,9 @@ pragma language_version >= 0.26.0;
  * through ZswapOutput events from the indexer, constructs QualifiedShieldedCoinInfo
  * off-chain, and provides it as a circuit parameter for spending.
  *
- * @notice The preset has no state of its own to set up. Implementing contracts
- * register the signer set from their constructor by calling
- * `EcdsaSignerManager_initialize<3>`.
+ * @notice Implementing contracts register the signer set from their
+ * constructor by calling this module's `initialize`, and MUST NOT import
+ * `EcdsaSignerManager` directly.
  */
 module ShieldedMultiSigV2 {
   import CompactStandardLibrary;
@@ -38,6 +38,32 @@ module ShieldedMultiSigV2 {
   // ─── State ──────────────────────────────────────────────────────
 
   ledger _nonce: Counter;
+
+  // ─── Initialization ─────────────────────────────────────────────
+
+  /**
+   * @description Registers the signer set and threshold.
+   *
+   * @notice Call from the implementing contract's constructor only.
+   *
+   * Requirements:
+   *
+   * - `instanceSalt` should be cryptographically random.
+   * - `signerCommitments` must not contain duplicates.
+   * - `thresh` must be non-zero and must not exceed 2.
+   *
+   * @param {Bytes<32>} instanceSalt - Per-deployment salt for commitment derivation.
+   * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
+   * @param {Uint<8>} thresh - Minimum approvals required.
+   * @returns {[]} Empty tuple.
+   */
+  export circuit initialize(
+    instanceSalt: Bytes<32>,
+    signerCommitments: Vector<3, Bytes<32>>,
+    thresh: Uint<8>
+  ): [] {
+    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
+  }
 
   // ─── Deposit ────────────────────────────────────────────────────
 

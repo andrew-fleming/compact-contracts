@@ -9,7 +9,6 @@ pragma language_version >= 0.26.0;
 
 import CompactStandardLibrary;
 
-import "../../../EcdsaSignerManager" prefix EcdsaSignerManager_;
 import "../../ShieldedMultiSigV2" prefix ShieldedMultiSigV2_;
 
 export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
@@ -29,7 +28,7 @@ constructor(
   isInit: Boolean
 ) {
   if (disclose(isInit)) {
-    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
+    ShieldedMultiSigV2_initialize(instanceSalt, signerCommitments, thresh);
   }
 }
 
@@ -40,7 +39,7 @@ export circuit initialize(
   signerCommitments: Vector<3, Bytes<32>>,
   thresh: Uint<8>
 ): [] {
-  return EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
+  return ShieldedMultiSigV2_initialize(instanceSalt, signerCommitments, thresh);
 }
 
 export circuit deposit(coin: ShieldedCoinInfo): [] {
