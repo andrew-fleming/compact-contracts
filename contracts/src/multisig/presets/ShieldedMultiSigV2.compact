@@ -20,6 +20,10 @@ pragma language_version >= 0.26.0;
  * off-chain, and provides it as a circuit parameter for spending.
  *
  * @notice Requires ZKIR v3: `keccak256` is unavailable on the v2 backend.
+ *
+ * @notice Implementing contracts register the signer set from their
+ * constructor by calling this module's `initialize`, and MUST NOT import
+ * `EcdsaSignerManager` directly.
  */
 module ShieldedMultiSigV2 {
   import CompactStandardLibrary;
@@ -37,20 +41,30 @@ module ShieldedMultiSigV2 {
 
   // ─── State ──────────────────────────────────────────────────────
 
+  /**
+   * @description Monotonic operation counter. `execute` reads it as that
+   * operation's nonce and then increments, so no two executions share one.
+   */
   ledger _nonce: Counter;
+
+  /**
+   * @description The EIP-712 domain separator every `execute` digest is built
+   * under, derived from `(name, version, instanceSalt)`. Set once at
+   * construction.
+   */
   export sealed ledger _domainSeparator: Bytes<32>;
 
   // ─── Initialization ─────────────────────────────────────────────
 
   /**
-   * @description Fixes the EIP-712 domain separator for this deployment.
+   * @description Registers the signer set and threshold, and fixes the
+   * EIP-712 domain separator.
    *
    * @notice Call from the implementing contract's constructor only. It writes
    * the `sealed` `_domainSeparator`, so implementing contracts MUST NOT expose
-   * it as a post-deploy circuit. The same constructor must register the signer
-   * set through `EcdsaSignerManager_initialize<3>` with a threshold of 2.
+   * `initialize` as a post-deploy circuit.
    *
-   * The domain fixed here is `(name, version, salt)`. `chainId` and
+   * The EIP-712 domain fixed here is `(name, version, salt)`. `chainId` and
    * `verifyingContract` are absent: no network identifier is available
    * in-circuit, and a 32-byte Midnight address does not fit
    * `verifyingContract`'s `address` type.
@@ -60,23 +74,28 @@ module ShieldedMultiSigV2 {
    * address at deployment, so no two deployments share one on any network.
    * A signature for one cannot authorize another.
    *
-   * The same value is normally passed to `EcdsaSignerManager_initialize<3>`
-   * where it keys the signer commitments. A fresh value per deployment keeps
-   * one public key from producing the same commitment in two deployments
-   * which would link the signer set across them. Each module keeps its own
-   * copy and nothing cross-checks them so passing different values works.
+   * `instanceSalt` also keys the signer commitments, so a fresh value per
+   * deployment keeps one public key from producing the same commitment in two
+   * deployments which would link the signer set across them.
    *
    * Requirements:
    *
-   * - `instanceSalt` should be cryptographically random and freshly generated
-   *   for each deployment.
-   * - `instanceSalt` should be the same value passed to
-   *   `EcdsaSignerManager_initialize<3>`.
+   * - `instanceSalt` should be cryptographically random.
+   * - `signerCommitments` must not contain duplicates.
+   * - `thresh` must be non-zero and must not exceed 2.
    *
-   * @param {Bytes<32>} instanceSalt - Random salt, shared with the signer registry.
+   * @param {Bytes<32>} instanceSalt - Per-deployment salt for commitment derivation.
+   * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
+   * @param {Uint<8>} thresh - Minimum approvals required.
    * @returns {[]} Empty tuple.
    */
-  export circuit initialize(instanceSalt: Bytes<32>): [] {
+  export circuit initialize(
+    instanceSalt: Bytes<32>,
+    signerCommitments: Vector<3, Bytes<32>>,
+    thresh: Uint<8>
+  ): [] {
+    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, thresh);
+
     const hashedName = keccak256<Bytes<18>>(pad(18, "ShieldedMultiSigV2"));
     const hashedVersion = keccak256<Bytes<1>>(pad(1, "1"));
     _domainSeparator = Eip712_domainSeparator(
@@ -113,13 +132,12 @@ module ShieldedMultiSigV2 {
   /**
    * @description Executes a shielded send authorized by threshold signatures.
    *
-   * The circuit reads the current nonce from the ledger, increments it, then
-   * reconstructs the EIP-712 digest that signers must have signed off-chain:
-   * the `Execute` struct (contract address, nonce, recipient kind, recipient,
-   * coin color, amount) hashed under this deployment's domain separator. The
-   * digest is bound to the contract instance and to the full recipient (kind
-   * and address), so a signature authorizes exactly one operation on one
-   * instance.
+   * The circuit reads the current nonce from the ledger, increments it,
+   * then reconstructs the EIP-712 digest that signers must have signed
+   * off-chain: the `Execute` struct (contract address, nonce, recipient kind,
+   * recipient, coin color, amount) hashed under this deployment's domain
+   * separator. The digest is bound to the contract instance and the full recipient (kind and
+   * address), so a signature authorizes exactly one operation on one instance.
    *
    * Approvals are checked by `EcdsaSignerManager`, which derives each signer's
    * commitment from their public key and the instance salt, rejects duplicates,

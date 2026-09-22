@@ -9,7 +9,6 @@ pragma language_version >= 0.26.0;
 
 import CompactStandardLibrary;
 
-import "../../../EcdsaSignerManager" prefix EcdsaSignerManager_;
 import "../../ShieldedMultiSigV3" prefix ShieldedMultiSigV3_;
 
 export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
@@ -24,8 +23,8 @@ export { _counter, _coinNonce, _tokenDomain, _domainSeparator };
  * If `isInit` is false, the constructor will not initialize the contract,
  * leaving the signer registry empty so the pre-initialization guards can be
  * exercised. The preset `initialize` is intentionally NOT exposed as a
- * circuit: it writes the `sealed` `_tokenDomain` and `_domainSeparator`,
- * which the sealed-write rule confines to constructor execution.
+ * circuit: it writes the `sealed` `_tokenDomain`, which the sealed-write rule
+ * confines to constructor execution.
 */
 constructor(
   instanceSalt: Bytes<32>,
@@ -35,8 +34,12 @@ constructor(
   isInit: Boolean
 ) {
   if (disclose(isInit)) {
-    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
-    ShieldedMultiSigV3_initialize(instanceSalt, initCoinNonce, tokenDomain);
+    ShieldedMultiSigV3_initialize(
+      instanceSalt,
+      initCoinNonce,
+      tokenDomain,
+      signerCommitments,
+    );
   }
 }
 

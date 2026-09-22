@@ -38,6 +38,10 @@ pragma language_version >= 0.26.0;
  * `EcdsaSignerManager`, so a high-s signature is rejected. The approval
  * vectors are fixed at `Vector<2, ...>`, so this contract is 2-of-3 only.
  *
+ * @notice Implementing contracts register the signer set from their
+ * constructor by calling this module's `initialize`, and MUST NOT import
+ * `EcdsaSignerManager` directly.
+ *
  * @notice Requires ZKIR v3: `keccak256` is unavailable on the v2 backend.
  */
 module ShieldedMultiSigV3 {
@@ -50,22 +54,44 @@ module ShieldedMultiSigV3 {
 
   // ─── State ──────────────────────────────────────────────────────
 
+  /**
+   * @description Monotonic operation counter. Each mint and burn reads it as that
+   * operation's nonce and then increments, so no two operations share one.
+   */
   export ledger _counter: Counter;
+
+  /**
+   * @description Seed for coin-nonce derivation. Set at construction, then
+   * replaced by `evolveNonce(_counter, _coinNonce)` at the start of each mint, so
+   * it holds the initial seed before the first mint and the most recent mint's
+   * nonce after.
+   */
   export ledger _coinNonce: Bytes<32>;
-  export sealed ledger _domainSeparator: Bytes<32>;
+
+  /**
+   * @description The domain separator for the token this multisig mints. The coin
+   * color is `tokenType(_tokenDomain, kernel.self())`, so it is bound to this
+   * contract instance. Set once at construction.
+   */
   export sealed ledger _tokenDomain: Bytes<32>;
+
+  /**
+   * @description The EIP-712 domain separator every operation digest is built
+   * under, derived from `(name, version, instanceSalt)`. Set once at
+   * construction.
+   */
+  export sealed ledger _domainSeparator: Bytes<32>;
 
   // ─── Initialization ─────────────────────────────────────────────
 
   /**
-   * @description Sets the token domain, the initial coin nonce, and the
-   * EIP-712 domain separator.
+   * @description Registers the signer set and sets the token domain, the
+   * initial coin nonce, and the EIP-712 domain separator. The threshold is
+   * fixed at 2.
    *
    * @notice Call from the implementing contract's constructor only. It writes
    * the `sealed` `_tokenDomain` and `_domainSeparator`, so implementing
-   * contracts MUST NOT expose `initialize` as a post-deploy circuit. The same
-   * constructor must register the signer set through
-   * `EcdsaSignerManager_initialize<3>` with a threshold of 2.
+   * contracts MUST NOT expose `initialize` as a post-deploy circuit.
    *
    * `tokenDomain` is used with `kernel.self()` to derive the token color
    * via `tokenType(_tokenDomain, kernel.self())`. Only coins of this color
@@ -84,30 +110,29 @@ module ShieldedMultiSigV3 {
    * contract's address at deployment, so no two deployments share one on any
    * network. A signature for one cannot authorize another.
    *
-   * The same value is normally passed to `EcdsaSignerManager_initialize<3>`
-   * where it keys the signer commitments. A fresh value per deployment keeps
-   * one public key from producing the same commitment in two deployments
-   * which would link the signer set across them. Each module keeps its own
-   * copy and nothing cross-checks them so passing different values works.
+   * `instanceSalt` also keys the signer commitments, so a fresh value per
+   * deployment keeps one public key from producing the same commitment in two
+   * deployments which would link the signer set across them.
    *
    * Requirements:
    *
+   * - `instanceSalt` should be cryptographically random.
    * - `initCoinNonce` should be cryptographically random.
-   * - `instanceSalt` should be cryptographically random and freshly generated
-   *   for each deployment.
-   * - `instanceSalt` should be the same value passed to
-   *   `EcdsaSignerManager_initialize<3>`.
+   * - `signerCommitments` must not contain duplicates.
    *
-   * @param {Bytes<32>} instanceSalt - Random salt, shared with the signer registry.
+   * @param {Bytes<32>} instanceSalt - Per-deployment salt for commitment derivation.
    * @param {Bytes<32>} initCoinNonce - Initial coin nonce seed.
    * @param {Bytes<32>} tokenDomain - Domain string used to derive this contract's token color.
+   * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
    * @returns {[]} Empty tuple.
    */
   export circuit initialize(
     instanceSalt: Bytes<32>,
     initCoinNonce: Bytes<32>,
     tokenDomain: Bytes<32>,
+    signerCommitments: Vector<3, Bytes<32>>,
   ): [] {
+    EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
     _coinNonce = disclose(initCoinNonce);
     _tokenDomain = disclose(tokenDomain);
 

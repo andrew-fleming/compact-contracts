@@ -15,33 +15,28 @@ pragma language_version >= 0.26.0;
 
 import CompactStandardLibrary;
 
-import "../EcdsaSignerManager" prefix EcdsaSignerManager_;
 import "../presets/ShieldedMultiSigV2" prefix ShieldedMultiSigV2_;
 
 export { ShieldedCoinInfo, QualifiedShieldedCoinInfo, ShieldedSendResult };
 
+// Surface the preset's domain separator unprefixed so `ledger()` readers see
+// the key name the preset published.
+import { _domainSeparator } from "../presets/ShieldedMultiSigV2";
+export { _domainSeparator };
+
 /**
- * @description Deploys the wallet with 3 signer commitments, fixed at a
- * 2-of-3 threshold.
- *
- * @dev The threshold is hardcoded to 2: the approval vectors are
- * `Vector<2, ...>`, so a lower value would still require two valid signers.
- *
- * Requirements:
- *
- * - `signerCommitments` must not contain duplicates.
- * - `instanceSalt` should be cryptographically random and freshly generated
- *   for each deployment.
+ * @description Deploys the wallet with 3 signer commitments and a threshold.
  *
  * @param {Bytes<32>} instanceSalt - Random salt for commitment derivation.
  * @param {Vector<3, Bytes<32>>} signerCommitments - Hashed signer identities.
+ * @param {Uint<8>} thresh - Minimum approvals required.
  */
 constructor(
   instanceSalt: Bytes<32>,
   signerCommitments: Vector<3, Bytes<32>>,
+  thresh: Uint<8>,
 ) {
-  EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
-  ShieldedMultiSigV2_initialize(instanceSalt);
+  ShieldedMultiSigV2_initialize(instanceSalt, signerCommitments, thresh);
 }
 
 export circuit deposit(coin: ShieldedCoinInfo): [] {

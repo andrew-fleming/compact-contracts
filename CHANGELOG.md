@@ -25,11 +25,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ShieldedMultiSigV3`
     - Sign `mint` and `burn` as EIP-712 typed data instead of `persistentHash` digests
 
+- **Breaking:** Refactor `ProposalManager` (#780)
+  - `Proposal.status` → `state: Uint<64>`, overlaying lifecycle and expiry
+  - `_createProposal` / `createShieldedProposal` require `expiry`
+  - `getProposalStatus` returns `Inactive` for unknown ids instead of failing
+
+- **Breaking:** Remove `Signer.initialize` and `_isInitialized`; the registry is configured through `_addSigner` / `_changeThreshold` / `_setThreshold` only. `EcdsaSignerManager_initialize` does that configuration itself instead of calling another module's `initialize`, rejects a second call while signers are registered, and `_instanceSalt` is `export sealed`. Ledger slot indices change, so fresh deploys only. (#925)
+
 - **Breaking:** Turn the `ShieldedMultiSigV2` and `ShieldedMultiSigV3` presets into modules, deployable through the new `multisig/examples/` contracts; the forwarder presets move there too. Ledger slot indices change, so fresh deploys only. (#885)
+  - Fix the `EcdsaSignerManager` double import in the examples (#928)
 
 ### Removed
 
 - **Breaking:** Remove the `ShieldedMultiSig` preset. A rebuild on `EcdsaSignerManager` is tracked in #905. (#885)
+
+### Fixed
+
+- Bump `@openzeppelin/compact-cli` `^0.0.3` → `^0.1.1`, whose `compact-builder` `0.0.5` fails the build when `compact compile` fails; `0.0.4` reported every failure as `✔ Compiled`. `engines.node` follows the cli to `>=24`. Fixes #894.
+- Exclude `crypto/` and `multisig/` from the aggregate `compile` script. They need `--feature-zkir-v3` and are built by `compile:crypto` / `compile:multisig`; recompiling them on v2 emptied their artifact directories. The aggregate cannot move to v3 while `ConfidentialFungibleToken` fails key generation there. `build` passes `--feature-zkir-v3` instead: it excludes mocks, and only the `ConfidentialFungibleToken` mocks hit the v3 key-generation failure. (#899)
 
 ## 0.4.0-alpha.1 (2026-09-02)
 
@@ -47,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Compiler 0.34.0 emits ZKIR v2 by default, and this release targets v2. Only `crypto/Ecdsa`, `multisig/EcdsaSignerManager` and the `ShieldedMultiSigV2` / `ShieldedMultiSigV3` presets need `--feature-zkir-v3`, because the `Secp256k1` types live in the v3 library; `compile:crypto` and `compile:multisig` pass it.
 - Under `--feature-zkir-v3`, any impure circuit that reaches `ElGamal.encryptPoint` (notably `ConfidentialFungibleToken`) fails at key generation with `Unsupported test_eq: JubjubScalar == JubjubScalar`, because the ZKIR v3 backend has no `JubjubScalar` equality ([LFDT-Minokawa/compact#757](https://github.com/LFDT-Minokawa/compact/issues/757)). A source-level fix, comparing the derived point instead of the scalar, lands in the next release.
 - Under `--feature-zkir-v3`, exporting `ElGamal.derivePk` as an impure circuit panics with `ZkStdLibArch must enable jubjub` ([LFDT-Minokawa/compact#616](https://github.com/LFDT-Minokawa/compact/issues/616)). There is no source workaround.
-- `@openzeppelin/compact-cli` `0.0.3` pins `@openzeppelin/compact-builder` to `0.0.4`, which reports a failed compile as success on Linux and writes no artifact. This is fixed in `compact-builder` `0.0.5` ([OpenZeppelin/compact-tools#162](https://github.com/OpenZeppelin/compact-tools/pull/162)); a `compact-cli` patch release picking it up follows, after which this repo bumps it. Until then, check that `artifacts/<Name>/compiler/contract-info.json` exists after a compile.
+- `@openzeppelin/compact-cli` `0.0.3` pins `@openzeppelin/compact-builder` to `0.0.4`, which reports a failed compile as success on Linux and writes no artifact. Bumped in Unreleased (#899).
 
 ## 0.3.0-alpha.2 (2026-08-11)
 
