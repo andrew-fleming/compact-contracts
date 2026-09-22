@@ -21,11 +21,6 @@ import {
   emptyWitnesses,
 } from '../../test/EmptyWitnesses.js';
 
-// The example is the deployable contract. It composes the preset, which in
-// turn composes `EcdsaSignerManager`. The contract must reach the manager
-// only through the preset: importing it directly allocates a second registry,
-// and `execute` then reads one the constructor never configured.
-
 const RecipientKind = { ShieldedUser: 0, UnshieldedUser: 1, Contract: 2 };
 const INSTANCE_SALT = new Uint8Array(32).fill(0xaa);
 const COLOR = GENESIS_NATIVE_SHIELDED_TOKEN_COLORS.nativeShieldedToken1;
