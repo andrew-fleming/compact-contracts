@@ -47,9 +47,6 @@ describe('Eip712', () => {
       ).toEqual(strip(TypedDataEncoder.hashDomain(DOMAIN)));
     });
 
-    // The salt is the only per-deployment input, and with chainId and
-    // verifyingContract both unavailable it carries all of the separation
-    // those fields would have provided.
     it('separates deployments by salt', async () => {
       const a = await contract.domainSeparator(
         HASHED_NAME,
