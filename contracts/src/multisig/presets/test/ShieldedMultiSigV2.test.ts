@@ -82,8 +82,7 @@ const hexBytes = (hex: string): Uint8Array =>
 
 let multisig: ShieldedMultiSigV2Simulator;
 
-// The digest `execute` computes: persistentHash([domain, self, nonce,
-// persistentHash(to), coin.color, amount]).
+/** The execute digest the contract computes for these params at its current nonce. */
 async function executeDigest(
   m: ShieldedMultiSigV2Simulator,
   to: { kind: number; address: Uint8Array },
