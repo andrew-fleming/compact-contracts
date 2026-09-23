@@ -22,8 +22,8 @@ export { QualifiedShieldedCoinInfo };
 
 // Surface the preset's state unprefixed so `ledger()` readers keep the key
 // names the preset published as a contract.
-import { _counter, _coinNonce, _tokenDomain } from "../presets/ShieldedMultiSigV3";
-export { _counter, _coinNonce, _tokenDomain };
+import { _counter, _coinNonce, _tokenDomain, _domainSeparator } from "../presets/ShieldedMultiSigV3";
+export { _counter, _coinNonce, _tokenDomain, _domainSeparator };
 
 /**
  * @description Deploys the issuer with 3 signer commitments and a threshold

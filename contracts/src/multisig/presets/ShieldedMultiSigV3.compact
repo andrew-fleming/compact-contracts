@@ -29,12 +29,12 @@ pragma language_version >= 0.26.0;
  * provides replay protection, and also feeds `evolveNonce` to produce
  * unique coin nonces on each mint.
  *
- * Operation domain prefixes ("multisig:mint:" / "multisig:burn:") in the message
- * hash prevent signatures for one operation type from being replayed as
- * the other.
+ * Each operation is signed as its own EIP-712 type (`Mint`, `Burn`), so the
+ * type hash leading the struct prevents a signature for one operation being
+ * replayed as the other.
  *
  * @notice Threshold authorization is enforced with secp256k1 ECDSA
- * (`secp256k1EcdsaVerifyLowS`) over `persistentHash` digests, via
+ * (`secp256k1EcdsaVerifyLowS`) over EIP-712 typed-data digests, via
  * `EcdsaSignerManager`, so a high-s signature is rejected. The approval
  * vectors are fixed at `Vector<2, ...>`, so this contract is 2-of-3 only.
  *
@@ -42,14 +42,15 @@ pragma language_version >= 0.26.0;
  * constructor by calling this module's `initialize`, and MUST NOT import
  * `EcdsaSignerManager` directly.
  *
- * TODO: switch every digest to `keccak256` to match the custodian's HSM
- * signing format (#827).
+ * @notice Requires ZKIR v3: `keccak256` is unavailable on the v2 backend.
  */
 module ShieldedMultiSigV3 {
   import CompactStandardLibrary;
 
   import "../EcdsaSignerManager" prefix EcdsaSignerManager_;
+  import "../../crypto/Eip712" prefix Eip712_;
   import "../../utils/Utils" prefix Utils_;
+  import "../../utils/EvmAbi" prefix EvmAbi_;
 
   // ─── State ──────────────────────────────────────────────────────
 
@@ -74,15 +75,23 @@ module ShieldedMultiSigV3 {
    */
   export sealed ledger _tokenDomain: Bytes<32>;
 
+  /**
+   * @description The EIP-712 domain separator every operation digest is built
+   * under, derived from `(name, version, instanceSalt)`. Set once at
+   * construction.
+   */
+  export sealed ledger _domainSeparator: Bytes<32>;
+
   // ─── Initialization ─────────────────────────────────────────────
 
   /**
-   * @description Registers the signer set and sets the token domain and the
-   * initial coin nonce. The threshold is fixed at 2.
+   * @description Registers the signer set and sets the token domain, the
+   * initial coin nonce, and the EIP-712 domain separator. The threshold is
+   * fixed at 2.
    *
    * @notice Call from the implementing contract's constructor only. It writes
-   * the `sealed` `_tokenDomain`, so implementing contracts MUST NOT expose it
-   * as a post-deploy circuit.
+   * the `sealed` `_tokenDomain` and `_domainSeparator`, so implementing
+   * contracts MUST NOT expose `initialize` as a post-deploy circuit.
    *
    * `tokenDomain` is used with `kernel.self()` to derive the token color
    * via `tokenType(_tokenDomain, kernel.self())`. Only coins of this color
@@ -90,6 +99,20 @@ module ShieldedMultiSigV3 {
    *
    * `initCoinNonce` seeds the `evolveNonce` chain used to produce unique
    * mint nonces. It must be cryptographically random.
+   *
+   * The EIP-712 domain fixed here is `(name, version, salt)`. `chainId` and
+   * `verifyingContract` are absent: no network identifier is available
+   * in-circuit, and a 32-byte Midnight address does not fit
+   * `verifyingContract`'s `address` type.
+   *
+   * Replay protection comes from `mint` and `burn` binding `kernel.self()` in
+   * their structs rather than from the domain. The ledger randomizes a
+   * contract's address at deployment, so no two deployments share one on any
+   * network. A signature for one cannot authorize another.
+   *
+   * `instanceSalt` also keys the signer commitments, so a fresh value per
+   * deployment keeps one public key from producing the same commitment in two
+   * deployments which would link the signer set across them.
    *
    * Requirements:
    *
@@ -112,6 +135,56 @@ module ShieldedMultiSigV3 {
     EcdsaSignerManager_initialize<3>(instanceSalt, signerCommitments, 2);
     _coinNonce = disclose(initCoinNonce);
     _tokenDomain = disclose(tokenDomain);
+
+    const hashedName = keccak256<Bytes<18>>(pad(18, "ShieldedMultiSigV3"));
+    const hashedVersion = keccak256<Bytes<1>>(pad(1, "1"));
+    _domainSeparator = Eip712_domainSeparator(
+      hashedName,
+      hashedVersion,
+      disclose(instanceSalt)
+    );
+  }
+
+  /**
+   * @description `keccak256` of the `Mint` type string:
+   * `Mint(bytes32 contractAddress,bytes32 recipient,bool isContract,uint256 nonce,uint256 amount)`
+   *
+   * @dev Written as a literal word; see `BURN_TYPEHASH`. The spec checks this
+   * word against the type string above.
+   *
+   * @returns {Bytes<32>} The `Mint` type hash.
+   */
+  pure circuit MINT_TYPEHASH(): Bytes<32> {
+    const typeHash: Vector<32, Uint<8>> = [
+      0x28, 0xd4, 0xc8, 0x40, 0xbc, 0x95, 0xfe, 0x08,
+      0x4e, 0xa5, 0xe3, 0x20, 0x94, 0x43, 0xba, 0x67,
+      0x21, 0xb7, 0x17, 0x09, 0x71, 0xee, 0x05, 0xef,
+      0xaf, 0x0a, 0x98, 0x51, 0xee, 0x5f, 0xd1, 0xf5
+    ];
+
+    return typeHash as Bytes<32>;
+  }
+
+  /**
+   * @description `keccak256` of the `Burn` type string:
+   * `Burn(bytes32 contractAddress,uint256 nonce,uint256 amount)`
+   *
+   * @dev Written as a literal word. `compactc` emits a full keccak
+   * permutation even for a constant argument, so hashing the type string
+   * in-circuit would add ~4.2k rows to every operation. The spec checks this
+   * word against the type string above.
+   *
+   * @returns {Bytes<32>} The `Burn` type hash.
+   */
+  pure circuit BURN_TYPEHASH(): Bytes<32> {
+    const typeHash: Vector<32, Uint<8>> = [
+      0xdf, 0x62, 0xd6, 0x7d, 0x39, 0x08, 0x06, 0xa6,
+      0xb6, 0x3f, 0xbd, 0x9f, 0xb5, 0xb8, 0x90, 0x4e,
+      0xf8, 0x6a, 0x4d, 0x67, 0xf3, 0x82, 0x4a, 0x3d,
+      0x85, 0x5f, 0x6e, 0xef, 0xb8, 0xe7, 0x98, 0x09
+    ];
+
+    return typeHash as Bytes<32>;
   }
 
   // ─── Mint ───────────────────────────────────────────────────────
@@ -125,9 +198,10 @@ module ShieldedMultiSigV3 {
    * supply is produced on-chain.
    *
    * The message hash commits to:
-   *   - operation domain ("multisig:mint:" for burn op replay protection)
+   *   - the `Mint` type hash (so a burn signature cannot authorize a mint)
    *   - contract address (cross-instance replay protection)
    *   - recipient (redirection protection)
+   *   - recipient kind (user vs contract at the same address bytes)
    *   - counter value (replay protection)
    *   - amount
    *
@@ -135,7 +209,7 @@ module ShieldedMultiSigV3 {
    * after the counter has been incremented, binding each mint's nonce to a
    * distinct counter value.
    *
-   * @constraints k=17, rows=84506 (zkir-v3)
+   * @constraints k=17, rows=89912 (zkir-v3)
    *
    * Requirements:
    *
@@ -160,15 +234,24 @@ module ShieldedMultiSigV3 {
 
     // Canonicalize recipient to ensure garbage values don't sully the hash
     const canonRecipient = Utils_canonicalize<ZswapCoinPublicKey, ContractAddress>(recipient);
-    const recipientHash = persistentHash<Either<ZswapCoinPublicKey, ContractAddress>>(canonRecipient);
 
-    const msgHash = persistentHash<Vector<5, Bytes<32>>>([
-      pad(32, "multisig:mint:"),
+    // Only the active arm reaches the digest, so a crafted value carrying data
+    // in its unused arm cannot alter what was signed.
+    const recipientWord = canonRecipient.is_left
+      ? canonRecipient.left.bytes
+      : canonRecipient.right.bytes;
+
+    const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<6, Bytes<32>>>([
+      MINT_TYPEHASH(),
+      // Binds the digest to this deployment. The domain cannot carry the
+      // address, so removing this word removes cross-instance replay
+      // protection.
       kernel.self().bytes,
-      recipientHash,
-      opNonce as Bytes<32>,
-      amount as Bytes<32>
-    ]);
+      recipientWord,
+      EvmAbi_boolWord(!canonRecipient.is_left),
+      EvmAbi_uint64Word(opNonce),
+      EvmAbi_uint64Word(amount)
+    ]));
 
     EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
 
@@ -196,10 +279,10 @@ module ShieldedMultiSigV3 {
    * Only coins of this contract's token type can be burned. The operator
    * supplies the `QualifiedShieldedCoinInfo` from the off-chain UTXO pool.
    *
-   * The "multisig:burn:" domain prefix ensures burn signatures cannot be replayed
-   * as mint operations for the same parameters.
+   * Signing `Burn` as its own EIP-712 type ensures burn signatures cannot be
+   * replayed as mint operations for the same parameters.
    *
-   * @constraints k=17, rows=92170 (zkir-v3)
+   * @constraints k=17, rows=97150 (zkir-v3)
    *
    * Requirements:
    *
@@ -224,12 +307,15 @@ module ShieldedMultiSigV3 {
     const opNonce = _counter;
     _counter.increment(1);
 
-    const msgHash = persistentHash<Vector<4, Bytes<32>>>([
-      pad(32, "multisig:burn:"),
+    const msgHash = Eip712_hashTypedData(_domainSeparator, keccak256<Vector<4, Bytes<32>>>([
+      BURN_TYPEHASH(),
+      // Binds the digest to this deployment. The domain cannot carry the
+      // address, so removing this word removes cross-instance replay
+      // protection.
       kernel.self().bytes,
-      opNonce as Bytes<32>,
-      amount as Bytes<32>
-    ]);
+      EvmAbi_uint64Word(opNonce),
+      EvmAbi_uint64Word(amount)
+    ]));
 
     EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
 

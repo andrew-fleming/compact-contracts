@@ -71,6 +71,7 @@ describe('ShieldedMultiSigV3Example', () => {
     const addr = Uint8Array.from(Buffer.from(ex.contractAddress, 'hex'));
     const digest = mintMsgHash({
       contractAddress: addr,
+      instanceSalt: INSTANCE_SALT,
       recipient,
       opNonce: await c.getNonce(),
       amount: 100n,
