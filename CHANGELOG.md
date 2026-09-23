@@ -18,7 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** (#906)
   - `ShieldedMultiSigV2`
-    - Remove `thresh` param from constructor
     - Sign `execute` as EIP-712 typed data instead of
     a `persistentHash` digest
 
