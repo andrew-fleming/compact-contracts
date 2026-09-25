@@ -46,14 +46,17 @@ pragma language_version >= 0.26.0;
  * - Burn digest: `keccak(0x1901 ‖ DS ‖ keccak([BURN_TYPEHASH, self,
  *   refundTo.bytes, uint64Word(opNonce), uint64Word(amount)]))`.
  * - BurnFromSelf digest: `keccak(0x1901 ‖ DS ‖ keccak([
- *   BURN_FROM_SELF_TYPEHASH, self, uint64Word(opNonce), uint64Word(amount)]))`.
+ *   BURN_FROM_SELF_TYPEHASH, self, uint64Word(opNonce), uint64Word(amount),
+ *   coin.nonce, uint128Word(coin.value)]))`. The last two words name the
+ *   holding, so approvals authorize one coin rather than an amount.
  * - Type hashes: `MINT_TYPEHASH = keccak("Mint(bytes32 contractAddress,
  *   bytes32 recipient,uint256 nonce,uint256 amount)")`,
  *   `MINT_TO_SELF_TYPEHASH = keccak("MintToSelf(bytes32 contractAddress,
  *   uint256 nonce,uint256 amount)")`, `BURN_TYPEHASH = keccak("Burn(bytes32 contractAddress,bytes32 refundTo,
  *   uint256 nonce,uint256 amount)")` and `BURN_FROM_SELF_TYPEHASH =
  *   keccak("BurnFromSelf(bytes32 contractAddress,uint256 nonce,
- *   uint256 amount)")`, written as literal words.
+ *   uint256 amount,bytes32 coinNonce,uint256 coinValue)")`, written as
+ *   literal words.
  * - Signer commitment: `cm = H<SignerCommitmentInput>({ pkX, pkY, salt,
  *   domain: pad(32, "multisig:signer:") })`, `pkX` / `pkY` the affine
  *   coordinates as `Bytes<32>`. `_calculateSignerId` is the exported pure
