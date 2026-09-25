@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Breaking:** Fix `NativeShieldedTokenIssuer` (#???)
+- **Breaking:** Fix `NativeShieldedTokenIssuer` (#993)
   - Bind the spent coin in `burnFromSelf`
   - `BurnFromSelf` gains `coinNonce` and `coinValue`
 - **Breaking:** Rename `NativeShieldedTokenIssuer.burn` to `burnFromSelf` (contract-held coin, EIP-712 struct `BurnFromSelf`). New `burn` burns a holder's coin paid into the transaction and refunds the change to `refundTo`, bound in the new `Burn` struct. `mint` takes a `ZswapCoinPublicKey` recipient and signs the new `Mint` struct (no `isContract` word); new `mintToSelf` mints to the contract itself under `MintToSelf`. The example contract exports all four. (#974)
