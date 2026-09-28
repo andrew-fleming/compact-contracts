@@ -1195,6 +1195,27 @@ describe('NativeShieldedTokenIssuer', () => {
         ).rejects.toThrow('Multisig: invalid signature');
       });
 
+      it('should reject a same-value coin with a different nonce', async () => {
+        const color = await multisig.tokenColor();
+        const approved = makeQualifiedCoin(
+          color,
+          100n,
+          0n,
+          nonceOf('approved'),
+        );
+        const sibling = makeQualifiedCoin(color, 100n, 1n, nonceOf('sibling'));
+        const digest = await burnFromSelfDigest(multisig, 100n, approved);
+
+        await expect(
+          multisig.burnFromSelf(
+            sibling,
+            100n,
+            [S1.publicKey, S2.publicKey],
+            [sign(S1, digest), sign(S2, digest)],
+          ),
+        ).rejects.toThrow('Multisig: invalid signature');
+      });
+
       it('should reject a coin whose value differs from the approved one', async () => {
         const color = await multisig.tokenColor();
         const approved = makeQualifiedCoin(color, 100n);
