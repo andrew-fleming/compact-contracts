@@ -204,8 +204,11 @@ pragma language_version >= 0.26.0;
  * - `burnFromSelf` coin tracking: keep contract-held coins off-chain,
  *   recovering each coin's `mt_index` from the indexer's `ZswapOutput` /
  *   ledger events to build the `QualifiedShieldedCoinInfo` it takes.
- * - `burnFromSelf` change coin: persist the one it returns. It replaces the
- *   spent coin as the contract's holding and is not otherwise recoverable.
+ * - `burnFromSelf` change coin: it replaces the spent coin as the contract's
+ *   holding. Either persist the coin the circuit returns, or rebuild it from
+ *   the signed `coinNonce` and `coinValue`, which determine it, so recovery
+ *   doesn't need to rest on the submitter alone. Rebuilding leans on the protocol's
+ *   nonce derivation which this module neither defines nor pins.
  *
  * @notice Scalability:
  * - Throughput: one operation per block (see Concurrency).
