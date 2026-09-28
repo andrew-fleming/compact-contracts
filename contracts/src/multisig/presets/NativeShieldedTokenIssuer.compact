@@ -612,8 +612,8 @@ module NativeShieldedTokenIssuer {
       kernel.self().bytes,
       EvmAbi_uint64Word(opNonce),
       EvmAbi_uint64Word(amount),
-      disclose(coin.nonce),
-      EvmAbi_uint128Word(disclose(coin.value))
+      coin.nonce,
+      EvmAbi_uint128Word(coin.value)
     ]));
 
     EcdsaSignerManager_assertApprovals(msgHash, pubkeys, signatures);
