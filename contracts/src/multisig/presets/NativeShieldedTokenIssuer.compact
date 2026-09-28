@@ -136,14 +136,17 @@ pragma language_version >= 0.26.0;
  *
  * @notice Security:
  * - Digest binding: each struct binds its type hash, `self`, `opNonce` and
- *   `amount` (`mint` also `recipient`, `burn` also `refundTo`) under `DS`,
- *   so a
+ *   `amount` (`mint` also `recipient`, `burn` also `refundTo`,
+ *   `burnFromSelf` also `coin.nonce` and `coin.value`) under `DS`, so a
  *   signature authorizes one operation on one instance at one nonce, and is
  *   neither replayable as another operation, nor under another domain,
  *   nor redirectable. Removing the `self` word removes cross-instance
- *   replay protection, since `DS` cannot carry the address. `Burn` does not
- *   bind `coin`: the payer picks it, so a signature moved to another coin
- *   burns only the payer's own value and refunds the bound `refundTo`.
+ *   replay protection, since `DS` cannot carry the address. Only
+ *   `burnFromSelf` binds its coin, because only there does the submitter
+ *   pick it from the contract's own holdings. `Burn` needs no such word. Its
+ *   coin is paid into the tx by whoever submits it so replaying a
+ *   signature against a different coin destroys the submitter's own funds and
+ *   still refunds the bound `refundTo`.
  * - Low-s: verification goes through `Ecdsa_secp256k1EcdsaVerifyLowS`, so a
  *   high-s encoding is an invalid signature.
  * - Distinct signers: `assertApprovals` asserts both entries and rejects a
@@ -195,6 +198,9 @@ pragma language_version >= 0.26.0;
  *   re-nonces the coin first (a wallet self-transfer yields a fresh secret
  *   nonce); the minted coin as-is is valid but linkable. The contract cannot
  *   enforce this.
+ * - `burnFromSelf` coin selection: pick the coin before collecting
+ *   signatures, not after. Its `nonce` and `value` are in the digest, so
+ *   signers approve one holding and the submitted coin must be that one.
  * - `burnFromSelf` coin tracking: keep contract-held coins off-chain,
  *   recovering each coin's `mt_index` from the indexer's `ZswapOutput` /
  *   ledger events to build the `QualifiedShieldedCoinInfo` it takes.
