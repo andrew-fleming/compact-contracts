@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Compact Contracts v0.4.0-alpha.3 (multisig/examples/ForwarderShieldedExample.compact)
+// OpenZeppelin Compact Contracts v0.4.0-alpha.4 (multisig/examples/ForwarderShieldedExample.compact)
 
 pragma language_version >= 0.26.0;
 
@@ -24,7 +24,7 @@ pragma language_version >= 0.26.0;
 import CompactStandardLibrary;
 import "../ForwarderShielded" prefix Forwarder_;
 
-export { ZswapCoinPublicKey, ContractAddress, ShieldedCoinInfo, Either };
+export { ZswapCoinPublicKey, ContractAddress, ShieldedCoinInfo, ShieldedSendResult, Maybe, Either };
 
 /**
  * @description Deploys the forwarder bound to a specific parent
@@ -42,12 +42,15 @@ constructor(parent: ZswapCoinPublicKey) {
  * the configured parent. The coin is claimed via `receiveShielded` and
  * immediately re-sent via `sendImmediateShielded`.
  *
+ * The depositor must encrypt the forwarded output to the parent's
+ * encryption public key (see the `ForwarderShielded` header).
+ *
  * @param {ShieldedCoinInfo} coin - The incoming shielded coin.
  *
- * @returns {[]} Empty tuple.
+ * @returns {ShieldedSendResult} The coin sent to the parent, with no change.
  */
-export circuit deposit(coin: ShieldedCoinInfo): [] {
-  Forwarder__deposit(coin);
+export circuit deposit(coin: ShieldedCoinInfo): ShieldedSendResult {
+  return Forwarder__deposit(coin);
 }
 
 /**
