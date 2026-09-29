@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Changed
+## Changed
+
+- **Breaking:** Fix `NativeShieldedTokenIssuer` (#993)
+  - Bind the spent coin in `burnFromSelf`
+  - `BurnFromSelf` gains `coinNonce` and `coinValue`
 
 - **Breaking:** `ForwarderShielded._deposit` returns the forward's `ShieldedSendResult` instead of `[]`, and `ForwarderShieldedExample.deposit` returns it too (#999)
 
