@@ -7,7 +7,7 @@ import type { EcdsaSignature } from '#test-utils/fixtures/ecdsa.js';
 import {
   ledger,
   Contract as MockEcdsaSignerManagerSmallSet,
-} from '../../../../artifacts/MockEcdsaSignerManagerSmallSet/contract/index.js';
+} from '../../../../artifacts/multisig/test/mocks/MockEcdsaSignerManagerSmallSet/contract/index.js';
 import { EmptyPrivateState, emptyWitnesses } from '../EmptyWitnesses.js';
 
 type EcdsaSignerManagerSmallSetArgs = readonly [

@@ -8,7 +8,7 @@ import {
   ledger,
   Contract as MockEcdsaSignerManager,
   pureCircuits,
-} from '../../../../artifacts/MockEcdsaSignerManager/contract/index.js';
+} from '../../../../artifacts/multisig/test/mocks/MockEcdsaSignerManager/contract/index.js';
 import { EmptyPrivateState, emptyWitnesses } from '../EmptyWitnesses.js';
 
 type EcdsaSignerManagerArgs = readonly [

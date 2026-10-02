@@ -9,7 +9,7 @@ import {
   ledger,
   Contract as MockShieldedMultiSigV2,
   pureCircuits,
-} from '../../../../../artifacts/MockShieldedMultiSigV2/contract/index.js';
+} from '../../../../../artifacts/multisig/presets/test/mocks/MockShieldedMultiSigV2/contract/index.js';
 import {
   EmptyPrivateState,
   emptyWitnesses,

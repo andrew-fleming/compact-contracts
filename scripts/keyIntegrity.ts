@@ -19,6 +19,37 @@ function compactContractNames(...roots: string[]): Set<string> {
   return names;
 }
 
+/** Map every artifact directory under `artifactsRoot` by its contract name.
+ *
+ * An artifact directory is one holding the compiler's own output (`contract/`
+ * or `compiler/`), whatever its depth: flat (`artifacts/<Contract>/`) or
+ * hierarchical (`artifacts/<src path>/<Contract>/`, from `--hierarchical`).
+ * Walking for the marker rather than assuming a depth keeps this correct under
+ * either layout. Contract basenames are unique across `src/` and the
+ * integration mocks, which is what makes the name a safe key. */
+function artifactDirsByName(artifactsRoot: string): Map<string, string> {
+  const byName = new Map<string, string>();
+  const walk = (dir: string, depth: number): void => {
+    const subdirs = readdirSync(dir, { withFileTypes: true }).filter((e) =>
+      e.isDirectory(),
+    );
+    // `contract/`/`compiler/` mark a compiled artifact. A directory with no
+    // subdirectories at all is a leaf too: an artifact slot that was created
+    // and never filled, which `missingKeyArtifacts` must still report per file
+    // rather than as a wholly absent contract.
+    const isArtifact =
+      subdirs.some((e) => e.name === 'contract' || e.name === 'compiler') ||
+      (subdirs.length === 0 && depth > 0);
+    if (isArtifact) {
+      byName.set(path.basename(dir), dir);
+      return;
+    }
+    for (const e of subdirs) walk(path.join(dir, e.name), depth + 1);
+  };
+  if (existsSync(artifactsRoot)) walk(artifactsRoot, 0);
+  return byName;
+}
+
 function collectEmptyKeys(dir: string, out: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, entry.name);
@@ -65,10 +96,9 @@ export function emptyKeyArtifacts(
   const live =
     sourceRoots.length > 0 ? compactContractNames(...sourceRoots) : undefined;
   const empty: string[] = [];
-  for (const contract of readdirSync(artifactsRoot, { withFileTypes: true })) {
-    if (!contract.isDirectory()) continue;
-    if (live && !live.has(contract.name)) continue; // skip stale orphans
-    collectEmptyKeys(path.join(artifactsRoot, contract.name), empty);
+  for (const [name, dir] of artifactDirsByName(artifactsRoot)) {
+    if (live && !live.has(name)) continue; // skip stale orphans
+    collectEmptyKeys(dir, empty);
   }
   return empty;
 }
@@ -127,9 +157,10 @@ export function missingKeyArtifacts(
   ...sourceRoots: string[]
 ): string[] {
   const missing: string[] = [];
+  const byName = artifactDirsByName(artifactsRoot);
   for (const name of compactContractNames(...sourceRoots)) {
-    const dir = path.join(artifactsRoot, name);
-    if (!isDirectory(dir)) {
+    const dir = byName.get(name);
+    if (!dir || !isDirectory(dir)) {
       missing.push(name);
       continue;
     }

@@ -17,7 +17,7 @@ import {
 import {
   Contract as Example,
   ledger,
-} from '../../../../artifacts/ShieldedMultiSigV2Example/contract/index.js';
+} from '../../../../artifacts/multisig/examples/ShieldedMultiSigV2Example/contract/index.js';
 import { ShieldedMultiSigV2Simulator } from '../../presets/test/simulators/ShieldedMultiSigV2Simulator.js';
 import { executeMsgHash } from '../../test/EcdsaTestUtils.js';
 import {
