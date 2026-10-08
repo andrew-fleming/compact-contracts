@@ -1171,7 +1171,7 @@ module ConfidentialFungibleToken {
    * therefore reads its memo list and its epoch together, folds the memos into
    * its cache, and passes that epoch back here.
    *
-   * @circuitInfo k=13, rows=7075
+   * @constraints k=13, rows=7041
    *
    * @warning Clearing memos is destructive and can permanently lock funds. The
    * on-chain balance ciphertext is not directly decryptable (discrete-log
@@ -1182,6 +1182,8 @@ module ConfidentialFungibleToken {
    * folded into a durable cache/backup. The epoch check only rules out a credit
    * the caller has not seen; it does not make clearing safe for memos the caller
    * never folded in.
+   *
+   * @notice Returns the caller's `accountId` for caller-side gating.
    *
    * @param {Uint<64>} expectedEpoch - The caller's view of its credit epoch.
    *
