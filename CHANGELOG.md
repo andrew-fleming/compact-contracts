@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (breaking)
 
-- `clearMemos` in `ConfidentialFungibleToken` returns account id (#???)
+- `clearMemos` in `ConfidentialFungibleToken` returns account id (#1105)
 
 ## 0.4.0-alpha.6 (2026-10-06)
 
