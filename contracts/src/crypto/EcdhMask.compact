@@ -170,6 +170,10 @@ module EcdhMask {
    *         which is `< 2^128`).
    */
   export pure circuit decrypt(ciphertext: Ciphertext, ekScalar: JubjubScalar, domain: Bytes<32>): Field {
+    // `encrypt` never emits an identity ephemeral; one here is a malformed
+    // ciphertext whose mask is a public constant, so refuse rather than decrypt.
+    assert(ciphertext.ephemeralPk != ecMulGenerator(0 as JubjubScalar),
+           "EcdhMask: identity ephemeral");
     const sShared = ecMul(ciphertext.ephemeralPk, ekScalar);
     const mask = kdf(sShared, domain);
     return ciphertext.ct - mask;
