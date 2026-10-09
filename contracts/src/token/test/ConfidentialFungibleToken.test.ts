@@ -1063,7 +1063,7 @@ describe.skipIf(isLiveBackend())(
       expect(bal).toEqual(await cft.balanceOf(BOB.accountId));
     });
 
-    it('allowance returns the default entry when no escrow exists', async () => {
+    it('returns the absent-allowance placeholder when no escrow exists', async () => {
       const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
 
       // `ownerMemo` is a sentinel, not an encrypted zero. Wallets branch on
