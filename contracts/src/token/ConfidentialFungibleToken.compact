@@ -640,7 +640,8 @@ module ConfidentialFungibleToken {
    *
    * @param {Bytes<32>} owner - The account that granted the allowance.
    * @param {Bytes<32>} spender - The approved spender.
-   * @return {EscrowEntry} - The encrypted escrow entry (encrypted-zero if none).
+   * @return {EscrowEntry} - The encrypted escrow entry (a placeholder with the
+   * absent-allowance sentinel if none).
    */
   export circuit allowance(owner: Bytes<32>, spender: Bytes<32>): EscrowEntry {
     if (!_escrow.member(disclose(owner)) ||
