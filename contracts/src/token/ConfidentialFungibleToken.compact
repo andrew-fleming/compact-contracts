@@ -626,13 +626,13 @@ module ConfidentialFungibleToken {
    *
    * @notice The placeholder's `spenderCt` and `ownerCt` are genuine encryptions
    * of 0. Its `ownerMemo` is not: it is a sentinel for an absent allowance,
-   * recognised by `ephemeralPk == identity`, which `EcdhMask_encrypt` refuses to
-   * produce. Decrypting it yields a constant far above `MAX_TRANSFER_VALUE()`, so
-   * a wallet must test for the sentinel rather than decrypt and narrow it.
+   * recognised by `ephemeralPk == identity`, which `EcdhMask_encrypt` never
+   * produces and `EcdhMask_decrypt` rejects. A wallet must test for the
+   * sentinel rather than decrypt and narrow it.
    *
    * @notice "No allowance" and "an allowance of 0" both read as encrypted-zero in
-   * the amount fields; a caller that must distinguish them reads `_escrow`
-   * membership off-chain. This getter grants nothing, the spend path
+   * the amount fields; the memo sentinel tells them apart, since `approve` stores
+   * a real memo even for 0. This getter grants nothing, the spend path
    * (`transferFrom`/`burnFrom`) gates on `_escrow` membership independently, so a
    * non-existent allowance is unspendable.
    *
