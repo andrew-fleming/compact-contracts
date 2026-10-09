@@ -88,7 +88,8 @@ pragma language_version >= 0.23.0;
  * hiding encryption, so a stored slot still holding it is publicly recognizable
  * as zero by construction. An importing module that persists ciphertexts should
  * enumerate that among its own disclosures. A zero reached by homomorphic
- * subtraction is randomized and carries no such signal.
+ * subtraction is randomized only when the inputs' randomizers differ: `sub(ct,
+ * ct)` cancels both components and yields `(O, O)` again.
  */
 module ElGamal {
   import CompactStandardLibrary;
