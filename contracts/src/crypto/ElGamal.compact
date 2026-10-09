@@ -218,7 +218,7 @@ module ElGamal {
    *
    * @notice This is a fixed, deterministic value `(O, O)` — NOT a hiding
    * encryption. It is publicly recognizable, so a slot holding `encryptZero` is
-   * distinguishable as zero by construction — never written, or reset to it.
+   * distinguishable as zero by construction (never written, or reset to it).
    * Rerandomize (or credit with fresh `r`) before treating it as private.
    */
   export pure circuit encryptZero(): Ciphertext {
