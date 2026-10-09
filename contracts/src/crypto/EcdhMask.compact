@@ -49,6 +49,8 @@ pragma language_version >= 0.26.0;
  * an out-of-range scalar: `g^e = identity` captures both `e = 0` and any
  * `e ≡ 0 (mod ℓ)`. (Guarding `e != 0` directly would instead lean on the runtime
  * faulting `ecMul` for scalars `≥ ℓ`; the point guard removes that dependency.)
+ * `decrypt` guards the same point, refusing an identity ephemeral rather than
+ * unmasking against that public constant.
  * These are the only weak inputs (for a subgroup key, `S = identity` iff the
  * ephemeral point is the identity).
  *
@@ -161,6 +163,10 @@ module EcdhMask {
   /**
    * @description Recovers the value from a ciphertext using the recipient's
    * secret scalar. Pure and off-chain (no proof needed to read a received value).
+   *
+   * Requirements:
+   *
+   * - `ciphertext.ephemeralPk` is not the identity point.
    *
    * @param ciphertext - The ciphertext to decrypt.
    * @param ekScalar - The recipient's secret scalar (`crypto/ElGamal`'s
