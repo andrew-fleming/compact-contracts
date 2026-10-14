@@ -1021,8 +1021,8 @@ describe.skipIf(isLiveBackend())(
       ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');
     });
 
-    it('does not produce the sentinel memo for approve', async () => {
-      await approveBob(100n, 40n);
+    it('approve(spender, 0) stores a real memo, not the sentinel', async () => {
+      await approveBob(100n, 0n);
 
       const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
       expect(entry.ownerMemo.ephemeralPk).not.toEqual(identityPoint());
