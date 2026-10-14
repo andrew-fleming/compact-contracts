@@ -1003,8 +1003,8 @@ describe.skipIf(isLiveBackend())(
       ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');
     });
 
-    it('does not produce the sentinel memo for approve', async () => {
-      await approveBob(100n, 40n);
+    it('approve(spender, 0) stores a real memo, not the sentinel', async () => {
+      await approveBob(100n, 0n);
 
       const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
       expect(entry.ownerMemo.ephemeralPk).not.toEqual(identityPoint());
@@ -1052,6 +1052,15 @@ describe.skipIf(isLiveBackend())(
       // this shape, so pin it rather than only comparing two absent entries.
       expect(entry.ownerMemo.ephemeralPk).toEqual(identityPoint());
       expect(entry.ownerMemo.ct).toBe(0n);
+
+      const ownerScalar = elgamal.secretToScalar(ALICE.encryptionKey);
+      expect(() =>
+        ecdhMask.decrypt(
+          entry.ownerMemo,
+          ownerScalar,
+          padTag('OZ_CFT_escrow_owner_v1'),
+        ),
+      ).toThrow('identity ephemeral');
 
       expect(entry).toEqual(
         await cft.allowance(BOB.accountId, CHARLIE.accountId),
