@@ -1071,6 +1071,15 @@ describe.skipIf(isLiveBackend())(
       expect(entry.ownerMemo.ephemeralPk).toEqual(identityPoint());
       expect(entry.ownerMemo.ct).toBe(0n);
 
+      const ownerScalar = await elgamal.secretToScalar(ALICE.encryptionKey);
+      await expect(
+        ecdhMask.decrypt(
+          entry.ownerMemo,
+          ownerScalar,
+          padTag('OZ_CFT_escrow_owner_v1'),
+        ),
+      ).rejects.toThrow('identity ephemeral');
+
       expect(entry).toEqual(
         await cft.allowance(BOB.accountId, CHARLIE.accountId),
       );
