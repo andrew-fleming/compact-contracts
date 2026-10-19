@@ -28,7 +28,7 @@ See ["Fork-a-Repo"](https://help.github.com/articles/fork-a-repo/) for how this 
 
 Coding conventions live in [`GUIDELINES.md`](GUIDELINES.md):
 the single source of truth for naming, section ordering, idioms, testing and documentation.
-The design rationale and constraints live in [`ARCHITECTURE.md`](ARCHITECTURE.md) (coming soon!).
+The design rationale and constraints live in `ARCHITECTURE.md` (coming soon!).
 Read them before opening a PR.
 The items below are the hard gates your contribution must clear:
 
@@ -68,7 +68,7 @@ The single source of truth for how changes land, and humans and agents follow th
 
 ## AI-assisted contributions
 
-AI coding assistants are welcome (see [`AGENTS.md`](AGENTS.md), coming soon! for the agent setup),
+AI coding assistants are welcome (see `AGENTS.md`, coming soon! for the agent setup),
 but review thoroughly every line you submit.
 What does not change is who is answerable for the result:
 
@@ -80,7 +80,7 @@ What does not change is who is answerable for the result:
   and an unreviewed generated diff spends it faster than anything else.
 - **Do a local review pass before requesting a human one.**
   Run the tests, the formatter and the linter,
-  then follow the `code-quality` review procedure (see [`AGENTS.md`](AGENTS.md), coming soon! for how to use it with your agent).
+  then follow the `code-quality` review procedure (see `AGENTS.md`, coming soon! for how to use it with your agent).
   Act on what these checks report.
 
 We may close low-effort AI output without further explanation.
