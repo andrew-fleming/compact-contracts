@@ -17,7 +17,9 @@ import {
 // `_escrow` map directly, so an escrow can exist for a party that never
 // registered. `_spendEscrow` must stop on its own registration guards rather
 // than on a raw missing-key read of `_encryptionKeys`; without those guards
-// the failures below surface as `expected a cell, received null`.
+// every rejection below surfaces as `expected a cell, received null`. The
+// owner cases spend 0 so that, unguarded, they clear the allowance bound and
+// reach the owner-key read instead of stopping at `insufficient allowance`.
 // ---------------------------------------------------------------------------
 
 let cft: ComposedEscrowBypassSimulator;
@@ -57,7 +59,7 @@ describe.skipIf(isLiveBackend())(
 
       await actAs(cft, BOB);
       await expect(
-        cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 1n),
+        cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 0n),
       ).rejects.toThrow('ConfidentialFungibleToken: owner not registered');
     });
 
@@ -66,7 +68,7 @@ describe.skipIf(isLiveBackend())(
       await cft.plantEscrow(ALICE.accountId, BOB.accountId);
 
       await actAs(cft, BOB);
-      await expect(cft._burnFrom(ALICE.accountId, 1n)).rejects.toThrow(
+      await expect(cft._burnFrom(ALICE.accountId, 0n)).rejects.toThrow(
         'ConfidentialFungibleToken: owner not registered',
       );
     });
