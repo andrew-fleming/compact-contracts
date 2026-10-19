@@ -73,15 +73,14 @@ describe.skipIf(isLiveBackend())(
 
     it('should let a planted escrow between registered parties reach the allowance check', async () => {
       // Negative control: with both keys present the guards pass, and the
-      // default entry (an encryption of zero) fails on the amount instead.
+      // planted entry (an encryption of zero, which the witness reads as 0
+      // with no cache entry) fails on the amount instead.
       await registerAs(cft, ALICE);
       await registerAs(cft, BOB);
       await registerAs(cft, CHARLIE);
       await cft.plantEscrow(ALICE.accountId, BOB.accountId);
 
       await actAs(cft, BOB);
-      const planted = await cft.allowance(ALICE.accountId, BOB.accountId);
-      await cft.privateState.cachePlaintext(planted.spenderCt, 0n);
       await expect(
         cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 1n),
       ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');

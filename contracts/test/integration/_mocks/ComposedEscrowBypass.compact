@@ -5,9 +5,9 @@
 // DO NOT use this pattern in production.
 
 // Top-level contract composing the production `ConfidentialFungibleToken`
-// module with one extra entry point, `plantEscrow`, which inserts a `default`
-// escrow entry (an encryption of zero) for any (owner, spender) pair without
-// going through `approve`. Every exported ledger field is writable by a
+// module with one extra entry point, `plantEscrow`, which inserts a zero
+// escrow entry (encryptions of zero, identity memo) for any (owner, spender)
+// pair without going through `approve`. Every exported ledger field is writable by a
 // composing contract, so this is a reachable state. The `escrowBypass` spec
 // drives it to assert that `_spendEscrow` then stops on its own registration
 // guards rather than on a missing-key read of `_encryptionKeys`.
@@ -17,6 +17,7 @@ import CompactStandardLibrary;
 
 import "../../../src/token/ConfidentialFungibleToken" prefix Token_;
 import "../../../src/crypto/ElGamal" prefix ElGamal_;
+import "../../../src/crypto/EcdhMask" prefix EcdhMask_;
 
 export { Token_EscrowEntry, ElGamal_Ciphertext };
 export { Token__encryptionKeys, Token__escrow };
@@ -54,5 +55,14 @@ export circuit plantEscrow(owner: Bytes<32>, spender: Bytes<32>): [] {
   if (!Token__escrow.member(disclose(owner))) {
     Token__escrow.insert(disclose(owner), default<Map<Bytes<32>, Token_EscrowEntry>>);
   }
-  Token__escrow.lookup(disclose(owner)).insert(disclose(spender), default<Token_EscrowEntry>);
+  // An encryption of zero on both sides and an identity memo: the same entry
+  // `_refundPriorEscrow` plants as its transient placeholder.
+  Token__escrow.lookup(disclose(owner)).insert(disclose(spender), Token_EscrowEntry {
+    spenderCt: ElGamal_encryptZero(),
+    ownerCt:   ElGamal_encryptZero(),
+    ownerMemo: EcdhMask_Ciphertext {
+      ephemeralPk: ecMulGenerator(0 as JubjubScalar),
+      ct: 0 as Field
+    }
+  });
 }
