@@ -13,7 +13,7 @@ Unit tests run against an in-process mock backend: no network, ZK proving skippe
 
 ```bash
 yarn test
-yarn test:coverage   # the per-file coverage gate CI enforces
+yarn test:coverage   # run locally (not yet a CI check)
 ```
 
 ## Integration tests
