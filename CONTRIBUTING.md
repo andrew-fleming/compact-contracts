@@ -129,7 +129,7 @@ We may close low-effort AI output without further explanation.
 
    ```sh
    git add .
-   git commit -S -m "fix: some bug short description #123"
+   git commit -S -m "fix(token): reject zero-amount transfers"
    git push origin fix/some-bug-short-description-123
    ```
 
