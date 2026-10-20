@@ -142,6 +142,9 @@ module ShieldedTreasury {
    * the retained change coin, and nothing at all when the send leaves no change,
    * so the sent coin's plaintext is disclosed beyond anything in public state.
    *
+   * @dev A self-addressed coin is auto-received by `sendShielded` but never recorded
+   * in _coins so it would be stranded. Therefore, this circuit rejects sends to self.
+   *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
    * authorization policy.
