@@ -167,9 +167,6 @@ describe('ShieldedTreasury', () => {
     });
 
     it('should reject a send to the treasury itself', async () => {
-      // A self-addressed send moves no value: the protocol would hand the sent
-      // coin back to this contract, but outside `_coins`, where no circuit here
-      // could spend it again, while `_sent` would count it as gone.
       const self = eitherContractFromAddress(treasury.contractAddress);
       await expect(treasury._send(self, COLOR, 400n)).rejects.toThrow(
         'ShieldedTreasury: self-send',
@@ -178,10 +175,6 @@ describe('ShieldedTreasury', () => {
       expect(await treasury.getSentTotal(COLOR)).toEqual(0n);
     });
 
-    // Dry only: the guard is keyed on THIS contract's address, not on contract
-    // recipients in general. A foreign contract address passes it and reaches
-    // `sendShielded`, which the dry simulator accepts; on the node it fails
-    // later, in the effects check, for a different reason.
     it.skipIf(isLiveBackend())(
       'should not reject a foreign contract address (the guard is self-specific)',
       async () => {
