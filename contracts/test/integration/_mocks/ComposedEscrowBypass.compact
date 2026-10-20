@@ -34,10 +34,6 @@ export circuit register(): Bytes<32> {
   return Token_register();
 }
 
-export circuit allowance(owner: Bytes<32>, spender: Bytes<32>): Token_EscrowEntry {
-  return Token_allowance(owner, spender);
-}
-
 export circuit transferFrom(
     fromAddress: Bytes<32>,
     to: Bytes<32>,

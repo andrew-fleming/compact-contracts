@@ -4,9 +4,7 @@ import {
 } from '@openzeppelin/compact-simulator';
 import {
   Contract as ComposedEscrowBypass,
-  type ElGamal_Ciphertext,
   ledger,
-  type Token_EscrowEntry,
 } from '../../../artifacts/ComposedEscrowBypass/contract/index.js';
 import {
   ConfidentialFungibleTokenPrivateState,
@@ -70,13 +68,6 @@ export class ComposedEscrowBypassSimulator extends Base {
     return this.circuits.impure.register();
   }
 
-  public allowance(
-    owner: Uint8Array,
-    spender: Uint8Array,
-  ): Promise<Token_EscrowEntry> {
-    return this.circuits.impure.allowance(owner, spender);
-  }
-
   public transferFrom(
     fromAddress: Uint8Array,
     to: Uint8Array,
@@ -92,7 +83,7 @@ export class ComposedEscrowBypassSimulator extends Base {
     return this.circuits.impure._burnFrom(fromAddress, value);
   }
 
-  /** @description The bypass: a default escrow entry written without `approve`. */
+  /** @description The bypass: a zero escrow entry written without `approve`. */
   public plantEscrow(owner: Uint8Array, spender: Uint8Array): Promise<[]> {
     return this.circuits.impure.plantEscrow(owner, spender);
   }
@@ -108,18 +99,6 @@ export class ComposedEscrowBypassSimulator extends Base {
         plaintextCache: new Map<string, bigint>(),
         randomnessSeed: current.randomnessSeed ?? DEFAULT_RANDOMNESS_SEED,
       })),
-
-    cachePlaintext: (
-      ct: ElGamal_Ciphertext,
-      plaintext: bigint,
-    ): Promise<ConfidentialFungibleTokenPrivateState> =>
-      this.updatePrivateState((current) =>
-        ConfidentialFungibleTokenPrivateState.cachePlaintext(
-          current,
-          ct,
-          plaintext,
-        ),
-      ),
   };
 }
 
