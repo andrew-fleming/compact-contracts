@@ -148,6 +148,7 @@ module ShieldedTreasury {
    *
    * Requirements:
    *
+   * - `recipient` must not be this contract's own address.
    * - A coin of the given `color` must exist in the treasury.
    * - The coin's value must be >= `amount`.
    * - Send must not cause sent total overflow.
@@ -163,6 +164,11 @@ module ShieldedTreasury {
     color: Bytes<32>,
     amount: Uint<128>
   ): ShieldedSendResult {
+    // `kernel.self()` stays outside the `||`: the compiler treats a ledger
+    // read behind a witness-conditioned branch as an undeclared disclosure
+    const self = kernel.self();
+    assert(recipient.is_left || recipient.right != self,
+           "ShieldedTreasury: self-send");
     assert(_coins.member(disclose(color)), "ShieldedTreasury: no balance");
 
     const coin = _coins.lookup(disclose(color));
