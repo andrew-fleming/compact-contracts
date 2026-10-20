@@ -175,6 +175,7 @@ describe('ShieldedTreasury', () => {
       expect(await treasury.getSentTotal(COLOR)).toEqual(0n);
     });
 
+    // A foreign contract never claims the output in-tx, so the node rejects the send.
     it.skipIf(isLiveBackend())(
       'should not reject a foreign contract address (the guard is self-specific)',
       async () => {
