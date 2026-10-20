@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking:** `ShieldedAccessControl`: revoking or renouncing a `(role, accountId)` pairing that was never granted reverts with `role was never granted`, so a nullifier can only exist for a granted pairing (#1116)
 - `ShieldedTreasury._send` rejects self as recipient (#)
+- **Breaking:** `UnshieldedTreasury._send` rejects the contract's own address as recipient with `UnshieldedTreasury: self-send`. A self-addressed send is auto-received, so the funds stayed held while the tracked balance dropped and `_send` could no longer reach them. (#1177)
 
 ## 0.4.0-alpha.6 (2026-10-06)
 
