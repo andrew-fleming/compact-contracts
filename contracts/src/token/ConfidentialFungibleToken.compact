@@ -256,7 +256,13 @@ pragma language_version >= 0.26.0;
  * it is deployed, so off-chain code mirroring `derivePk` must use that one for
  * the life of the instance. Adopting a newer derivation cannot recover an
  * instance whose keys were stored under the old one. A changed derivation
- * applies to fresh deployments only.
+ * applies to fresh deployments only. Stored points are the other quiet one.
+ * `_encryptionKeys`, and the points inside every ciphertext in `_balances`,
+ * `_pending`, `_escrow` and `_memos`, persist in the runtime's `JubjubPoint`
+ * encoding: the affine `(x, y)` pair as two field elements. The runtime
+ * documents no stability guarantee for that encoding and nothing here versions
+ * or migrates it, so a runtime change to how a point is encoded or normalized
+ * is a breaking storage change for every existing instance.
  *
  * Residual griefing. The dual-balance split (see `sweep`) stops dust
  * credits from churning a victim's spendable ciphertext, but every `_credit`
