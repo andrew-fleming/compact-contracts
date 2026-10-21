@@ -242,6 +242,13 @@ pragma language_version >= 0.23.0;
  * Raising the limit itself is a node-side change, tracked upstream:
  * https://github.com/midnightntwrk/midnight-node/issues/1202.
  *
+ * Stored points. `_encryptionKeys`, and the points inside every ciphertext in
+ * `_balances`, `_pending`, `_escrow` and `_memos`, persist in the runtime's
+ * `JubjubPoint` encoding: the affine `(x, y)` pair as two field elements. The
+ * runtime documents no stability guarantee for that encoding and nothing here
+ * versions or migrates it, so a runtime change to how a point is encoded or
+ * normalized is a breaking storage change for every existing instance.
+ *
  * Residual griefing. The dual-balance split (see `sweep`) stops dust
  * credits from churning a victim's spendable ciphertext, but every `_credit`
  * still appends a memo, and only the recipient can `clearMemos`. An attacker
