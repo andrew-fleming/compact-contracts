@@ -853,6 +853,10 @@ describe('ProposalManager', () => {
       expect(await contract.getProposalStatus(id)).toEqual(
         ProposalStatus.Expired,
       );
+      // Expiry is derived, not written: the stored status is still Active.
+      expect((await contract.getProposal(id)).status).toEqual(
+        ProposalStatus.Active,
+      );
     });
 
     it('should report Expired at exactly the expiry', async () => {
