@@ -139,8 +139,8 @@ module ShieldedMultiSigV2<#t> {
    *
    * No access control which allows anyone to deposit. The coin is claimed at the
    * protocol level through receiveShielded. No coin data is stored on the
-   * public ledger, so the balance is hidden from everyone but a depositor who
-   * knows the coin (see the module notice).
+   * public ledger, so no balance is readable from it; a depositor can still
+   * follow the coin they deposited (see the module notice).
    *
    * The operator discovers the coin's Merkle tree index by subscribing
    * to ZswapOutput events via the indexer, filtering by contract address,
