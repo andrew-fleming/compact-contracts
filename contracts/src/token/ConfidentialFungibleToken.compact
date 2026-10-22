@@ -825,6 +825,12 @@ module ConfidentialFungibleToken {
    * `sum(balances) == totalSupply` invariant. Pair it with a debit (as `transfer`
    * does) or a supply increase (as a supply layer's `mint` does).
    *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - `value` is within `MAX_TRANSFER_VALUE()`.
+   * - `account` is non-zero and registered.
+   *
    * @param account - The recipient account id.
    * @param value - The amount to credit.
    */
@@ -1308,6 +1314,13 @@ module ConfidentialFungibleToken {
    * for learning how much a partial spend left them; without it the owner could
    * not prove the post-refund balance on a later re-approve/revoke. See the
    * `EscrowEntry` field doc.
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - `value` is within `MAX_TRANSFER_VALUE()`.
+   * - `fromAddress` has an escrow for the caller, and its spender copy decrypts
+   *   to at least `value`.
    *
    * @param fromAddress - The owner whose escrow the caller (spender) draws on.
    * @param value - The amount to consume from the allowance.
