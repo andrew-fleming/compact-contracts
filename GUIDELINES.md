@@ -27,9 +27,15 @@ TypeScript code should be written in a consistent format enforced by the project
 
 ## Hashing and domain tags
 
-Hash preimages are fixed-width: a struct hashes identically to a `Vector` of the same field types, so the struct type is not a separator. Separate hash domains with a fixed tag, `pad(32, "<Module>:<purpose>")`, named after the module that owns the derivation.
+Hash preimages are fixed-width:
+a struct hashes identically to a `Vector` of the same field types,
+so the struct type is not a separator.
+Separate hash domains with a fixed tag,
+`pad(32, "<Module>:<purpose>")`, named after the module that owns the derivation.
 
-Put the tag first. In a new hashed structure, the domain tag is the first word of the preimage, so preimages of the same shape always carry their tag in the same position.
+Put the tag first.
+In a new hashed structure, the domain tag is the first word of the preimage,
+so preimages of the same shape always carry their tag in the same position.
 
 Keep existing orders until further notice.
 Moving a tag in an existing derivation changes every value derived from it and is treated as a breaking change.
