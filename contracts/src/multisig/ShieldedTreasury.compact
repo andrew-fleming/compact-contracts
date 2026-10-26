@@ -87,8 +87,8 @@ module ShieldedTreasury {
    * same color still waiting to be applied. A consumer that exposes `_deposit`
    * without access control lets any depositor delay authorized sends for as
    * long as they keep depositing; the sends must then be re-proven. No funds are
-   * lost. Zero-value coins are rejected so that this costs the depositor a unit
-   * of the token on top of the transaction fee.
+   * lost. A zero-value coin is rejected, so each deposit costs at least one unit
+   * of the token plus the transaction fee.
    *
    * @notice Access control is NOT enforced here.
    * The consuming contract must gate this behind its own
