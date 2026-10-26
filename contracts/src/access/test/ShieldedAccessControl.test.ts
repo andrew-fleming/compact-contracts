@@ -557,9 +557,18 @@ describe('ShieldedAccessControl', () => {
         });
 
         it('when granting the same role multiple times to the same accountId', async () => {
+          const slotsBefore = (
+            await contract.getPublicState()
+          ).ShieldedAccessControl__operatorRoles.firstFree();
+
           await contract.grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
           await contract.grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
           await contract.grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
+
+          const slotsAfter = (
+            await contract.getPublicState()
+          ).ShieldedAccessControl__operatorRoles.firstFree();
+          expect(slotsAfter).toBe(slotsBefore + 1n);
 
           await contract.privateState.injectSecretKey(OPERATOR_1_SK);
           expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
@@ -661,7 +670,7 @@ describe('ShieldedAccessControl', () => {
         expect(root2.field).not.toBe(root1.field);
       });
 
-      it('should insert multiple leaves for the same (role, accountId)', async () => {
+      it('should not insert a second leaf for the same (role, accountId)', async () => {
         const rootBefore = (
           await contract.getPublicState()
         ).ShieldedAccessControl__operatorRoles.root();
@@ -676,9 +685,31 @@ describe('ShieldedAccessControl', () => {
           await contract.getPublicState()
         ).ShieldedAccessControl__operatorRoles.root();
 
-        // Each grant should change the root (new leaf inserted)
         expect(rootAfterFirst).not.toEqual(rootBefore);
-        expect(rootAfterSecond).not.toEqual(rootAfterFirst);
+        expect(rootAfterSecond).toEqual(rootAfterFirst);
+      });
+
+      it('should consume one slot per distinct pairing under repeated grants', async () => {
+        const slotsBefore = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+
+        for (let i = 0; i < 20; i++) {
+          await contract._grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
+        }
+        const slotsAfterRepeats = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        expect(slotsAfterRepeats).toBe(slotsBefore + 1n);
+
+        await contract._grantRole(ROLE_OP1, OP2_ACCOUNT_ID);
+        const slotsAfterDistinct = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        expect(slotsAfterDistinct).toBe(slotsBefore + 2n);
+
+        await contract.privateState.injectSecretKey(OPERATOR_1_SK);
+        expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
       });
 
       it('should invalidate all duplicates with a single revocation', async () => {
@@ -701,6 +732,23 @@ describe('ShieldedAccessControl', () => {
         await expect(
           contract._grantRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID),
         ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
+      });
+
+      it('should throw when re-granting a repeatedly granted then revoked pairing', async () => {
+        await contract._grantRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID);
+        await contract._grantRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID);
+        await contract._revokeRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID);
+
+        const slotsBefore = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        await expect(
+          contract._grantRole(ROLE_ADMIN, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
+        const slotsAfter = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        expect(slotsAfter).toBe(slotsBefore);
       });
 
       it('should not update tree when granting to a revoked accountId', async () => {
@@ -749,6 +797,29 @@ describe('ShieldedAccessControl', () => {
           await expect(
             contract.revokeRole(ROLE_OP1, OP1_ACCOUNT_ID),
           ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
+        });
+
+        it('when revoking a role that was never granted', async () => {
+          await expect(
+            contract.revokeRole(ROLE_NONEXISTENT, ADMIN_ACCOUNT_ID),
+          ).rejects.toThrow('ShieldedAccessControl: role was never granted');
+        });
+
+        it('when revoking a role from an accountId that never held it', async () => {
+          await expect(
+            contract.revokeRole(ROLE_OP1, UNAUTHORIZED_ACCOUNT_ID),
+          ).rejects.toThrow('ShieldedAccessControl: role was never granted');
+        });
+
+        it('when revoking a never-granted role should not update nullifier set', async () => {
+          await expect(
+            contract.revokeRole(ROLE_NONEXISTENT, OP2_ACCOUNT_ID),
+          ).rejects.toThrow();
+          expect(
+            (
+              await contract.getPublicState()
+            ).ShieldedAccessControl__roleCommitmentNullifiers.size(),
+          ).toBe(0n);
         });
 
         it('when admin provides wrong secret key', async () => {
@@ -819,25 +890,14 @@ describe('ShieldedAccessControl', () => {
           ).rejects.toThrow('ShieldedAccessControl: unauthorized account');
         });
 
-        it('when revoking a role that was never granted', async () => {
-          await contract.revokeRole(ROLE_NONEXISTENT, ADMIN_ACCOUNT_ID);
-          expect(await contract.canProveRole(ROLE_NONEXISTENT)).toBe(false);
-        });
-
-        it('when revoking a role from an unauthorized accountId that was never granted', async () => {
-          await contract.revokeRole(ROLE_OP1, UNAUTHORIZED_ACCOUNT_ID);
-
+        it('when granting a pairing whose revocation was rejected', async () => {
           await expect(
-            contract._grantRole(ROLE_OP1, UNAUTHORIZED_ACCOUNT_ID),
-          ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
-        });
+            contract.revokeRole(ROLE_OP2, OP2_ACCOUNT_ID),
+          ).rejects.toThrow('ShieldedAccessControl: role was never granted');
 
-        it('when revoking a never-granted role should permanently block future grants', async () => {
-          await contract.revokeRole(ROLE_NONEXISTENT, OP2_ACCOUNT_ID);
-
-          await expect(
-            contract._grantRole(ROLE_NONEXISTENT, OP2_ACCOUNT_ID),
-          ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
+          await contract.grantRole(ROLE_OP2, OP2_ACCOUNT_ID);
+          await contract.privateState.injectSecretKey(OPERATOR_2_SK);
+          expect(await contract.canProveRole(ROLE_OP2)).toBe(true);
         });
 
         it('when admin role is revoked and re-issued then can revoke again', async () => {
@@ -905,8 +965,31 @@ describe('ShieldedAccessControl', () => {
         expect(sizeBefore).toEqual(sizeAfter);
       });
 
-      it('should allow revoking a role that was never granted', async () => {
-        await contract._revokeRole(ROLE_NONEXISTENT, ADMIN_ACCOUNT_ID);
+      it('should throw when revoking a role that was never granted', async () => {
+        await expect(
+          contract._revokeRole(ROLE_NONEXISTENT, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow('ShieldedAccessControl: role was never granted');
+      });
+
+      it('should not update nullifier set when revoking a never-granted pairing', async () => {
+        await expect(
+          contract._revokeRole(ROLE_NONEXISTENT, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow();
+        expect(
+          (
+            await contract.getPublicState()
+          ).ShieldedAccessControl__roleCommitmentNullifiers.size(),
+        ).toBe(0n);
+      });
+
+      it('should allow granting a pairing whose revocation was rejected', async () => {
+        await expect(
+          contract._revokeRole(ROLE_OP1, OP1_ACCOUNT_ID),
+        ).rejects.toThrow('ShieldedAccessControl: role was never granted');
+
+        await contract._grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
+        await contract.privateState.injectSecretKey(OPERATOR_1_SK);
+        expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
       });
     });
 
@@ -990,24 +1073,35 @@ describe('ShieldedAccessControl', () => {
         expect(await contract.canProveRole(ROLE_OP2)).toBe(true);
       });
 
-      // Pre-burn scenario: a user can burn a nullifier for a (role, accountId) pairing
-      // that was never granted. This permanently blocks future grants to that accountId
-      // for the specified role, but does not affect other accountIds holding the same role
-      it('should allow renouncing a role never granted to this accountId', async () => {
-        // OP1 has ROLE_OP1, but ADMIN does not
+      it('should throw when renouncing a role never granted to this accountId', async () => {
         await contract._grantRole(ROLE_OP1, OP1_ACCOUNT_ID);
 
-        // ADMIN renounces ROLE_OP1 despite never holding it
-        await contract.renounceRole(ROLE_OP1, ADMIN_ACCOUNT_ID);
+        await expect(
+          contract.renounceRole(ROLE_OP1, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow('ShieldedAccessControl: role was never granted');
 
-        // OP1's grant is unaffected — different accountId, different nullifier
         await contract.privateState.injectSecretKey(OPERATOR_1_SK);
         expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
+      });
 
-        // ADMIN's accountId is now burned for ROLE_OP1
+      it('should not update nullifier set when renouncing a never-granted role', async () => {
         await expect(
-          contract._grantRole(ROLE_OP1, ADMIN_ACCOUNT_ID),
-        ).rejects.toThrow('ShieldedAccessControl: role is already revoked');
+          contract.renounceRole(ROLE_OP1, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow();
+        expect(
+          (
+            await contract.getPublicState()
+          ).ShieldedAccessControl__roleCommitmentNullifiers.size(),
+        ).toBe(0n);
+      });
+
+      it('should allow granting a role whose renunciation was rejected', async () => {
+        await expect(
+          contract.renounceRole(ROLE_OP1, ADMIN_ACCOUNT_ID),
+        ).rejects.toThrow('ShieldedAccessControl: role was never granted');
+
+        await contract._grantRole(ROLE_OP1, ADMIN_ACCOUNT_ID);
+        expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
       });
     });
 
@@ -1157,6 +1251,21 @@ describe('ShieldedAccessControl', () => {
         expect(await contract.canProveRole(ROLE_OP1)).toBe(true);
         expect(await contract.canProveRole(ROLE_OP2)).toBe(false);
         expect(await contract.canProveRole(ROLE_OP3)).toBe(true);
+      });
+
+      it('should consume one slot per role for the same accountId', async () => {
+        const slots = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        expect(slots).toBe(4n);
+
+        await contract._grantRole(ROLE_OP1, ADMIN_ACCOUNT_ID);
+        await contract._grantRole(ROLE_OP2, ADMIN_ACCOUNT_ID);
+
+        const slotsAfter = (
+          await contract.getPublicState()
+        ).ShieldedAccessControl__operatorRoles.firstFree();
+        expect(slotsAfter).toBe(4n);
       });
     });
 
