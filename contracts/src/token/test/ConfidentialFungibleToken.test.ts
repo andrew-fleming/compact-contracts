@@ -728,6 +728,25 @@ describe.skipIf(isLiveBackend())(
       );
     });
 
+    it('rejects an approve exceeding the spendable balance', async () => {
+      await registerAll();
+      await cft.privateState.switchIdentity(
+        ALICE.secretKey,
+        ALICE.encryptionKey,
+      );
+      await cft._mint(ALICE.accountId, 100n);
+      await cft.sweep();
+      await cft.privateState.cachePlaintext(
+        await cft.balanceOf(ALICE.accountId),
+        100n,
+      );
+      await expect(cft.approve(BOB.accountId, 101n)).rejects.toThrow(
+        'ConfidentialFungibleToken: insufficient balance',
+      );
+      // The bound is the balance itself: approving exactly 100 is allowed.
+      await cft.approve(BOB.accountId, 100n);
+    });
+
     it('rejects transferFrom to the zero account', async () => {
       await approveBob(100n, 40n);
       await cft.privateState.switchIdentity(BOB.secretKey, BOB.encryptionKey);
@@ -1002,6 +1021,13 @@ describe.skipIf(isLiveBackend())(
         cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 1n),
       ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');
     });
+
+    it('approve(spender, 0) stores a real memo, not the sentinel', async () => {
+      await approveBob(100n, 0n);
+
+      const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
+      expect(entry.ownerMemo.ephemeralPk).not.toEqual(identityPoint());
+    });
   },
 );
 
@@ -1038,23 +1064,33 @@ describe.skipIf(isLiveBackend())(
       expect(bal).toEqual(await cft.balanceOf(BOB.accountId));
     });
 
-    it('allowance returns the encrypted-zero entry when no escrow exists', async () => {
-      // Pin the exact shape, not just that two missing pairs agree: every
-      // point is the identity (an on-curve Enc(0), decryptable by a wallet),
-      // and the memo pad is zero.
+    it('returns the absent-allowance placeholder when no escrow exists', async () => {
+      const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
       const id = identityPoint();
-      for (const [owner, spender] of [
-        [ALICE.accountId, BOB.accountId],
-        [BOB.accountId, CHARLIE.accountId],
-      ]) {
-        const entry = await cft.allowance(owner, spender);
-        expect(entry.spenderCt.c1).toEqual(id);
-        expect(entry.spenderCt.c2).toEqual(id);
-        expect(entry.ownerCt.c1).toEqual(id);
-        expect(entry.ownerCt.c2).toEqual(id);
-        expect(entry.ownerMemo.ephemeralPk).toEqual(id);
-        expect(entry.ownerMemo.ct).toBe(0n);
-      }
+
+      // The amount fields are genuine encryptions of 0.
+      expect(entry.spenderCt.c1).toEqual(id);
+      expect(entry.spenderCt.c2).toEqual(id);
+      expect(entry.ownerCt.c1).toEqual(id);
+      expect(entry.ownerCt.c2).toEqual(id);
+
+      // `ownerMemo` is a sentinel, not an encrypted zero. Wallets branch on
+      // this shape, so pin it rather than only comparing two absent entries.
+      expect(entry.ownerMemo.ephemeralPk).toEqual(id);
+      expect(entry.ownerMemo.ct).toBe(0n);
+
+      const ownerScalar = elgamal.secretToScalar(ALICE.encryptionKey);
+      expect(() =>
+        ecdhMask.decrypt(
+          entry.ownerMemo,
+          ownerScalar,
+          padTag('OZ_CFT_escrow_owner_v1'),
+        ),
+      ).toThrow('identity ephemeral');
+
+      expect(entry).toEqual(
+        await cft.allowance(BOB.accountId, CHARLIE.accountId),
+      );
     });
   },
 );

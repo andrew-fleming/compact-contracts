@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Compact Contracts v0.3.0-rc.2 (token/ConfidentialFungibleToken.compact)
+// OpenZeppelin Compact Contracts v0.3.0 (token/ConfidentialFungibleToken.compact)
 
 pragma language_version >= 0.23.0;
 
@@ -27,6 +27,16 @@ pragma language_version >= 0.23.0;
  * live here; total-supply tracking is an optional add-on
  * (`extensions/ConfidentialFungibleTokenPublicSupply`) a composing contract pairs
  * with them if it wants a tracked supply.
+ *
+ * @notice Allowances. `approve` funds the allowance at approve time: `value`
+ * moves out of the caller's spendable balance into the escrow, where it stays
+ * until spent or re-approved. Funding is required, not a choice: the spender
+ * holds no owner encryption key, so at spend time it can only prove against
+ * its own escrow copy, never that the owner's balance covers the allowance.
+ * An approve conserves the owner's holdings (spendable plus every outstanding
+ * escrow), so allowances across spenders can sum to the whole holding but
+ * never exceed it, and a re-approve replaces the prior one rather than
+ * stacking.
  *
  * @notice Single-receiver. Auditor support, freeze, and admin-style seize are
  * deliberately left to companion modules or a future multi-receiver variant.
@@ -536,21 +546,30 @@ module ConfidentialFungibleToken {
 
   /**
    * @description Returns the escrow entry (the encrypted allowance) that `owner`
-   * granted `spender`. When no allowance exists, returns the encrypted-zero
-   * entry (its encrypted amounts decrypt to 0, analogous to an ERC-20 zero
-   * allowance), which is provable (e.g. through a contract-to-contract call) and
-   * decryptable by a wallet. The cap is encrypted, not public.
+   * granted `spender`. When no allowance exists, returns a placeholder entry
+   * rather than `default<EscrowEntry>`: the returned Jubjub points are on-curve,
+   * so the view is safe to prove (e.g. through a contract-to-contract call),
+   * whereas a zeroed default holds off-curve points. The cap is encrypted, not
+   * public.
    *
-   * @notice "No allowance" and "an allowance of 0" both read as encrypted-zero;
-   * a caller that must distinguish them reads `_escrow` membership off-chain. This
-   * getter grants nothing, the spend path (`transferFrom`/`burnFrom`) gates on
-   * `_escrow` membership independently, so a non-existent allowance is unspendable.
+   * @notice The placeholder's `spenderCt` and `ownerCt` are genuine encryptions
+   * of 0. Its `ownerMemo` is not: it is a sentinel for an absent allowance,
+   * recognised by `ephemeralPk == identity`, which `EcdhMask_encrypt` never
+   * produces and `EcdhMask_decrypt` rejects. A wallet must test for the
+   * sentinel rather than decrypt and narrow it.
+   *
+   * @notice "No allowance" and "an allowance of 0" both read as encrypted-zero in
+   * the amount fields; the memo sentinel tells them apart, since `approve` stores
+   * a real memo even for 0. This getter grants nothing, the spend path
+   * (`transferFrom`/`burnFrom`) gates on `_escrow` membership independently, so a
+   * non-existent allowance is unspendable.
    *
    * @circuitInfo k=11, rows=1490
    *
    * @param {Bytes<32>} owner - The account that granted the allowance.
    * @param {Bytes<32>} spender - The approved spender.
-   * @return {EscrowEntry} - The encrypted escrow entry (encrypted-zero if none).
+   * @return {EscrowEntry} - The encrypted escrow entry (a placeholder with the
+   * absent-allowance sentinel if none).
    */
   export circuit allowance(owner: Bytes<32>, spender: Bytes<32>): EscrowEntry {
     if (!_escrow.member(disclose(owner)) ||
@@ -1041,7 +1060,7 @@ module ConfidentialFungibleToken {
    * caller via `approve`) and credits it to `to`, reducing both escrow copies by
    * `value`. The amount is hidden.
    *
-   * ???? @circuitInfo k=16, rows=72346
+   * @circuitInfo k=16, rows=72346
    *
    * @notice Returns the caller's (spender's) `accountId` for caller-side gating.
    *
@@ -1290,7 +1309,7 @@ module ConfidentialFungibleToken {
    * recipient credit. The building block for a composing contract's
    * `burnFrom`; it performs no supply accounting (see `_burn`).
    *
-   * ???? @circuitInfo k=16, rows=45376
+   * @circuitInfo k=16, rows=45376
    *
    * Requirements:
    *
