@@ -1039,6 +1039,13 @@ describe.skipIf(isLiveBackend())(
         cft.transferFrom(ALICE.accountId, CHARLIE.accountId, 1n),
       ).rejects.toThrow('ConfidentialFungibleToken: insufficient allowance');
     });
+
+    it('approve(spender, 0) stores a real memo, not the sentinel', async () => {
+      await approveBob(100n, 0n);
+
+      const entry = await cft.allowance(ALICE.accountId, BOB.accountId);
+      expect(entry.ownerMemo.ephemeralPk).not.toEqual(identityPoint());
+    });
   },
 );
 
@@ -1075,10 +1082,10 @@ describe.skipIf(isLiveBackend())(
       expect(bal).toEqual(await cft.balanceOf(BOB.accountId));
     });
 
-    it('allowance returns the encrypted-zero entry when no escrow exists', async () => {
+    it('returns the absent-allowance placeholder when no escrow exists', async () => {
       // Pin the exact shape, not just that two missing pairs agree: every
-      // point is the identity (an on-curve Enc(0), decryptable by a wallet),
-      // and the memo pad is zero.
+      // point is the identity. The amounts are Enc(0); `ownerMemo` is a
+      // sentinel, not an encrypted zero, and wallets branch on this shape.
       const id = identityPoint();
       for (const [owner, spender] of [
         [ALICE.accountId, BOB.accountId],
@@ -1092,6 +1099,17 @@ describe.skipIf(isLiveBackend())(
         expect(entry.ownerMemo.ephemeralPk).toEqual(id);
         expect(entry.ownerMemo.ct).toBe(0n);
       }
+
+      // The sentinel memo is not decryptable: `EcdhMask_decrypt` rejects it.
+      const { ownerMemo } = await cft.allowance(ALICE.accountId, BOB.accountId);
+      const ownerScalar = await elgamal.secretToScalar(ALICE.encryptionKey);
+      await expect(
+        ecdhMask.decrypt(
+          ownerMemo,
+          ownerScalar,
+          padTag('OZ_CFT_escrow_owner_v1'),
+        ),
+      ).rejects.toThrow('identity ephemeral');
     });
   },
 );
