@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Breaking:** `ShieldedAccessControl`: revoking or renouncing a `(role, accountId)` pairing that was never granted reverts with `role was never granted`, so a nullifier can only exist for a granted pairing (#1116)
+- `ConfidentialFungibleToken`: `transferFrom` and `_burnFrom` reject an escrow whose owner or spender is unregistered as `owner not registered` / `spender not registered` (#1165)
+- `EcdhMask.decrypt` rejects a ciphertext whose ephemeral is the id point (#1077)
+
+## 0.4.0-alpha.6 (2026-10-06)
+
 ### Added
 
 - `ZOwnableNativeShieldedToken` preset and example: a native shielded token that a single `ZOwnablePK` owner mints and burns, with a public minted total and no burned total (#1022)
 
 ### Changed
 
+- `ShieldedAccessControl`: re-granting an active `(role, accountId)` pairing is a no-op. Granted nullifiers are tracked in `_grantedRoleNullifiers`, so one pairing can never consume more than one `_operatorRoles` slot (#1071)
 - **Breaking:** Rename `EcdsaSignerManager` to `Secp256k1EcdsaMultisig<#t>`, with the threshold `t` as the import generic and errors prefixed `Secp256k1EcdsaMultisig:` (#1052, #1058)
   - `initialize<#n>(instanceSalt, signerCommitments)` drops the threshold argument
   - `assertApprovals` verifies exactly `t` distinct registered approvals
@@ -22,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `execute`, `mint`, `mintToSelf`, `burn` and `burnFromSelf` take `Vector<t>` keys and signatures
   - `execute`'s recipient error reads `ShieldedMultiSigV2: recipient must be a coin public key`
 - **Breaking:** `ZOwnablePK.initialize` rejects a zero `instanceSalt` as `ZOwnablePK: invalid salt`. A zero salt gave deployments that share an owner id the same public owner commitment. (#1054)
-- `EcdhMask.decrypt` rejects a ciphertext whose ephemeral is the id point (#1077)
 
 ## 0.4.0-alpha.5 (2026-09-29)
 
