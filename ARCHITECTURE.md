@@ -63,9 +63,12 @@ module call still blocks the operation.
 
 ### Contract recipients wait for the cross-contract migration
 
-The modules have not migrated to contract-to-contract calls yet, so value sent to a contract would
-be stranded. Until then the transparent tokens, `AccessControl` and `Ownable` reject contract
-addresses but keep `_unsafe` variants; native shielded tokens mint to coin public keys or to self.
+The modules are migrating to contract-to-contract calls one directory at a time.
+A module that has not migrated rejects contract addresses,
+since value sent to a contract would be stranded,
+and may keep `_unsafe` variants.
+Each module's header states which it is.
+Native shielded tokens mint to coin public keys or to self.
 
 ### Domain separation and instance salts
 
@@ -146,8 +149,9 @@ Test commands are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Constraints and non-goals
 
-- **Contract-to-contract calls are not used yet.** The modules still reject contract recipients
-  and role grantees. `ConfidentialFungibleToken` is EOA-only anyway: contracts hold no private key.
+- **Contract-to-contract calls are being adopted one directory at a time.**
+Modules that have not migrated still reject contract recipients. `ConfidentialFungibleToken` is EOA-only anyway:
+contracts hold no private key.
 - **No `Uint<256>`, dynamic arrays, events or introspection.** `MultiToken` has no batch operations,
   and neither `FungibleToken` nor `MultiToken` claims ERC-20 or ERC-1155 compatibility.
 - **Compiler and backend issues.** The shared init flags above, the newer backend's blockers in

@@ -22,14 +22,14 @@ pragma language_version >= 0.27.0;
  * `msg.sender`. Users who desire cross-contract unlinkability can use different secret keys
  * per contract at the wallet layer.
  *
- * A contract is authenticated by `kernel.caller()`, which is the calling contract's address in
- * a cross-contract call and `none` in a top-level call. Roles have no stored owner to dispatch
- * on, so a circuit that admits both kinds of caller takes the caller's claim as an argument:
- * `assertOnlyRole(roleId, account)` proves a `left` claim with the witness and a `right` claim
- * with `kernel.caller()`, then checks the role. `assertOnlyRole(roleId)` is the witness-only
- * form for user callers. Each form reads only its own source of identity, so a circuit gated by
- * a `right` claim stays callable from a contract (a cross-contract callee cannot run witnesses)
- * and a user's transcript never records the caller.
+ * A contract is authenticated by `kernel.caller()`, which is the immediate calling contract's
+ * address in a cross-contract call and no contract caller in a top-level call. Roles have no
+ * stored owner to dispatch on, so a circuit that admits both kinds of caller takes the caller's
+ * claim as an argument: `assertOnlyRole(roleId, account)` proves a `left` claim with the witness
+ * and a `right` claim with `kernel.caller()`, then checks the role. `assertOnlyRole(roleId)` is
+ * the witness-only form for user callers. Each form reads only its own source of identity, so a
+ * circuit gated by a `right` claim stays callable from a contract (a cross-contract callee cannot
+ * run witnesses) and a user's transcript never records the caller.
  *
  * Roles are referred to by their `Bytes<32>` identifier. These should be exposed
  * in the top-level contract and be unique. One way to achieve this is by
@@ -77,6 +77,10 @@ pragma language_version >= 0.27.0;
  *   the contract must not assume that the witness implementation matches the developer's code.
  *   Any DApp may provide any implementation. The ZK proof system constrains what values
  *   can produce valid proofs.
+ * - A role granted to a contract that cannot make the cross-contract call (for example,
+ *   one with no circuit that calls back into this contract) is unusable by that contract.
+ *   Its admin can still revoke it, unless that contract is the only holder of the admin
+ *   role, in which case the role is unrecoverable.
  *
  * @dev Canonicalization
  * All `Either<Bytes<32>, ContractAddress>` values used as map keys in `_operatorRoles`
@@ -222,8 +226,8 @@ module AccessControl {
   /**
    * @description Reverts unless the caller is `account`. A `left` claim must equal the
    * identity derived from the `wit_AccessControlSK` witness; a `right` claim must equal
-   * `kernel.caller()`, the calling contract's address in a cross-contract call and
-   * `none` in a top-level call.
+   * `kernel.caller()`, the immediate calling contract's address in a cross-contract call
+   * and no contract caller in a top-level call.
    *
    * @constraints k=13, rows=2227
    *

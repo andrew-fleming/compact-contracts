@@ -24,12 +24,12 @@ pragma language_version >= 0.27.0;
  * per contract at the wallet layer.
  *
  * A contract owner is authenticated by `kernel.caller()`: `assertOnlyOwner` passes when the
- * calling contract's address is the stored owner. A contract owner reaches a protected circuit
- * only through a cross-contract call; a top-level call into a contract-owned instance fails,
- * because the ledger reports no contract caller. `assertOnlyOwner` reads `kernel.caller()` only
- * on the contract branch and the witness only on the user branch, so a protected circuit stays
- * callable from a contract (a cross-contract callee cannot run witnesses) and a user's transcript
- * never records the caller.
+ * immediate calling contract's address is the stored owner. A contract owner reaches a protected
+ * circuit only through a cross-contract call; a top-level call into a contract-owned instance
+ * fails, because the ledger reports no contract caller. `assertOnlyOwner` reads `kernel.caller()`
+ * only on the contract branch and the witness only on the user branch, so a protected circuit
+ * stays callable from a contract (a cross-contract callee cannot run witnesses) and a user's
+ * transcript never records the caller.
  *
  * The initial owner must be set by using the `initialize` circuit during construction.
  * This can later be changed with `transferOwnership`.
@@ -192,8 +192,8 @@ module Ownable {
    *
    * When the owner is a user (`left`), the caller's identity is derived from the
    * `wit_OwnableSK` witness as `persistentHash(secretKey)`. When the owner is a
-   * contract (`right`), the caller is `kernel.caller()`, which is the calling
-   * contract's address in a cross-contract call and `none` in a top-level call.
+   * contract (`right`), the caller is `kernel.caller()`, which is the immediate calling
+   * contract's address in a cross-contract call and no contract caller in a top-level call.
    *
    * @notice A contract owner can only pass this check through a cross-contract call.
    * A top-level call into a contract-owned instance always fails.
