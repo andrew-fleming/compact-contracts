@@ -32,7 +32,7 @@ const OwnableSimulatorBase = createSimulator<
     new MockOwnable<OwnablePrivateState>(witnesses),
   defaultPrivateState: () => OwnablePrivateState.generate(),
   contractArgs: (initialOwner, isInit) => [initialOwner, isInit],
-  ledgerExtractor: (state) => ledger(state),
+  ledgerExtractor: ledger,
   witnessesFactory: () => OwnableWitnesses(),
   artifactName: 'MockOwnable',
 });
@@ -74,18 +74,8 @@ export class OwnableSimulator extends OwnableSimulatorBase {
   }
 
   /**
-   * @description Unsafe variant of `transferOwnership`.
-   * @param newOwner - The new owner.
-   */
-  public _unsafeTransferOwnership(
-    newOwner: Either<Uint8Array, ContractAddress>,
-  ): Promise<[]> {
-    return this.circuits.impure._unsafeTransferOwnership(newOwner);
-  }
-
-  /**
    * @description Leaves the contract without an owner.
-   * It will not be possible to call `assertOnlyOnwer` circuits anymore.
+   * It will not be possible to call `assertOnlyOwner` circuits anymore.
    * Can only be called by the current owner.
    */
   public renounceOwnership(): Promise<[]> {
@@ -109,16 +99,6 @@ export class OwnableSimulator extends OwnableSimulatorBase {
     newOwner: Either<Uint8Array, ContractAddress>,
   ): Promise<[]> {
     return this.circuits.impure._transferOwnership(newOwner);
-  }
-
-  /**
-   * @description Unsafe variant of `_transferOwnership`.
-   * @param newOwner - The new owner.
-   */
-  public _unsafeUncheckedTransferOwnership(
-    newOwner: Either<Uint8Array, ContractAddress>,
-  ): Promise<[]> {
-    return this.circuits.impure._unsafeUncheckedTransferOwnership(newOwner);
   }
 
   public readonly privateState = {

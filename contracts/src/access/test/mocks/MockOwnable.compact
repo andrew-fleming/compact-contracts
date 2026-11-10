@@ -34,9 +34,6 @@ export circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): 
   return Ownable_transferOwnership(newOwner);
 }
 
-export circuit _unsafeTransferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [] {
-  return Ownable__unsafeTransferOwnership(newOwner);
-}
 
 export circuit renounceOwnership(): [] {
   return Ownable_renounceOwnership();
@@ -50,7 +47,4 @@ export circuit _transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>):
   return Ownable__transferOwnership(newOwner);
 }
 
-export circuit _unsafeUncheckedTransferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [] {
-  return Ownable__unsafeUncheckedTransferOwnership(newOwner);
-}
 

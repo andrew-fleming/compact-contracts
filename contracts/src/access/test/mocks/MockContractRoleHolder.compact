@@ -1,0 +1,48 @@
+pragma language_version >= 0.27.0;
+
+import CompactStandardLibrary;
+
+export { ContractAddress, Either };
+
+/**
+ * @description A contract that holds roles on a `MockAccessControl` instance and
+ * reaches its gated circuits through cross-contract calls, claiming its own address
+ * (`kernel.self()`) so the callee proves the claim with `kernel.caller()`. Test mock only.
+ */
+contract AccessControl {
+  circuit hasRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): Boolean;
+  circuit assertOnlyRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [];
+  circuit grantRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [];
+  circuit revokeRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [];
+  circuit renounceRole(roleId: Bytes<32>, callerConfirmation: Either<Bytes<32>, ContractAddress>): [];
+}
+
+export ledger target: AccessControl;
+
+constructor(accessControl: AccessControl) {
+  target = disclose(accessControl);
+}
+
+circuit self(): Either<Bytes<32>, ContractAddress> {
+  return right<Bytes<32>, ContractAddress>(kernel.self());
+}
+
+export circuit hasRole(roleId: Bytes<32>): Boolean {
+  return target.hasRole(disclose(roleId), self());
+}
+
+export circuit assertOnlyRole(roleId: Bytes<32>): [] {
+  target.assertOnlyRoleAs(disclose(roleId), self());
+}
+
+export circuit grantRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
+  target.grantRoleAs(disclose(roleId), disclose(account), self());
+}
+
+export circuit revokeRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
+  target.revokeRoleAs(disclose(roleId), disclose(account), self());
+}
+
+export circuit renounceRole(roleId: Bytes<32>): [] {
+  target.renounceRole(disclose(roleId), self());
+}

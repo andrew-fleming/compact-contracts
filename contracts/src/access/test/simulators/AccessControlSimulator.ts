@@ -29,7 +29,7 @@ const AccessControlSimulatorBase = createSimulator<
     new MockAccessControl<AccessControlPrivateState>(witnesses),
   defaultPrivateState: () => AccessControlPrivateState.generate(),
   contractArgs: () => [],
-  ledgerExtractor: (state) => ledger(state),
+  ledgerExtractor: ledger,
   witnessesFactory: () => AccessControlWitnesses(),
   artifactName: 'MockAccessControl',
 });
@@ -78,6 +78,28 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   }
 
   /**
+   * @description Reverts unless the caller is `account` and `account` holds `roleId`.
+   * @param roleId - The role identifier.
+   * @param account - The caller's claimed identity.
+   */
+  public assertOnlyRoleAs(
+    roleId: Uint8Array,
+    account: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.assertOnlyRoleAs(roleId, account);
+  }
+
+  /**
+   * @description Reverts unless the caller is `account`.
+   * @param account - The caller's claimed identity.
+   */
+  public assertCaller(
+    account: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.assertCaller(account);
+  }
+
+  /**
    * @description Retrieves an account's permission for `roleId`.
    * @param roleId - The role identifier.
    * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
@@ -123,6 +145,34 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   }
 
   /**
+   * @description Grants `roleId` to `account` on behalf of `admin`.
+   * @param roleId - The role identifier.
+   * @param account - The account to grant the role to.
+   * @param admin - The caller's claimed identity.
+   */
+  public grantRoleAs(
+    roleId: Uint8Array,
+    account: Either<Uint8Array, ContractAddress>,
+    admin: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.grantRoleAs(roleId, account, admin);
+  }
+
+  /**
+   * @description Revokes `roleId` from `account` on behalf of `admin`.
+   * @param roleId - The role identifier.
+   * @param account - The account to revoke the role from.
+   * @param admin - The caller's claimed identity.
+   */
+  public revokeRoleAs(
+    roleId: Uint8Array,
+    account: Either<Uint8Array, ContractAddress>,
+    admin: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.revokeRoleAs(roleId, account, admin);
+  }
+
+  /**
    * @description Revokes `roleId` from the calling account.
    * @param roleId - The role identifier.
    * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
@@ -153,19 +203,6 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
     account: Either<Uint8Array, ContractAddress>,
   ): Promise<boolean> {
     return this.circuits.impure._grantRole(roleId, account);
-  }
-
-  /**
-   * @description Grants an account permissions to use `roleId`. Internal function without access restriction.
-   * DOES NOT restrict sending to a ContractAddress.
-   * @param roleId - The role identifier.
-   * @param account - An Either wrapping a Bytes<32> identity commitment (left) or a ContractAddress (right).
-   */
-  public _unsafeGrantRole(
-    roleId: Uint8Array,
-    account: Either<Uint8Array, ContractAddress>,
-  ): Promise<boolean> {
-    return this.circuits.impure._unsafeGrantRole(roleId, account);
   }
 
   /**

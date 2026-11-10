@@ -1,0 +1,39 @@
+pragma language_version >= 0.27.0;
+
+import CompactStandardLibrary;
+
+export { ContractAddress, Either };
+
+/**
+ * @description A contract that owns an `Ownable` instance and reaches its owner-gated
+ * circuits through cross-contract calls, so the callee's `assertOnlyOwner` sees
+ * `kernel.caller()` as this contract's address. Test mock only.
+ */
+contract Ownable {
+  circuit owner(): Either<Bytes<32>, ContractAddress>;
+  circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [];
+  circuit renounceOwnership(): [];
+  circuit assertOnlyOwner(): [];
+}
+
+export ledger owned: Ownable;
+
+constructor(target: Ownable) {
+  owned = disclose(target);
+}
+
+export circuit owner(): Either<Bytes<32>, ContractAddress> {
+  return owned.owner();
+}
+
+export circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [] {
+  owned.transferOwnership(disclose(newOwner));
+}
+
+export circuit renounceOwnership(): [] {
+  owned.renounceOwnership();
+}
+
+export circuit assertOnlyOwner(): [] {
+  owned.assertOnlyOwner();
+}

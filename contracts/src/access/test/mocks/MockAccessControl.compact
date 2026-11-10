@@ -25,6 +25,14 @@ export circuit assertOnlyRole(roleId: Bytes<32>): [] {
   AccessControl_assertOnlyRole(roleId);
 }
 
+export circuit assertOnlyRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_assertOnlyRole(roleId, account);
+}
+
+export circuit assertCaller(account: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_assertCaller(account);
+}
+
 export circuit _checkRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
   AccessControl__checkRole(roleId, account);
 }
@@ -41,6 +49,14 @@ export circuit revokeRole(roleId: Bytes<32>, account: Either<Bytes<32>, Contract
   AccessControl_revokeRole(roleId, account);
 }
 
+export circuit grantRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_grantRole(roleId, account, admin);
+}
+
+export circuit revokeRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_revokeRole(roleId, account, admin);
+}
+
 export circuit renounceRole(roleId: Bytes<32>, callerConfirmation: Either<Bytes<32>, ContractAddress>): [] {
   AccessControl_renounceRole(roleId, callerConfirmation);
 }
@@ -53,9 +69,6 @@ export circuit _grantRole(roleId: Bytes<32>, account: Either<Bytes<32>, Contract
   return AccessControl__grantRole(roleId, account);
 }
 
-export circuit _unsafeGrantRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): Boolean {
-  return AccessControl__unsafeGrantRole(roleId, account);
-}
 
 export circuit _revokeRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): Boolean {
   return AccessControl__revokeRole(roleId, account);
