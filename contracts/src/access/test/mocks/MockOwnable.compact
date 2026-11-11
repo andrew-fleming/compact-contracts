@@ -10,8 +10,13 @@ pragma language_version >= 0.26.0;
 import CompactStandardLibrary;
 
 import "../../Ownable" prefix Ownable_;
+import "../../interface/IOwnable";
 
 export { ContractAddress, Either, Maybe };
+
+// The compiler checks the exported `owner`, `transferOwnership` and
+// `renounceOwnership` below against the interface.
+contract implements Ownable;
 
 /**
  * @description `isInit` is a param for testing.

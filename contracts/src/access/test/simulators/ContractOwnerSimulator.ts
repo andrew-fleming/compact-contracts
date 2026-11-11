@@ -68,11 +68,4 @@ export class ContractOwnerSimulator extends ContractOwnerSimulatorBase {
   public renounceOwnership(): Promise<[]> {
     return this.circuits.impure.renounceOwnership();
   }
-
-  /**
-   * @description Calls the owned contract's `assertOnlyOwner`.
-   */
-  public assertOnlyOwner(): Promise<[]> {
-    return this.circuits.impure.assertOnlyOwner();
-  }
 }

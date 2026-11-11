@@ -9,6 +9,8 @@ pragma language_version >= 0.27.0;
 
 import CompactStandardLibrary;
 
+import "../../interface/IOwnable";
+
 export { ContractAddress, Either };
 
 /**
@@ -16,13 +18,6 @@ export { ContractAddress, Either };
  * circuits through cross-contract calls, so the callee's `assertOnlyOwner` sees
  * `kernel.caller()` as this contract's address. Test mock only.
  */
-contract Ownable {
-  circuit owner(): Either<Bytes<32>, ContractAddress>;
-  circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [];
-  circuit renounceOwnership(): [];
-  circuit assertOnlyOwner(): [];
-}
-
 export ledger owned: Ownable;
 
 constructor(target: Ownable) {
@@ -39,8 +34,4 @@ export circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): 
 
 export circuit renounceOwnership(): [] {
   owned.renounceOwnership();
-}
-
-export circuit assertOnlyOwner(): [] {
-  owned.assertOnlyOwner();
 }

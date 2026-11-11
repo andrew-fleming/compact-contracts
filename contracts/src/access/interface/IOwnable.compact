@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.5.0-alpha.2 (access/interface/IOwnable.compact)
+
+pragma language_version >= 0.27.0;
+
+/**
+ * @module IOwnable
+ * @description The contract type of an `Ownable` contract, as another contract sees it.
+ *
+ * Import it to hold a reference to an `Ownable` contract and call its circuits
+ * cross-contract, and declare `contract implements Ownable;` in a contract that exports
+ * these circuits so the compiler checks the names and types match.
+ *
+ * `assertOnlyOwner` is not part of the type: it is the guard a contract composes into its
+ * own circuits, not an entry point another contract calls.
+ */
+module IOwnable {
+  import CompactStandardLibrary;
+
+  export contract Ownable {
+    circuit owner(): Either<Bytes<32>, ContractAddress>;
+    circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [];
+    circuit renounceOwnership(): [];
+  }
+}

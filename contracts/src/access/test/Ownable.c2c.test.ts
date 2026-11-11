@@ -14,9 +14,11 @@ import { OwnableSimulator } from './simulators/OwnableSimulator.js';
 /**
  * Ownership held by a contract, exercised through real cross-contract calls:
  * `MockContractOwner` at OWNER_CONTRACT holds a reference to `MockOwnable` at
- * OWNED and calls its owner-gated circuits, so `assertOnlyOwner` reads
- * `kernel.caller()` as OWNER_CONTRACT. Dry only: the pinned midnight-js cannot
- * submit a cross-contract call.
+ * OWNED through the `IOwnable` contract type and calls its owner-gated circuits,
+ * so `assertOnlyOwner` reads `kernel.caller()` as OWNER_CONTRACT. The gate is
+ * probed through `transferOwnership`, the interface's owner-gated entry point:
+ * a transfer to the current owner passes it and changes nothing. Dry only: the
+ * pinned midnight-js cannot submit a cross-contract call.
  */
 
 const zeroBytes = utils.zeroUint8Array();
@@ -83,15 +85,16 @@ describe.skipIf(isLiveBackend())(
         .enable(stranger);
     });
 
-    describe('assertOnlyOwner', () => {
+    describe('owner gate', () => {
       it('should pass for the owner contract', async () => {
-        await owner.assertOnlyOwner();
+        await owner.transferOwnership(OWNER_CONTRACT.either);
+        expect(await ownable.owner()).toEqual(OWNER_CONTRACT.either);
       });
 
       it('should fail for another contract', async () => {
-        await expect(stranger.assertOnlyOwner()).rejects.toThrow(
-          'Ownable: caller is not the owner',
-        );
+        await expect(
+          stranger.transferOwnership(OWNER_CONTRACT.either),
+        ).rejects.toThrow('Ownable: caller is not the owner');
       });
 
       it('should fail for a user calling top-level', async () => {
@@ -103,9 +106,9 @@ describe.skipIf(isLiveBackend())(
       it('should refuse a contract caller when the owner is a user', async () => {
         // A user-owned instance needs the witness, which a callee cannot run.
         await ownable._transferOwnership(USER.either);
-        await expect(owner.assertOnlyOwner()).rejects.toThrow(
-          /invoked witness 'wit_OwnableSK'/,
-        );
+        await expect(
+          owner.transferOwnership(OWNER_CONTRACT.either),
+        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
       });
     });
 
@@ -124,9 +127,9 @@ describe.skipIf(isLiveBackend())(
         expect(await owner.owner()).toEqual(NEW_OWNER.either);
 
         // The contract no longer authenticates; the user does, top-level
-        await expect(owner.assertOnlyOwner()).rejects.toThrow(
-          /invoked witness 'wit_OwnableSK'/,
-        );
+        await expect(
+          owner.transferOwnership(OWNER_CONTRACT.either),
+        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
         await ownable.privateState.injectSecretKey(NEW_OWNER.secretKey);
         await ownable.assertOnlyOwner();
       });
@@ -135,10 +138,11 @@ describe.skipIf(isLiveBackend())(
         await owner.transferOwnership(STRANGER_CONTRACT.either);
         expect(await ownable.owner()).toEqual(STRANGER_CONTRACT.either);
 
-        await expect(owner.assertOnlyOwner()).rejects.toThrow(
-          'Ownable: caller is not the owner',
-        );
-        await stranger.assertOnlyOwner();
+        await expect(
+          owner.transferOwnership(OWNER_CONTRACT.either),
+        ).rejects.toThrow('Ownable: caller is not the owner');
+        await stranger.transferOwnership(STRANGER_CONTRACT.either);
+        expect(await ownable.owner()).toEqual(STRANGER_CONTRACT.either);
       });
 
       it('should fail when another contract transfers ownership', async () => {
@@ -160,9 +164,9 @@ describe.skipIf(isLiveBackend())(
         await owner.renounceOwnership();
         expect(await ownable.owner()).toEqual(ZERO_ACCOUNT);
 
-        await expect(owner.assertOnlyOwner()).rejects.toThrow(
-          /invoked witness 'wit_OwnableSK'/,
-        );
+        await expect(
+          owner.transferOwnership(OWNER_CONTRACT.either),
+        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
       });
 
       it('should fail when another contract renounces', async () => {
