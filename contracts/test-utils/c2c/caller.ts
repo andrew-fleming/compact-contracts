@@ -47,17 +47,16 @@ export const asContract = (sim: unknown, address: string): void =>
 
 /**
  * Makes every following circuit call on `sim` observe `kernel.caller()` as
- * `some(right(address))`, the user-tagged caller the ledger derives for a
- * top-level call.
+ * `some(right(address))`, a user-tagged caller.
  * @param sim - A dry simulator.
- * @param address - The calling user's address, 64 hex characters.
+ * @param address - The user's address, 64 hex characters.
  */
 export const asUser = (sim: unknown, address: string): void =>
   install(drySimOf(sim), { tag: 'user', address });
 
 /**
  * Restores top-level calls on `sim`: `kernel.caller()` reads `none` again.
- * @param sim - A dry simulator previously passed to `asContract`.
+ * @param sim - A dry simulator previously passed to `asContract` or `asUser`.
  */
 export const asTopLevel = (sim: unknown): void =>
   install(drySimOf(sim), undefined);
