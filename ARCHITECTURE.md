@@ -171,8 +171,9 @@ Test commands are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## Constraints and non-goals
 
 - **Contract-to-contract calls are being adopted one directory at a time.**
-Modules that have not migrated still reject contract recipients. `ConfidentialFungibleToken` is EOA-only anyway:
-contracts hold no private key.
+  Modules that have not migrated still reject contract recipients.
+  `ConfidentialFungibleToken` is EOA-only anyway:
+  contracts hold no private key.
 - **No `Uint<256>`, dynamic arrays, events or introspection.** `MultiToken` has no batch operations,
   and neither `FungibleToken` nor `MultiToken` claims ERC-20 or ERC-1155 compatibility.
 - **Compiler and backend issues.** The shared init flags above, the newer backend's blockers in
