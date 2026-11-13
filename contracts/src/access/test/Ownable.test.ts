@@ -337,6 +337,9 @@ describe('Ownable', () => {
           await expect(ownable.assertOnlyOwner()).rejects.toThrow(
             'Ownable: caller is not the owner',
           );
+          await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
+            'Ownable: caller is not the owner',
+          );
         },
       );
 

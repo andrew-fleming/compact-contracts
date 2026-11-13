@@ -6,7 +6,7 @@
  * attaches this one on both sides. The key's contents never matter: nothing is
  * proved or verified off-chain.
  *
- * Source: a tiny circuit compiled with compactc 0.36.0 (`midnight:verifier-key[v6]`).
+ * Source: a tiny circuit compiled with compactc 0.36.0 (`midnight:verifier-key[v7]`).
  */
 const BASE64 = [
   'bWlkbmlnaHQ6dmVyaWZpZXIta2V5W3Y3XTq1FAIAAAAAAQAAAAAAAAAAAAAABAYLAAAAAwYTAAAA',

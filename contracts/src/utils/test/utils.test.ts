@@ -5,7 +5,7 @@ import {
 } from '@midnight-ntwrk/compact-runtime';
 import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { asContract, asTopLevel } from '#test-utils/c2c/caller.js';
+import { asContract, asTopLevel, asUser } from '#test-utils/c2c/caller.js';
 import * as contractUtils from '#test-utils/fixtures/address.js';
 import { UtilsSimulator } from './simulators/UtilsSimulator.js';
 
@@ -230,6 +230,14 @@ describe('Utils', () => {
         );
 
         asTopLevel(contract);
+        expect((await contract.contractCaller()).is_some).toBe(false);
+      },
+    );
+
+    it.skipIf(isLiveBackend())(
+      'should return none for a user caller',
+      async () => {
+        asUser(contract, contractUtils.toHexPadded('SOME_USER'));
         expect((await contract.contractCaller()).is_some).toBe(false);
       },
     );
