@@ -6,6 +6,7 @@ import {
   type ContractAddress,
   type Either,
   ledger,
+  type Maybe,
   Contract as MockUtils,
   type ZswapCoinPublicKey,
 } from '../../../../artifacts/utils/test/mocks/MockUtils/contract/index.js';
@@ -123,6 +124,15 @@ export class UtilsSimulator extends UtilsSimulatorBase {
     Either<ZswapCoinPublicKey, ContractAddress>
   > {
     return this.circuits.impure.selfAsRecipient();
+  }
+
+  /**
+   * @description Returns the address of the contract calling this one through a
+   * cross-contract call, or `none` in a top-level call.
+   * @returns The calling contract's address, if any.
+   */
+  public contractCaller(): Promise<Maybe<ContractAddress>> {
+    return this.circuits.impure.contractCaller();
   }
 
   /**

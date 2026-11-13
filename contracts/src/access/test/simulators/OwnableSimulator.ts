@@ -74,6 +74,17 @@ export class OwnableSimulator extends OwnableSimulatorBase {
   }
 
   /**
+   * @description Transfers ownership of the contract to `newOwner` as the
+   * calling contract.
+   * @param newOwner - The new owner.
+   */
+  public transferOwnershipAsContract(
+    newOwner: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.transferOwnershipAsContract(newOwner);
+  }
+
+  /**
    * @description Leaves the contract without an owner.
    * It will not be possible to call `assertOnlyOwner` circuits anymore.
    * Can only be called by the current owner.
@@ -83,11 +94,24 @@ export class OwnableSimulator extends OwnableSimulatorBase {
   }
 
   /**
-   * @description Throws if called by any account other than the owner.
-   * Use this to restrict access of specific circuits to the owner.
+   * @description Leaves the contract without an owner, as the calling contract.
+   */
+  public renounceOwnershipAsContract(): Promise<[]> {
+    return this.circuits.impure.renounceOwnershipAsContract();
+  }
+
+  /**
+   * @description Throws if called by any account other than a user owner.
    */
   public assertOnlyOwner(): Promise<[]> {
     return this.circuits.impure.assertOnlyOwner();
+  }
+
+  /**
+   * @description Throws if called by any contract other than a contract owner.
+   */
+  public assertOnlyOwnerAsContract(): Promise<[]> {
+    return this.circuits.impure.assertOnlyOwnerAsContract();
   }
 
   /**

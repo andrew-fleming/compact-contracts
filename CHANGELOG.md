@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- Ownable: add `assertOnlyOwnerAsContract`, `transferOwnershipAsContract` and `renounceOwnershipAsContract`, which authenticate a contract owner with `kernel.caller()` and run no witness, so a contract owner reaches them through a cross-contract call (#???)
+- AccessControl: add `assertOnlyRoleAsContract`, `grantRoleAsContract`, `revokeRoleAsContract` and `renounceRoleAsContract`, which authenticate the calling contract with `kernel.caller()` and run no witness, so a contract holds and administers roles through a cross-contract call (#???)
+- Add the `access/interface/IOwnable` and `access/interface/IAccessControl` contract types, which list the circuits a calling contract uses (#???)
+- Utils: add `contractCaller()`, which returns the address of the contract making a cross-contract call (#???)
+
 ### Changed (breaking)
 
 - Upgrade the Compact toolchain and Midnight dependencies:
@@ -18,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Every module now declares `pragma language_version >= 0.28.0`, the language of compiler 0.36.0, so an older compiler rejects it with a version error. Artifacts built with an older compiler fail the runtime version check and must be rebuilt, and `--feature-zkir-v3` is now a compiler error. A contract already deployed with ZKIR v2 verifier keys cannot be called with the rebuilt artifacts until its keys are rotated through the CMA (`VerifierKeyRemove` and `VerifierKeyInsert` per circuit) or it is redeployed; a contract that makes cross-contract calls must also have its old keys removed, since proofs under them do not bind the callee circuit (#1229)
 - CFT: replace `register()` with `registerWithKey(pk: JubjubPoint)`, which takes the caller's encryption public key and checks it against the key derived from `wit_ConfidentialTokenEK` with `ElGamal.assertKeyPair` (`ElGamal: ek/pk mismatch`). Callers derive `pk` off-chain, either through a re-exported pure `ElGamal_derivePk` via the generated `pureCircuits` or by mirroring `ElGamal.derivePk` in the client (#1228)
 - `Ecdsa.secp256k1EcdsaVerifyLowS` fails with `Secp256k1Point identity is not a permitted secp256k1EcdsaVerify verification key` when the key is the identity point, where it used to return `false`. The standard library asserts this since toolchain 0.35.0. (#1229)
-- Ownable: `assertOnlyOwner` authenticates a contract owner with `kernel.caller()`, so a contract owner reaches owner-gated circuits through a cross-contract call. `initialize`, `transferOwnership` and `_transferOwnership` accept a contract owner; `_unsafeTransferOwnership` and `_unsafeUncheckedTransferOwnership` are removed (#???)
-- AccessControl: add `assertCaller(account)` and the claim forms `assertOnlyRole(roleId, account)`, `grantRole(roleId, account, admin)` and `revokeRole(roleId, account, admin)`, which prove a `left` claim with the witness and a `right` claim with `kernel.caller()`, so a contract can hold and administer roles through a cross-contract call. `grantRole` and `_grantRole` accept a contract account; `_unsafeGrantRole` is removed; `renounceRole` proves `callerConfirmation` the same way and fails with `AccessControl: caller does not match account` instead of `AccessControl: bad confirmation` (#???)
+- Ownable: `initialize`, `transferOwnership` and `_transferOwnership` accept a contract owner; `_unsafeTransferOwnership` and `_unsafeUncheckedTransferOwnership` are removed. While the owner is a contract, `assertOnlyOwner` fails with `Ownable: caller is not the owner` (#???)
+- AccessControl: `grantRole` and `_grantRole` accept a contract account; `_unsafeGrantRole` is removed (#???)
 
 ### Known issues
 

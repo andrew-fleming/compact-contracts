@@ -22,14 +22,13 @@ pragma language_version >= 0.28.0;
  * `msg.sender`. Users who desire cross-contract unlinkability can use different secret keys
  * per contract at the wallet layer.
  *
- * A contract is authenticated by `kernel.caller()`, which is the immediate calling contract's
- * address in a cross-contract call and no contract caller in a top-level call. Roles have no
- * stored owner to dispatch on, so a circuit that admits both kinds of caller takes the caller's
- * claim as an argument: `assertOnlyRole(roleId, account)` proves a `left` claim with the witness
- * and a `right` claim with `kernel.caller()`, then checks the role. `assertOnlyRole(roleId)` is
- * the witness-only form for user callers. Each form reads only its own source of identity, so a
- * circuit gated by a `right` claim stays callable from a contract (a cross-contract callee cannot
- * run witnesses) and a user's transcript never records the caller.
+ * A contract is authenticated by `kernel.caller()`, the address of the immediate calling
+ * contract in a cross-contract call. The two are authenticated differently, so every circuit
+ * that authenticates its caller comes in two forms: `assertOnlyRole`, `grantRole`,
+ * `revokeRole` and `renounceRole` authenticate a user, and the forms ending in `AsContract`
+ * authenticate a contract. The `AsContract` forms run no witness, so another contract can
+ * call them through the `IAccessControl` contract type, and they fail in a top-level call,
+ * where there is no calling contract.
  *
  * Roles are referred to by their `Bytes<32>` identifier. These should be exposed
  * in the top-level contract and be unique. One way to achieve this is by
@@ -55,6 +54,10 @@ pragma language_version >= 0.28.0;
  * }
  * ```
  *
+ * A circuit gated with {assertOnlyRole} is reachable by a user holding the role only, and
+ * one gated with {assertOnlyRoleAsContract} by a contract holding it only. A contract that
+ * admits both kinds of role holder exports a circuit for each.
+ *
  * Roles can be granted and revoked dynamically via the {grantRole} and
  * {revokeRole} circuits. Each role has an associated admin role, and only
  * accounts that have a role's admin role can call {grantRole} and {revokeRole}.
@@ -77,10 +80,10 @@ pragma language_version >= 0.28.0;
  *   the contract must not assume that the witness implementation matches the developer's code.
  *   Any DApp may provide any implementation. The ZK proof system constrains what values
  *   can produce valid proofs.
- * - A role granted to a contract that cannot make the cross-contract call (for example,
- *   one with no circuit that calls back into this contract) is unusable by that contract.
+ * - A role granted to a contract is usable only through circuits gated with
+ *   {assertOnlyRoleAsContract}, and only if that contract has a circuit calling them.
  *   Its admin can still revoke it, unless that contract is the only holder of the admin
- *   role, in which case the role is unrecoverable.
+ *   role and cannot reach {grantRoleAsContract}, in which case the role is unrecoverable.
  *
  * @dev Canonicalization
  * All `Either<Bytes<32>, ContractAddress>` values used as map keys in `_operatorRoles`
@@ -179,8 +182,8 @@ module AccessControl {
   /**
    * @description Reverts if the caller cannot prove ownership of `roleId`.
    * The caller is a user whose identity is derived from the `wit_AccessControlSK`
-   * witness as `persistentHash(secretKey)`. A contract caller uses the
-   * `assertOnlyRole(roleId, account)` form.
+   * witness as `persistentHash(secretKey)`. A contract caller is checked with
+   * `assertOnlyRoleAsContract`.
    *
    * @constraints k=13, rows=2132
    *
@@ -199,54 +202,23 @@ module AccessControl {
   }
 
   /**
-   * @description Reverts unless the caller is `account` and `account` holds `roleId`.
-   * A `left` claim is proved with the `wit_AccessControlSK` witness; a `right` claim
-   * is proved with `kernel.caller()`, so it passes only in a cross-contract call made
-   * by that contract.
+   * @description Reverts if the calling contract does not hold `roleId`.
+   * The caller is `kernel.caller()`, the address of the immediate calling contract
+   * in a cross-contract call. The circuit runs no witness. A user caller is checked
+   * with `assertOnlyRole`.
    *
-   * @constraints k=13, rows=2392
+   * @constraints k=8, rows=246
    *
    * Requirements:
    *
-   * - The caller must be `account`.
-   * - `account` must have `roleId`.
+   * - The caller must be a contract.
+   * - The calling contract must have `roleId`.
    *
    * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Either<Bytes<32>, ContractAddress>} account - The caller's claimed identity.
    * @return {[]} - Empty tuple.
    */
-  export circuit assertOnlyRole(
-                   roleId: Bytes<32>,
-                   account: Either<Bytes<32>, ContractAddress>
-                   ): [] {
-    assertCaller(account);
-    _checkRole(roleId, account);
-  }
-
-  /**
-   * @description Reverts unless the caller is `account`. A `left` claim must equal the
-   * identity derived from the `wit_AccessControlSK` witness; a `right` claim must equal
-   * `kernel.caller()`, the immediate calling contract's address in a cross-contract call
-   * and no contract caller in a top-level call.
-   *
-   * @constraints k=13, rows=2227
-   *
-   * Requirements:
-   *
-   * - The caller must be `account`.
-   *
-   * @param {Either<Bytes<32>, ContractAddress>} account - The caller's claimed identity.
-   * @return {[]} - Empty tuple.
-   */
-  export circuit assertCaller(account: Either<Bytes<32>, ContractAddress>): [] {
-    if (disclose(account.is_left)) {
-      assert(_computeAccountId() == account.left,
-             "AccessControl: caller does not match account");
-    } else {
-      const caller = kernel.caller();
-      assert(caller.is_some && caller.value.is_left && caller.value.left == account.right,
-             "AccessControl: caller does not match account");
-    }
+  export circuit assertOnlyRoleAsContract(roleId: Bytes<32>): [] {
+    _checkRole(roleId, _computeContractAccount());
   }
 
   /**
@@ -289,7 +261,7 @@ module AccessControl {
 
   /**
    * @description Grants `roleId` to `account`. The caller is a user holding
-   * `roleId`'s admin role; a contract admin uses `grantRole(roleId, account, admin)`.
+   * `roleId`'s admin role; a contract admin uses `grantRoleAsContract`.
    *
    * @constraints k=13, rows=2486
    *
@@ -310,33 +282,31 @@ module AccessControl {
   }
 
   /**
-   * @description Grants `roleId` to `account` on behalf of `admin`, the caller's
-   * claimed identity. See `assertOnlyRole(roleId, account)` for how the claim is proved.
+   * @description Grants `roleId` to `account`. The caller is a contract holding
+   * `roleId`'s admin role; a user admin uses `grantRole`.
    *
-   * @constraints k=13, rows=2766
+   * @constraints k=10, rows=600
    *
    * Requirements:
    *
-   * - The caller must be `admin`.
-   * - `admin` must have `roleId`'s admin role.
+   * - The caller must be a contract.
+   * - The calling contract must have `roleId`'s admin role.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} account - A Bytes<32> or ContractAddress.
-   * @param {Either<Bytes<32>, ContractAddress>} admin - The caller's claimed identity.
    * @return {[]} - Empty tuple.
    */
-  export circuit grantRole(
+  export circuit grantRoleAsContract(
                    roleId: Bytes<32>,
-                   account: Either<Bytes<32>, ContractAddress>,
-                   admin: Either<Bytes<32>, ContractAddress>
+                   account: Either<Bytes<32>, ContractAddress>
                    ): [] {
-    assertOnlyRole(getRoleAdmin(roleId), admin);
+    assertOnlyRoleAsContract(getRoleAdmin(roleId));
     _grantRole(roleId, account);
   }
 
   /**
    * @description Revokes `roleId` from `account`. The caller is a user holding
-   * `roleId`'s admin role; a contract admin uses `revokeRole(roleId, account, admin)`.
+   * `roleId`'s admin role; a contract admin uses `revokeRoleAsContract`.
    *
    * @constraints k=13, rows=2450
    *
@@ -357,27 +327,25 @@ module AccessControl {
   }
 
   /**
-   * @description Revokes `roleId` from `account` on behalf of `admin`, the caller's
-   * claimed identity. See `assertOnlyRole(roleId, account)` for how the claim is proved.
+   * @description Revokes `roleId` from `account`. The caller is a contract holding
+   * `roleId`'s admin role; a user admin uses `revokeRole`.
    *
-   * @constraints k=13, rows=2730
+   * @constraints k=10, rows=564
    *
    * Requirements:
    *
-   * - The caller must be `admin`.
-   * - `admin` must have `roleId`'s admin role.
+   * - The caller must be a contract.
+   * - The calling contract must have `roleId`'s admin role.
    *
    * @param {Bytes<32>} roleId - The role identifier.
    * @param {Either<Bytes<32>, ContractAddress>} account - A Bytes<32> or ContractAddress.
-   * @param {Either<Bytes<32>, ContractAddress>} admin - The caller's claimed identity.
    * @return {[]} - Empty tuple.
    */
-  export circuit revokeRole(
+  export circuit revokeRoleAsContract(
                    roleId: Bytes<32>,
-                   account: Either<Bytes<32>, ContractAddress>,
-                   admin: Either<Bytes<32>, ContractAddress>
+                   account: Either<Bytes<32>, ContractAddress>
                    ): [] {
-    assertOnlyRole(getRoleAdmin(roleId), admin);
+    assertOnlyRoleAsContract(getRoleAdmin(roleId));
     _revokeRole(roleId, account);
   }
 
@@ -388,24 +356,58 @@ module AccessControl {
    * purpose is to provide a mechanism for accounts to lose their privileges
    * if they are compromised (such as when a trusted device is misplaced).
    *
-   * `callerConfirmation` is the caller's claimed identity, proved as in `assertCaller`,
-   * to prevent accidental renunciation.
+   * The caller's identity is derived from the `wit_AccessControlSK` witness as
+   * `persistentHash(secretKey)`. The `callerConfirmation` parameter must match
+   * the caller's computed account identifier to prevent accidental renunciation.
+   * A contract renounces with `renounceRoleAsContract`.
    *
-   * @constraints k=13, rows=2418
+   * @constraints k=13, rows=2359
    *
    * Requirements:
    *
-   * - The caller must be `callerConfirmation`.
+   * - The caller's computed account identifier must match `callerConfirmation`.
    *
    * @param {Bytes<32>} roleId - The role identifier.
-   * @param {Either<Bytes<32>, ContractAddress>} callerConfirmation - The caller's claimed identity.
+   * @param {Either<Bytes<32>, ContractAddress>} callerConfirmation - The caller's account identifier, must match the internally computed value.
    * @return {[]} - Empty tuple.
    */
   export circuit renounceRole(
                    roleId: Bytes<32>,
                    callerConfirmation: Either<Bytes<32>, ContractAddress>
                    ): [] {
-    assertCaller(callerConfirmation);
+    assert(callerConfirmation == left<Bytes<32>, ContractAddress>(_computeAccountId()),
+           "AccessControl: bad confirmation"
+           );
+
+    _revokeRole(roleId, callerConfirmation);
+  }
+
+  /**
+   * @description Revokes `roleId` from the calling contract.
+   *
+   * The caller is `kernel.caller()`, the address of the immediate calling contract
+   * in a cross-contract call. The `callerConfirmation` parameter must match
+   * that address to prevent accidental renunciation. A user renounces with `renounceRole`.
+   *
+   * @constraints k=9, rows=473
+   *
+   * Requirements:
+   *
+   * - The caller must be a contract.
+   * - The calling contract's address must match `callerConfirmation`.
+   *
+   * @param {Bytes<32>} roleId - The role identifier.
+   * @param {Either<Bytes<32>, ContractAddress>} callerConfirmation - The calling contract's address.
+   * @return {[]} - Empty tuple.
+   */
+  export circuit renounceRoleAsContract(
+                   roleId: Bytes<32>,
+                   callerConfirmation: Either<Bytes<32>, ContractAddress>
+                   ): [] {
+    assert(callerConfirmation == _computeContractAccount(),
+           "AccessControl: bad confirmation"
+           );
+
     _revokeRole(roleId, callerConfirmation);
   }
 
@@ -490,5 +492,20 @@ module AccessControl {
    */
   circuit _computeAccountId(): Bytes<32> {
     return Utils_computeAccountId(wit_AccessControlSK());
+  }
+
+  /**
+   * @description Returns the calling contract's account, read from `kernel.caller()`.
+   *
+   * Requirements:
+   *
+   * - The caller must be a contract.
+   *
+   * @returns {Either<Bytes<32>, ContractAddress>} account - The calling contract's account.
+   */
+  circuit _computeContractAccount(): Either<Bytes<32>, ContractAddress> {
+    const caller = Utils_contractCaller();
+    assert(caller.is_some, "AccessControl: caller is not a contract");
+    return right<Bytes<32>, ContractAddress>(caller.value);
   }
 }

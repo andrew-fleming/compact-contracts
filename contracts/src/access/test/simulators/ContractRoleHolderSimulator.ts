@@ -58,14 +58,6 @@ export class ContractRoleHolderSimulator extends ContractRoleHolderSimulatorBase
   }
 
   /**
-   * @description Calls the target's `assertOnlyRole` claiming this contract's address.
-   * @param roleId - The role identifier.
-   */
-  public assertOnlyRole(roleId: Uint8Array): Promise<[]> {
-    return this.circuits.impure.assertOnlyRole(roleId);
-  }
-
-  /**
    * @description Grants `roleId` to `account` on the target as this contract.
    * @param roleId - The role identifier.
    * @param account - The account to grant the role to.

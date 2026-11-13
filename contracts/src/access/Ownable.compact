@@ -11,11 +11,14 @@ pragma language_version >= 0.28.0;
  * This approach is perfectly reasonable for contracts that have a single administrative user.
  *
  * The owner is a user or a contract, stored as an `Either<Bytes<32>, ContractAddress>`.
+ * The two are authenticated differently, so every circuit that authenticates its caller
+ * comes in two forms.
  *
  * A user owner is authenticated by a witness-derived identity scheme. The owner proves knowledge
  * of a secret key by injecting it via the `wit_OwnableSK` witness. The module computes
  * an account identifier as `persistentHash(secretKey)` which is a commitment that hides the key
- * while providing a stable, pseudonymous on-chain identity.
+ * while providing a stable, pseudonymous on-chain identity. `assertOnlyOwner`,
+ * `transferOwnership` and `renounceOwnership` authenticate a user owner.
  *
  * Because the account identifier is `H(secretKey)` with no per-deployment salt or domain
  * separator, the same secret key produces the same identity across all contracts. This is
@@ -23,13 +26,15 @@ pragma language_version >= 0.28.0;
  * `msg.sender`. Users who desire cross-contract unlinkability can use different secret keys
  * per contract at the wallet layer.
  *
- * A contract owner is authenticated by `kernel.caller()`: `assertOnlyOwner` passes when the
- * immediate calling contract's address is the stored owner. A contract owner reaches a protected
- * circuit only through a cross-contract call; a top-level call into a contract-owned instance
- * fails, because the ledger reports no contract caller. `assertOnlyOwner` reads `kernel.caller()`
- * only on the contract branch and the witness only on the user branch, so a protected circuit
- * stays callable from a contract (a cross-contract callee cannot run witnesses) and a user's
- * transcript never records the caller.
+ * A contract owner is authenticated by `kernel.caller()`, the address of the immediate calling
+ * contract in a cross-contract call. `assertOnlyOwnerAsContract`, `transferOwnershipAsContract`
+ * and `renounceOwnershipAsContract` authenticate a contract owner. They run no witness, so
+ * another contract can call them through the `IOwnable` contract type, and they fail in a
+ * top-level call, where there is no calling contract.
+ *
+ * A circuit gated with `assertOnlyOwner` is reachable by a user owner only, and one gated
+ * with `assertOnlyOwnerAsContract` by a contract owner only. A contract whose owner may be
+ * either kind exports a circuit for each.
  *
  * The initial owner must be set by using the `initialize` circuit during construction.
  * This can later be changed with `transferOwnership`.
@@ -49,8 +54,11 @@ pragma language_version >= 0.28.0;
  *   the contract must not assume that the witness implementation matches the developer's code.
  *   Any DApp may provide any implementation. The ZK proof system constrains what values
  *   can produce valid proofs.
- * - Ownership transferred to a contract that cannot make the cross-contract call (for example,
- *   one with no circuit that calls back into this contract) is unrecoverable.
+ * - Ownership is unrecoverable once the owner cannot reach a circuit that transfers it.
+ *   Before transferring ownership to a contract, check that this contract exports
+ *   `transferOwnershipAsContract` and that the new owner has a circuit calling it.
+ *   Circuits gated with `assertOnlyOwner` stop being reachable once the owner is a contract,
+ *   and circuits gated with `assertOnlyOwnerAsContract` once the owner is a user.
  */
 module Ownable {
   import CompactStandardLibrary;
@@ -147,8 +155,9 @@ module Ownable {
 
   /**
    * @description Transfers ownership of the contract to `newOwner`, a user or a contract.
+   * The caller is a user owner; a contract owner uses `transferOwnershipAsContract`.
    *
-   * @constraints k=13, rows=2359
+   * @constraints k=13, rows=2267
    *
    * Requirements:
    *
@@ -167,11 +176,33 @@ module Ownable {
   }
 
   /**
-   * @description Leaves the contract without an owner.
-   * It will not be possible to call `assertOnlyOwner` circuits anymore.
-   * Can only be called by the current owner.
+   * @description Transfers ownership of the contract to `newOwner`, a user or a contract.
+   * The caller is a contract owner; a user owner uses `transferOwnership`.
    *
-   * @constraints k=13, rows=2163
+   * @constraints k=9, rows=382
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - The calling contract is the current contract owner.
+   * - `newOwner` is not the zero address.
+   *
+   * @param {Either<Bytes<32>, ContractAddress>} newOwner - The new owner.
+   * @returns {[]} Empty tuple.
+   */
+  export circuit transferOwnershipAsContract(newOwner: Either<Bytes<32>, ContractAddress>): [] {
+    assertInitialized();
+    assertOnlyOwnerAsContract();
+    assert(!Utils_isTargetZero(newOwner), "Ownable: invalid new owner");
+    _transferOwnership(newOwner);
+  }
+
+  /**
+   * @description Leaves the contract without an owner.
+   * It will not be possible to call owner-gated circuits anymore.
+   * The caller is a user owner; a contract owner uses `renounceOwnershipAsContract`.
+   *
+   * @constraints k=13, rows=2071
    *
    * Requirements:
    *
@@ -187,18 +218,36 @@ module Ownable {
   }
 
   /**
-   * @description Throws if called by any account other than the owner.
-   * Use this to restrict access of specific circuits to the owner.
+   * @description Leaves the contract without an owner.
+   * It will not be possible to call owner-gated circuits anymore.
+   * The caller is a contract owner; a user owner uses `renounceOwnership`.
    *
-   * When the owner is a user (`left`), the caller's identity is derived from the
-   * `wit_OwnableSK` witness as `persistentHash(secretKey)`. When the owner is a
-   * contract (`right`), the caller is `kernel.caller()`, which is the immediate calling
-   * contract's address in a cross-contract call and no contract caller in a top-level call.
+   * @constraints k=8, rows=186
    *
-   * @notice A contract owner can only pass this check through a cross-contract call.
-   * A top-level call into a contract-owned instance always fails.
+   * Requirements:
    *
-   * @constraints k=13, rows=2124
+   * - Contract is initialized.
+   * - The calling contract is the current contract owner.
+   *
+   * @returns {[]} Empty tuple.
+   */
+  export circuit renounceOwnershipAsContract(): [] {
+    assertInitialized();
+    assertOnlyOwnerAsContract();
+    _transferOwnership(Utils_zeroAccount());
+  }
+
+  /**
+   * @description Throws if called by any account other than a user owner.
+   * Use this to restrict access of specific circuits to a user owner.
+   *
+   * The caller's identity is derived from the `wit_OwnableSK` witness as
+   * `persistentHash(secretKey)`.
+   *
+   * @notice This check fails for every caller while the owner is a contract.
+   * Use `assertOnlyOwnerAsContract` to admit a contract owner.
+   *
+   * @constraints k=13, rows=2032
    *
    * Requirements:
    *
@@ -209,13 +258,34 @@ module Ownable {
    */
   export circuit assertOnlyOwner(): [] {
     assertInitialized();
-    if (_owner.is_left) {
-      assert(_computeAccountId() == _owner.left, "Ownable: caller is not the owner");
-    } else {
-      const caller = kernel.caller();
-      assert(caller.is_some && caller.value.is_left && caller.value.left == _owner.right,
-             "Ownable: caller is not the owner");
-    }
+    assert(_owner.is_left && _computeAccountId() == _owner.left,
+           "Ownable: caller is not the owner");
+  }
+
+  /**
+   * @description Throws if called by any contract other than a contract owner.
+   * Use this to restrict access of specific circuits to a contract owner.
+   *
+   * The caller is `kernel.caller()`, the address of the immediate calling contract
+   * in a cross-contract call. The circuit runs no witness.
+   *
+   * @notice This check fails in a top-level call and for every caller while the
+   * owner is a user. Use `assertOnlyOwner` to admit a user owner.
+   *
+   * @constraints k=8, rows=147
+   *
+   * Requirements:
+   *
+   * - Contract is initialized.
+   * - The calling contract is the current contract owner.
+   *
+   * @returns {[]} Empty tuple.
+   */
+  export circuit assertOnlyOwnerAsContract(): [] {
+    assertInitialized();
+    const caller = Utils_contractCaller();
+    assert(!_owner.is_left && caller.is_some && caller.value == _owner.right,
+           "Ownable: caller is not the owner");
   }
 
   /**

@@ -11,15 +11,17 @@ pragma language_version >= 0.28.0;
  * cross-contract, and declare `contract implements Ownable;` in a contract that exports
  * these circuits so the compiler checks the names and types match.
  *
- * `assertOnlyOwner` is not part of the type: it is the guard a contract composes into its
- * own circuits, not an entry point another contract calls.
+ * It lists the circuits a calling contract can use: the `owner` read and the `AsContract`
+ * forms, which authenticate the calling contract and run no witness. The guards
+ * `assertOnlyOwner` and `assertOnlyOwnerAsContract` are not part of the type: a contract
+ * composes them into its own circuits.
  */
 module IOwnable {
   import CompactStandardLibrary;
 
   export contract Ownable {
     circuit owner(): Either<Bytes<32>, ContractAddress>;
-    circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [];
-    circuit renounceOwnership(): [];
+    circuit transferOwnershipAsContract(newOwner: Either<Bytes<32>, ContractAddress>): [];
+    circuit renounceOwnershipAsContract(): [];
   }
 }

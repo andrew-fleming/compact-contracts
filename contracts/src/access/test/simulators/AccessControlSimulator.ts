@@ -78,25 +78,11 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   }
 
   /**
-   * @description Reverts unless the caller is `account` and `account` holds `roleId`.
+   * @description Reverts if the calling contract does not hold `roleId`.
    * @param roleId - The role identifier.
-   * @param account - The caller's claimed identity.
    */
-  public assertOnlyRoleAs(
-    roleId: Uint8Array,
-    account: Either<Uint8Array, ContractAddress>,
-  ): Promise<[]> {
-    return this.circuits.impure.assertOnlyRoleAs(roleId, account);
-  }
-
-  /**
-   * @description Reverts unless the caller is `account`.
-   * @param account - The caller's claimed identity.
-   */
-  public assertCaller(
-    account: Either<Uint8Array, ContractAddress>,
-  ): Promise<[]> {
-    return this.circuits.impure.assertCaller(account);
+  public assertOnlyRoleAsContract(roleId: Uint8Array): Promise<[]> {
+    return this.circuits.impure.assertOnlyRoleAsContract(roleId);
   }
 
   /**
@@ -145,31 +131,27 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
   }
 
   /**
-   * @description Grants `roleId` to `account` on behalf of `admin`.
+   * @description Grants `roleId` to `account` as the calling contract.
    * @param roleId - The role identifier.
    * @param account - The account to grant the role to.
-   * @param admin - The caller's claimed identity.
    */
-  public grantRoleAs(
+  public grantRoleAsContract(
     roleId: Uint8Array,
     account: Either<Uint8Array, ContractAddress>,
-    admin: Either<Uint8Array, ContractAddress>,
   ): Promise<[]> {
-    return this.circuits.impure.grantRoleAs(roleId, account, admin);
+    return this.circuits.impure.grantRoleAsContract(roleId, account);
   }
 
   /**
-   * @description Revokes `roleId` from `account` on behalf of `admin`.
+   * @description Revokes `roleId` from `account` as the calling contract.
    * @param roleId - The role identifier.
    * @param account - The account to revoke the role from.
-   * @param admin - The caller's claimed identity.
    */
-  public revokeRoleAs(
+  public revokeRoleAsContract(
     roleId: Uint8Array,
     account: Either<Uint8Array, ContractAddress>,
-    admin: Either<Uint8Array, ContractAddress>,
   ): Promise<[]> {
-    return this.circuits.impure.revokeRoleAs(roleId, account, admin);
+    return this.circuits.impure.revokeRoleAsContract(roleId, account);
   }
 
   /**
@@ -182,6 +164,18 @@ export class AccessControlSimulator extends AccessControlSimulatorBase {
     account: Either<Uint8Array, ContractAddress>,
   ): Promise<[]> {
     return this.circuits.impure.renounceRole(roleId, account);
+  }
+
+  /**
+   * @description Revokes `roleId` from the calling contract.
+   * @param roleId - The role identifier.
+   * @param account - The calling contract's account, as confirmation.
+   */
+  public renounceRoleAsContract(
+    roleId: Uint8Array,
+    account: Either<Uint8Array, ContractAddress>,
+  ): Promise<[]> {
+    return this.circuits.impure.renounceRoleAsContract(roleId, account);
   }
 
   /**

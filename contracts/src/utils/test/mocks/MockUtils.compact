@@ -11,7 +11,7 @@ import CompactStandardLibrary;
 
 import "../../Utils" prefix Utils_;
 
-export { ZswapCoinPublicKey, ContractAddress, Either };
+export { ZswapCoinPublicKey, ContractAddress, Either, Maybe };
 
 export pure circuit isKeyOrAddressZero(keyOrAddress: Either<ZswapCoinPublicKey, ContractAddress>): Boolean {
   return Utils_isKeyOrAddressZero(keyOrAddress);
@@ -44,6 +44,10 @@ export pure circuit canonicalizeKeyOrAddress(
 
 export circuit selfAsRecipient(): Either<ZswapCoinPublicKey, ContractAddress> {
   return Utils_selfAsRecipient();
+}
+
+export circuit contractCaller(): Maybe<ContractAddress> {
+  return Utils_contractCaller();
 }
 
 export pure circuit UINT128_MAX(): Uint<128> {

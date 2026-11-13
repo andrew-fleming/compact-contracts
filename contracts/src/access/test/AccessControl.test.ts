@@ -474,15 +474,14 @@ describe('AccessControl', () => {
       );
     });
 
-    it('should fail when a user renounces as a ContractAddress', async () => {
+    it('should fail when renouncing as a ContractAddress', async () => {
       await accessControl._grantRole(OPERATOR_ROLE_1, OP1_CONTRACT);
 
       await accessControl.privateState.injectSecretKey(ADMIN.secretKey);
 
-      // A top-level call has no contract caller to prove the claim
       await expect(
         accessControl.renounceRole(OPERATOR_ROLE_1, OP1_CONTRACT),
-      ).rejects.toThrow('AccessControl: caller does not match account');
+      ).rejects.toThrow('AccessControl: bad confirmation');
     });
 
     it('should fail when unauthorized renounces role', async () => {
@@ -490,7 +489,7 @@ describe('AccessControl', () => {
 
       await expect(
         accessControl.renounceRole(OPERATOR_ROLE_1, OP1.either),
-      ).rejects.toThrow('AccessControl: caller does not match account');
+      ).rejects.toThrow('AccessControl: bad confirmation');
     });
 
     it('should not fail when renouncing a role not held', async () => {
@@ -790,63 +789,6 @@ describe('AccessControl', () => {
     });
   });
 
-  describe('assertCaller', () => {
-    it('should pass for the user whose witness matches the claim', async () => {
-      await accessControl.privateState.injectSecretKey(OP1.secretKey);
-      await accessControl.assertCaller(OP1.either);
-    });
-
-    it('should fail for a user claiming another identity', async () => {
-      await accessControl.privateState.injectSecretKey(UNAUTHORIZED.secretKey);
-      await expect(accessControl.assertCaller(OP1.either)).rejects.toThrow(
-        'AccessControl: caller does not match account',
-      );
-    });
-
-    it('should fail for a contract claim in a top-level call', async () => {
-      await expect(
-        accessControl.assertCaller(OPERATOR_CONTRACT.either),
-      ).rejects.toThrow('AccessControl: caller does not match account');
-    });
-
-    it('should fail for a contract claim whose bytes match the witness identity', async () => {
-      // right(H(sk)) is a different identity from left(H(sk))
-      await accessControl.privateState.injectSecretKey(OP1.secretKey);
-      await expect(
-        accessControl.assertCaller({
-          is_left: false,
-          left: zeroBytes,
-          right: { bytes: OP1.accountId },
-        }),
-      ).rejects.toThrow('AccessControl: caller does not match account');
-    });
-  });
-
-  describe('assertOnlyRoleAs', () => {
-    beforeEach(async () => {
-      await accessControl._grantRole(OPERATOR_ROLE_1, OP1.either);
-    });
-
-    it('should allow a user holding the role', async () => {
-      await accessControl.privateState.injectSecretKey(OP1.secretKey);
-      await accessControl.assertOnlyRoleAs(OPERATOR_ROLE_1, OP1.either);
-    });
-
-    it('should fail for a user claiming a role holder they are not', async () => {
-      await accessControl.privateState.injectSecretKey(UNAUTHORIZED.secretKey);
-      await expect(
-        accessControl.assertOnlyRoleAs(OPERATOR_ROLE_1, OP1.either),
-      ).rejects.toThrow('AccessControl: caller does not match account');
-    });
-
-    it('should fail for a user without the role', async () => {
-      await accessControl.privateState.injectSecretKey(UNAUTHORIZED.secretKey);
-      await expect(
-        accessControl.assertOnlyRoleAs(OPERATOR_ROLE_1, UNAUTHORIZED.either),
-      ).rejects.toThrow('AccessControl: unauthorized account');
-    });
-  });
-
   // `kernel.caller()` is injected into the block context, which only the dry
   // engine exposes. The real cross-contract path is in AccessControl.c2c.test.ts.
   describe.skipIf(isLiveBackend())('when the caller is a contract', () => {
@@ -856,159 +798,183 @@ describe('AccessControl', () => {
       await accessControl._grantRole(OPERATOR_ROLE_1, OPERATOR_CONTRACT.either);
     });
 
-    describe('assertCaller', () => {
-      it('should pass for the calling contract', async () => {
-        asContract(accessControl, OPERATOR_CONTRACT.address);
-        await accessControl.assertCaller(OPERATOR_CONTRACT.either);
-      });
-
-      it('should fail for a claim naming another contract', async () => {
-        asContract(accessControl, STRANGER_CONTRACT.address);
-        await expect(
-          accessControl.assertCaller(OPERATOR_CONTRACT.either),
-        ).rejects.toThrow('AccessControl: caller does not match account');
-      });
-
-      it('should prove a user claim with the witness whatever the caller', async () => {
-        // A left claim never reads kernel.caller()
-        asContract(accessControl, OPERATOR_CONTRACT.address);
-        await accessControl.privateState.injectSecretKey(OP1.secretKey);
-        await accessControl.assertCaller(OP1.either);
-        asTopLevel(accessControl);
-        await accessControl.assertCaller(OP1.either);
-      });
-    });
-
-    describe('assertOnlyRoleAs', () => {
+    describe('assertOnlyRoleAsContract', () => {
       it('should allow a contract holding the role', async () => {
         asContract(accessControl, OPERATOR_CONTRACT.address);
-        await accessControl.assertOnlyRoleAs(
-          OPERATOR_ROLE_1,
-          OPERATOR_CONTRACT.either,
-        );
+        await accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1);
       });
 
       it('should fail for a contract without the role', async () => {
         asContract(accessControl, STRANGER_CONTRACT.address);
         await expect(
-          accessControl.assertOnlyRoleAs(
-            OPERATOR_ROLE_1,
-            STRANGER_CONTRACT.either,
-          ),
+          accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1),
         ).rejects.toThrow('AccessControl: unauthorized account');
       });
 
-      it('should fail for a contract claiming a role holder it is not', async () => {
-        asContract(accessControl, STRANGER_CONTRACT.address);
+      it('should fail when called top-level', async () => {
         await expect(
-          accessControl.assertOnlyRoleAs(
-            OPERATOR_ROLE_1,
-            OPERATOR_CONTRACT.either,
-          ),
-        ).rejects.toThrow('AccessControl: caller does not match account');
+          accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
+
+        asContract(accessControl, OPERATOR_CONTRACT.address);
+        await accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1);
+
+        asTopLevel(accessControl);
+        await expect(
+          accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
       });
 
-      it('should ignore the witness-only form', async () => {
-        // The one-argument form proves the witness, which no contract holds
+      it('should not depend on the secret key', async () => {
         asContract(accessControl, OPERATOR_CONTRACT.address);
         await accessControl.privateState.injectSecretKey(
           UNAUTHORIZED.secretKey,
         );
+        await accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_1);
+      });
+
+      it('should fail when the contract address matches a user holder but is the right variant', async () => {
+        // right(accountId) is a different account from left(accountId)
+        await accessControl._grantRole(OPERATOR_ROLE_2, OP1.either);
+        asContract(accessControl, Buffer.from(OP1.accountId).toString('hex'));
+        await expect(
+          accessControl.assertOnlyRoleAsContract(OPERATOR_ROLE_2),
+        ).rejects.toThrow('AccessControl: unauthorized account');
+      });
+    });
+
+    describe('assertOnlyRole', () => {
+      it('should fail for a contract holding the role', async () => {
+        // The user form proves the witness, which no contract holds
+        asContract(accessControl, OPERATOR_CONTRACT.address);
         await expect(
           accessControl.assertOnlyRole(OPERATOR_ROLE_1),
         ).rejects.toThrow('AccessControl: unauthorized account');
       });
     });
 
-    describe('grantRoleAs / revokeRoleAs', () => {
-      it('should let a contract admin grant and revoke', async () => {
+    describe('grantRoleAsContract', () => {
+      it('should let a contract admin grant to a user and a contract', async () => {
         asContract(accessControl, ADMIN_CONTRACT.address);
 
-        await accessControl.grantRoleAs(
-          OPERATOR_ROLE_2,
-          OP1.either,
-          ADMIN_CONTRACT.either,
-        );
+        await accessControl.grantRoleAsContract(OPERATOR_ROLE_2, OP1.either);
         expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
           true,
         );
 
-        await accessControl.revokeRoleAs(
+        await accessControl.grantRoleAsContract(
           OPERATOR_ROLE_2,
-          OP1.either,
-          ADMIN_CONTRACT.either,
+          STRANGER_CONTRACT.either,
         );
-        expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
-          false,
-        );
-      });
-
-      it('should let a user admin use the claim form', async () => {
-        await accessControl._grantRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
-        await accessControl.privateState.injectSecretKey(ADMIN.secretKey);
-
-        await accessControl.grantRoleAs(
-          OPERATOR_ROLE_2,
-          OP1.either,
-          ADMIN.either,
-        );
-        expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
-          true,
-        );
-        await accessControl.revokeRoleAs(
-          OPERATOR_ROLE_2,
-          OP1.either,
-          ADMIN.either,
-        );
-        expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
-          false,
-        );
-      });
-
-      it('should fail when the claimed admin is not the caller', async () => {
-        asContract(accessControl, STRANGER_CONTRACT.address);
-        await expect(
-          accessControl.grantRoleAs(
+        expect(
+          await accessControl.hasRole(
             OPERATOR_ROLE_2,
-            OP1.either,
-            ADMIN_CONTRACT.either,
+            STRANGER_CONTRACT.either,
           ),
-        ).rejects.toThrow('AccessControl: caller does not match account');
+        ).toBe(true);
+      });
+
+      it('should require the admin role of the role being granted', async () => {
+        await accessControl._setRoleAdmin(OPERATOR_ROLE_2, CUSTOM_ADMIN_ROLE);
+        asContract(accessControl, ADMIN_CONTRACT.address);
         await expect(
-          accessControl.revokeRoleAs(
-            OPERATOR_ROLE_1,
-            OPERATOR_CONTRACT.either,
-            ADMIN_CONTRACT.either,
-          ),
-        ).rejects.toThrow('AccessControl: caller does not match account');
+          accessControl.grantRoleAsContract(OPERATOR_ROLE_2, OP1.either),
+        ).rejects.toThrow('AccessControl: unauthorized account');
+
+        await accessControl._grantRole(
+          CUSTOM_ADMIN_ROLE,
+          ADMIN_CONTRACT.either,
+        );
+        await accessControl.grantRoleAsContract(OPERATOR_ROLE_2, OP1.either);
+        expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
+          true,
+        );
       });
 
       it('should fail when the calling contract is not an admin', async () => {
         asContract(accessControl, OPERATOR_CONTRACT.address);
         await expect(
-          accessControl.grantRoleAs(
-            OPERATOR_ROLE_2,
-            OP1.either,
-            OPERATOR_CONTRACT.either,
-          ),
+          accessControl.grantRoleAsContract(OPERATOR_ROLE_2, OP1.either),
         ).rejects.toThrow('AccessControl: unauthorized account');
+        expect(await accessControl.hasRole(OPERATOR_ROLE_2, OP1.either)).toBe(
+          false,
+        );
       });
 
-      it('should fail when a contract uses the witness-only admin circuits', async () => {
+      it('should fail for a user admin calling top-level', async () => {
+        await accessControl._grantRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
+        await accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+        await expect(
+          accessControl.grantRoleAsContract(OPERATOR_ROLE_2, OP1.either),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
+      });
+    });
+
+    describe('grantRole', () => {
+      it('should fail for a contract admin', async () => {
         asContract(accessControl, ADMIN_CONTRACT.address);
         await expect(
           accessControl.grantRole(OPERATOR_ROLE_2, OP1.either),
         ).rejects.toThrow('AccessControl: unauthorized account');
+      });
+    });
+
+    describe('revokeRoleAsContract', () => {
+      it('should let a contract admin revoke', async () => {
+        asContract(accessControl, ADMIN_CONTRACT.address);
+        await accessControl.revokeRoleAsContract(
+          OPERATOR_ROLE_1,
+          OPERATOR_CONTRACT.either,
+        );
+        expect(
+          await accessControl.hasRole(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).toBe(false);
+      });
+
+      it('should fail when the calling contract is not an admin', async () => {
+        asContract(accessControl, STRANGER_CONTRACT.address);
+        await expect(
+          accessControl.revokeRoleAsContract(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).rejects.toThrow('AccessControl: unauthorized account');
+        expect(
+          await accessControl.hasRole(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).toBe(true);
+      });
+
+      it('should fail for a user admin calling top-level', async () => {
+        await accessControl._grantRole(DEFAULT_ADMIN_ROLE, ADMIN.either);
+        await accessControl.privateState.injectSecretKey(ADMIN.secretKey);
+        await expect(
+          accessControl.revokeRoleAsContract(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
+      });
+    });
+
+    describe('revokeRole', () => {
+      it('should fail for a contract admin', async () => {
+        asContract(accessControl, ADMIN_CONTRACT.address);
         await expect(
           accessControl.revokeRole(OPERATOR_ROLE_1, OPERATOR_CONTRACT.either),
         ).rejects.toThrow('AccessControl: unauthorized account');
       });
     });
 
-    describe('renounceRole', () => {
+    describe('renounceRoleAsContract', () => {
       it('should let a contract renounce its own role', async () => {
         asContract(accessControl, OPERATOR_CONTRACT.address);
-        await accessControl.renounceRole(
+        await accessControl.renounceRoleAsContract(
           OPERATOR_ROLE_1,
           OPERATOR_CONTRACT.either,
         );
@@ -1023,8 +989,57 @@ describe('AccessControl', () => {
       it("should fail when a contract renounces another contract's role", async () => {
         asContract(accessControl, STRANGER_CONTRACT.address);
         await expect(
+          accessControl.renounceRoleAsContract(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).rejects.toThrow('AccessControl: bad confirmation');
+        expect(
+          await accessControl.hasRole(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).toBe(true);
+      });
+
+      it('should fail when the confirmation is a user account', async () => {
+        await accessControl._grantRole(OPERATOR_ROLE_1, OP1.either);
+        asContract(accessControl, OPERATOR_CONTRACT.address);
+        await expect(
+          accessControl.renounceRoleAsContract(OPERATOR_ROLE_1, OP1.either),
+        ).rejects.toThrow('AccessControl: bad confirmation');
+      });
+
+      it('should fail when called top-level', async () => {
+        await expect(
+          accessControl.renounceRoleAsContract(
+            OPERATOR_ROLE_1,
+            OPERATOR_CONTRACT.either,
+          ),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
+      });
+
+      it('should not fail when renouncing a role not held', async () => {
+        asContract(accessControl, STRANGER_CONTRACT.address);
+        await accessControl.renounceRoleAsContract(
+          OPERATOR_ROLE_1,
+          STRANGER_CONTRACT.either,
+        );
+        expect(
+          await accessControl.hasRole(
+            OPERATOR_ROLE_1,
+            STRANGER_CONTRACT.either,
+          ),
+        ).toBe(false);
+      });
+    });
+
+    describe('renounceRole', () => {
+      it('should fail for a contract', async () => {
+        asContract(accessControl, OPERATOR_CONTRACT.address);
+        await expect(
           accessControl.renounceRole(OPERATOR_ROLE_1, OPERATOR_CONTRACT.either),
-        ).rejects.toThrow('AccessControl: caller does not match account');
+        ).rejects.toThrow('AccessControl: bad confirmation');
       });
     });
   });

@@ -180,6 +180,23 @@ module Utils {
   }
 
   /**
+   * @description Returns the address of the contract that called the current
+   * contract through a cross-contract call, or `none` when the circuit is called
+   * from a transaction.
+   *
+   * Use it to authenticate a calling contract in a circuit that runs no witness,
+   * so the circuit stays callable through a contract type.
+   *
+   * @returns {Maybe<ContractAddress>} The calling contract's address, if any.
+   */
+  export circuit contractCaller(): Maybe<ContractAddress> {
+    const caller = kernel.caller();
+    return caller.is_some && caller.value.is_left
+      ? some<ContractAddress>(caller.value.left)
+      : none<ContractAddress>();
+  }
+
+  /**
    * @description The maximum value representable by a `Uint<128>`.
    *
    * @notice TODO: Remove once a math module providing this constant is available.

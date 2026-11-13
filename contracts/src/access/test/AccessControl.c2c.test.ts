@@ -14,10 +14,10 @@ import { ContractRoleHolderSimulator } from './simulators/ContractRoleHolderSimu
 
 /**
  * Roles held by contracts, exercised through real cross-contract calls:
- * `MockContractRoleHolder` instances call into `MockAccessControl` claiming
- * their own address (`kernel.self()`), which the callee proves against
- * `kernel.caller()`. Dry only: the pinned midnight-js cannot submit a
- * cross-contract call.
+ * `MockContractRoleHolder` instances hold a reference to `MockAccessControl`
+ * through the `IAccessControl` contract type and call its `AsContract`
+ * circuits, which authenticate them with `kernel.caller()`. Dry only: the
+ * pinned midnight-js cannot submit a cross-contract call.
  */
 
 const zeroBytes = utils.zeroUint8Array();
@@ -95,24 +95,12 @@ describe.skipIf(isLiveBackend())(
       });
     });
 
-    describe('assertOnlyRole', () => {
-      it('should pass for a contract holding the role', async () => {
-        await operator.assertOnlyRole(OPERATOR_ROLE);
-      });
-
-      it('should fail for a contract without the role', async () => {
-        await expect(stranger.assertOnlyRole(OPERATOR_ROLE)).rejects.toThrow(
-          'AccessControl: unauthorized account',
-        );
-      });
-
-      it('should fail for a user claiming the contract top-level', async () => {
+    describe('role gate', () => {
+      it('should fail for a user calling top-level', async () => {
+        await accessControl._grantRole(DEFAULT_ADMIN_ROLE, USER.either);
         await expect(
-          accessControl.assertOnlyRoleAs(
-            OPERATOR_ROLE,
-            OPERATOR_CONTRACT.either,
-          ),
-        ).rejects.toThrow('AccessControl: caller does not match account');
+          accessControl.grantRoleAsContract(OPERATOR_ROLE, OP1.either),
+        ).rejects.toThrow('AccessControl: caller is not a contract');
       });
     });
 
@@ -125,7 +113,12 @@ describe.skipIf(isLiveBackend())(
 
         await admin.grantRole(OTHER_ROLE, STRANGER_CONTRACT.either);
         expect(await stranger.hasRole(OTHER_ROLE)).toBe(true);
-        await stranger.assertOnlyRole(OTHER_ROLE);
+      });
+
+      it('should let a contract admin pass its admin role on', async () => {
+        await admin.grantRole(DEFAULT_ADMIN_ROLE, STRANGER_CONTRACT.either);
+        await stranger.grantRole(OTHER_ROLE, OP1.either);
+        expect(await accessControl.hasRole(OTHER_ROLE, OP1.either)).toBe(true);
       });
 
       it('should fail for a contract that is not an admin', async () => {
@@ -142,9 +135,6 @@ describe.skipIf(isLiveBackend())(
       it('should let a contract admin revoke', async () => {
         await admin.revokeRole(OPERATOR_ROLE, OPERATOR_CONTRACT.either);
         expect(await operator.hasRole(OPERATOR_ROLE)).toBe(false);
-        await expect(operator.assertOnlyRole(OPERATOR_ROLE)).rejects.toThrow(
-          'AccessControl: unauthorized account',
-        );
       });
 
       it('should fail for a contract that is not an admin', async () => {
@@ -167,8 +157,8 @@ describe.skipIf(isLiveBackend())(
       });
     });
 
-    describe('user paths stay witness-based', () => {
-      it('should let a user admin keep using the witness-only circuits', async () => {
+    describe('user paths', () => {
+      it('should let a user admin keep using the user circuits', async () => {
         await accessControl._grantRole(DEFAULT_ADMIN_ROLE, USER.either);
         await accessControl.grantRole(OTHER_ROLE, OP1.either);
         expect(await accessControl.hasRole(OTHER_ROLE, OP1.either)).toBe(true);

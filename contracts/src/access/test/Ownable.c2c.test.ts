@@ -14,9 +14,9 @@ import { OwnableSimulator } from './simulators/OwnableSimulator.js';
 /**
  * Ownership held by a contract, exercised through real cross-contract calls:
  * `MockContractOwner` at OWNER_CONTRACT holds a reference to `MockOwnable` at
- * OWNED through the `IOwnable` contract type and calls its owner-gated circuits,
- * so `assertOnlyOwner` reads `kernel.caller()` as OWNER_CONTRACT. The gate is
- * probed through `transferOwnership`, the interface's owner-gated entry point:
+ * OWNED through the `IOwnable` contract type and calls its `AsContract`
+ * circuits, so `assertOnlyOwnerAsContract` reads `kernel.caller()` as
+ * OWNER_CONTRACT. The gate is probed through `transferOwnershipAsContract`:
  * a transfer to the current owner passes it and changes nothing. Dry only: the
  * pinned midnight-js cannot submit a cross-contract call.
  */
@@ -98,17 +98,16 @@ describe.skipIf(isLiveBackend())(
       });
 
       it('should fail for a user calling top-level', async () => {
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
       });
 
-      it('should refuse a contract caller when the owner is a user', async () => {
-        // A user-owned instance needs the witness, which a callee cannot run.
+      it('should fail for a contract caller when the owner is a user', async () => {
         await ownable._transferOwnership(USER.either);
         await expect(
           owner.transferOwnership(OWNER_CONTRACT.either),
-        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
+        ).rejects.toThrow('Ownable: caller is not the owner');
       });
     });
 
@@ -129,7 +128,7 @@ describe.skipIf(isLiveBackend())(
         // The contract no longer authenticates; the user does, top-level
         await expect(
           owner.transferOwnership(OWNER_CONTRACT.either),
-        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
+        ).rejects.toThrow('Ownable: caller is not the owner');
         await ownable.privateState.injectSecretKey(NEW_OWNER.secretKey);
         await ownable.assertOnlyOwner();
       });
@@ -166,7 +165,7 @@ describe.skipIf(isLiveBackend())(
 
         await expect(
           owner.transferOwnership(OWNER_CONTRACT.either),
-        ).rejects.toThrow(/invoked witness 'wit_OwnableSK'/);
+        ).rejects.toThrow('Ownable: caller is not the owner');
       });
 
       it('should fail when another contract renounces', async () => {

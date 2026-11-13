@@ -116,6 +116,9 @@ describe('Ownable', () => {
       ['assertOnlyOwner', []],
       ['transferOwnership', [OWNER.either]],
       ['renounceOwnership', []],
+      ['assertOnlyOwnerAsContract', []],
+      ['transferOwnershipAsContract', [OWNER.either]],
+      ['renounceOwnershipAsContract', []],
       ['_transferOwnership', [OWNER.either]],
     ];
     it.each(circuitsToFail)(
@@ -380,48 +383,68 @@ describe('Ownable', () => {
       });
     });
 
-    describe('assertOnlyOwner', () => {
+    describe('assertOnlyOwnerAsContract', () => {
       it('should allow the owner contract to call', async () => {
         asContract(ownable, OWNER_CONTRACT.address);
-        await ownable.assertOnlyOwner();
+        await ownable.assertOnlyOwnerAsContract();
       });
 
       it('should fail when called by another contract', async () => {
         asContract(ownable, STRANGER_CONTRACT.address);
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
       });
 
       it('should fail when called top-level, whatever key the user holds', async () => {
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
 
         asContract(ownable, OWNER_CONTRACT.address);
-        await ownable.assertOnlyOwner();
+        await ownable.assertOnlyOwnerAsContract();
 
         asTopLevel(ownable);
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
       });
 
-      it('should ignore the witness on the contract path', async () => {
+      it('should not depend on the secret key', async () => {
         asContract(ownable, OWNER_CONTRACT.address);
         await ownable.privateState.injectSecretKey(UNAUTHORIZED.secretKey);
-        await ownable.assertOnlyOwner();
+        await ownable.assertOnlyOwnerAsContract();
+      });
+
+      it('should fail for every contract when the owner is a user', async () => {
+        await ownable._transferOwnership(OWNER.either);
+
+        for (const contract of [OWNER_CONTRACT, STRANGER_CONTRACT]) {
+          asContract(ownable, contract.address);
+          await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
+            'Ownable: caller is not the owner',
+          );
+        }
       });
     });
 
-    describe('transferOwnership', () => {
+    describe('assertOnlyOwner', () => {
+      it('should fail for the owner contract', async () => {
+        asContract(ownable, OWNER_CONTRACT.address);
+        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+          'Ownable: caller is not the owner',
+        );
+      });
+    });
+
+    describe('transferOwnershipAsContract', () => {
       it('should let the owner contract transfer to a user', async () => {
         asContract(ownable, OWNER_CONTRACT.address);
-        await ownable.transferOwnership(NEW_OWNER.either);
+        await ownable.transferOwnershipAsContract(NEW_OWNER.either);
         expect(await ownable.owner()).toEqual(NEW_OWNER.either);
 
         // The contract no longer authenticates
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
 
@@ -433,38 +456,78 @@ describe('Ownable', () => {
 
       it('should let the owner contract transfer to another contract', async () => {
         asContract(ownable, OWNER_CONTRACT.address);
-        await ownable.transferOwnership(RECIPIENT_CONTRACT.either);
+        await ownable.transferOwnershipAsContract(RECIPIENT_CONTRACT.either);
         expect(await ownable.owner()).toEqual(RECIPIENT_CONTRACT.either);
 
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
 
         asContract(ownable, RECIPIENT_CONTRACT.address);
-        await ownable.assertOnlyOwner();
+        await ownable.assertOnlyOwnerAsContract();
       });
 
       it('should fail when another contract transfers ownership', async () => {
         asContract(ownable, STRANGER_CONTRACT.address);
+        await expect(
+          ownable.transferOwnershipAsContract(NEW_OWNER.either),
+        ).rejects.toThrow('Ownable: caller is not the owner');
+      });
+
+      it('should fail when called top-level', async () => {
+        await expect(
+          ownable.transferOwnershipAsContract(NEW_OWNER.either),
+        ).rejects.toThrow('Ownable: caller is not the owner');
+      });
+
+      it.each(zeroTypes)(
+        'should fail when transferring to zero (%s)',
+        async (_, _zero) => {
+          asContract(ownable, OWNER_CONTRACT.address);
+          await expect(
+            ownable.transferOwnershipAsContract(_zero),
+          ).rejects.toThrow('Ownable: invalid new owner');
+        },
+      );
+    });
+
+    describe('transferOwnership', () => {
+      it('should fail for the owner contract', async () => {
+        asContract(ownable, OWNER_CONTRACT.address);
         await expect(
           ownable.transferOwnership(NEW_OWNER.either),
         ).rejects.toThrow('Ownable: caller is not the owner');
       });
     });
 
-    describe('renounceOwnership', () => {
+    describe('renounceOwnershipAsContract', () => {
       it('should let the owner contract renounce', async () => {
         asContract(ownable, OWNER_CONTRACT.address);
-        await ownable.renounceOwnership();
+        await ownable.renounceOwnershipAsContract();
         expect(await ownable.owner()).toEqual(ZERO_ACCOUNT);
 
-        await expect(ownable.assertOnlyOwner()).rejects.toThrow(
+        await expect(ownable.assertOnlyOwnerAsContract()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );
       });
 
       it('should fail when another contract renounces', async () => {
         asContract(ownable, STRANGER_CONTRACT.address);
+        await expect(ownable.renounceOwnershipAsContract()).rejects.toThrow(
+          'Ownable: caller is not the owner',
+        );
+      });
+
+      it('should fail when called top-level', async () => {
+        await expect(ownable.renounceOwnershipAsContract()).rejects.toThrow(
+          'Ownable: caller is not the owner',
+        );
+      });
+    });
+
+    describe('renounceOwnership', () => {
+      it('should fail for the owner contract', async () => {
+        asContract(ownable, OWNER_CONTRACT.address);
         await expect(ownable.renounceOwnership()).rejects.toThrow(
           'Ownable: caller is not the owner',
         );

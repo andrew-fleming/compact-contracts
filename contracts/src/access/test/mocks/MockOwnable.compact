@@ -14,8 +14,8 @@ import "../../interface/IOwnable";
 
 export { ContractAddress, Either, Maybe };
 
-// The compiler checks the exported `owner`, `transferOwnership` and
-// `renounceOwnership` below against the interface.
+// The compiler checks the exported `owner`, `transferOwnershipAsContract` and
+// `renounceOwnershipAsContract` below against the interface.
 contract implements Ownable;
 
 /**
@@ -39,17 +39,26 @@ export circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): 
   return Ownable_transferOwnership(newOwner);
 }
 
+export circuit transferOwnershipAsContract(newOwner: Either<Bytes<32>, ContractAddress>): [] {
+  return Ownable_transferOwnershipAsContract(newOwner);
+}
 
 export circuit renounceOwnership(): [] {
   return Ownable_renounceOwnership();
+}
+
+export circuit renounceOwnershipAsContract(): [] {
+  return Ownable_renounceOwnershipAsContract();
 }
 
 export circuit assertOnlyOwner(): [] {
   return Ownable_assertOnlyOwner();
 }
 
+export circuit assertOnlyOwnerAsContract(): [] {
+  return Ownable_assertOnlyOwnerAsContract();
+}
+
 export circuit _transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [] {
   return Ownable__transferOwnership(newOwner);
 }
-
-

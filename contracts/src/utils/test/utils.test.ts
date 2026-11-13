@@ -3,7 +3,9 @@ import {
   CompactTypeVector,
   persistentHash,
 } from '@midnight-ntwrk/compact-runtime';
+import { isLiveBackend } from '@openzeppelin/compact-simulator';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { asContract, asTopLevel } from '#test-utils/c2c/caller.js';
 import * as contractUtils from '#test-utils/fixtures/address.js';
 import { UtilsSimulator } from './simulators/UtilsSimulator.js';
 
@@ -207,6 +209,30 @@ describe('Utils', () => {
       const second = await contract.selfAsRecipient();
       expect(first.right.bytes).toEqual(second.right.bytes);
     });
+  });
+
+  describe('contractCaller', () => {
+    it('should return none in a top-level call', async () => {
+      const result = await contract.contractCaller();
+      expect(result.is_some).toBe(false);
+    });
+
+    // `kernel.caller()` is injected into the block context, which only the dry
+    // engine exposes.
+    it.skipIf(isLiveBackend())(
+      'should return the calling contract',
+      async () => {
+        asContract(contract, contractUtils.toHexPadded('SOME_CONTRACT'));
+        const result = await contract.contractCaller();
+        expect(result.is_some).toBe(true);
+        expect(result.value).toEqual(
+          contractUtils.encodeToAddress('SOME_CONTRACT'),
+        );
+
+        asTopLevel(contract);
+        expect((await contract.contractCaller()).is_some).toBe(false);
+      },
+    );
   });
 
   describe('UINT128_MAX', () => {

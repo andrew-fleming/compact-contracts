@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Compact Contracts v0.5.0-alpha.2 (access/interface/IAccessControl.compact)
+
+pragma language_version >= 0.28.0;
+
+/**
+ * @module IAccessControl
+ * @description The contract type of an `AccessControl` contract, as another contract sees it.
+ *
+ * Import it to hold a reference to an `AccessControl` contract and call its circuits
+ * cross-contract, and declare `contract implements AccessControl;` in a contract that
+ * exports these circuits so the compiler checks the names and types match.
+ *
+ * It lists the circuits a calling contract can use: the `hasRole` and `getRoleAdmin` reads
+ * and the `AsContract` forms, which authenticate the calling contract and run no witness.
+ * The guards `assertOnlyRole` and `assertOnlyRoleAsContract` are not part of the type: a
+ * contract composes them into its own circuits.
+ */
+module IAccessControl {
+  import CompactStandardLibrary;
+
+  export contract AccessControl {
+    circuit hasRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): Boolean;
+    circuit getRoleAdmin(roleId: Bytes<32>): Bytes<32>;
+    circuit grantRoleAsContract(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [];
+    circuit revokeRoleAsContract(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [];
+    circuit renounceRoleAsContract(roleId: Bytes<32>, callerConfirmation: Either<Bytes<32>, ContractAddress>): [];
+  }
+}

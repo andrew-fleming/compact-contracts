@@ -14,10 +14,8 @@ pragma language_version >= 0.28.0;
  * derived from the owner's public key and a secret nonce.
  * For the strongest security guarantees, use an Air-Gapped Public Key.
  *
- * @notice This module explicitly supports commitments derived from public keys;
- * however, it may be possible to use contract addresses once this library migrates to
- * contract-to-contract calls. This will be revisited when it's known if/how witnesses
- * are used from a contract address context.
+ * @notice This module supports commitments derived from public keys.
+ * Contract addresses are not supported at this time.
  *
  * @dev Features:
  * - Obfuscated owner identity: The owner's public key is never revealed on-chain.

@@ -70,6 +70,21 @@ and may keep `_unsafe` variants.
 Each module's header states which it is.
 Native shielded tokens mint to coin public keys or to self.
 
+### Contract callers use `AsContract` circuits
+
+A user proves its identity with a witness,
+and a calling contract is identified by `kernel.caller()`.
+A circuit that authenticates its caller against a public identity
+therefore comes in two forms in the same module:
+the plain name authenticates a user,
+and the name with the `AsContract` suffix authenticates the calling contract and runs no witness.
+`Ownable.transferOwnership` and `Ownable.transferOwnershipAsContract` are one such pair.
+
+Contract types live in `<directory>/interface/`, one module per file,
+and list only reads and `AsContract` circuits.
+Guards such as `assertOnlyOwnerAsContract` are composed by the consumer and stay out of the type.
+A consumer circuit that admits both kinds of caller is exported once per guard.
+
 ### Domain separation and instance salts
 
 Most shielded modules tag each stored commitment and nullifier with module and purpose, as
@@ -83,12 +98,18 @@ every amount that changes it. `*PublicSupply` extensions add one where auditabil
 
 ## Privacy and witness model
 
-**Identity.** The modules read no sender address: a caller proves identity in-circuit from secrets
-its witnesses supply. Transparent modules expose a pseudonymous account id the consumer treats as
-public, the `msg.sender` analogue. `ShieldedAccessControl`, `ZOwnablePK` and
-`ConfidentialNoteFungibleToken` commit to a salted, per-instance identity instead;
-`ConfidentialFungibleToken` keeps the transparent account id, and the native shielded tokens hold
-no identity at all, only coins.
+**Identity.** A module learns who is calling in one of three ways.
+
+- **Public identity.** Transparent modules store a pseudonymous account id or a contract address,
+  the `msg.sender` analogue. A user proves its account id in-circuit from a secret its witness
+  supplies. A migrated module also identifies a calling contract by `kernel.caller()`, in an
+  `AsContract` circuit. `ConfidentialFungibleToken` keeps the transparent account id.
+- **Committed identity.** `ShieldedAccessControl`, `ZOwnablePK` and `ConfidentialNoteFungibleToken`
+  store a salted, per-instance commitment that only the holder of a secret can open. A contract
+  holds no secret, so these modules have no `AsContract` circuits.
+- **No caller identity.** The multisig and security modules resolve no caller: they take an
+  identity or signatures as arguments, and the consumer decides who is calling. The native shielded
+  tokens hold no identity at all, only coins.
 
 **Witnesses are untrusted.** Each witness value is bound in-circuit to public state or used so a
 hostile value cannot break the module's claim; `ownPublicKey()` is a witness too. Keys and

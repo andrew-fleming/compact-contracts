@@ -15,8 +15,8 @@ export { ContractAddress, Either };
 
 /**
  * @description A contract that owns an `Ownable` instance and reaches its owner-gated
- * circuits through cross-contract calls, so the callee's `assertOnlyOwner` sees
- * `kernel.caller()` as this contract's address. Test mock only.
+ * circuits through cross-contract calls, so the callee's `assertOnlyOwnerAsContract`
+ * sees `kernel.caller()` as this contract's address. Test mock only.
  */
 export ledger owned: Ownable;
 
@@ -29,9 +29,9 @@ export circuit owner(): Either<Bytes<32>, ContractAddress> {
 }
 
 export circuit transferOwnership(newOwner: Either<Bytes<32>, ContractAddress>): [] {
-  owned.transferOwnership(disclose(newOwner));
+  owned.transferOwnershipAsContract(disclose(newOwner));
 }
 
 export circuit renounceOwnership(): [] {
-  owned.renounceOwnership();
+  owned.renounceOwnershipAsContract();
 }

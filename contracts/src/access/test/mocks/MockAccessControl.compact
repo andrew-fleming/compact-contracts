@@ -10,8 +10,13 @@ pragma language_version >= 0.28.0;
 import CompactStandardLibrary;
 
 import "../../AccessControl" prefix AccessControl_;
+import "../../interface/IAccessControl";
 
 export { ContractAddress, Either, Maybe };
+
+// The compiler checks the exported `hasRole`, `getRoleAdmin` and `AsContract`
+// circuits below against the interface.
+contract implements AccessControl;
 
 export pure circuit DEFAULT_ADMIN_ROLE(): Bytes<32> {
   return AccessControl_DEFAULT_ADMIN_ROLE();
@@ -25,12 +30,8 @@ export circuit assertOnlyRole(roleId: Bytes<32>): [] {
   AccessControl_assertOnlyRole(roleId);
 }
 
-export circuit assertOnlyRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
-  AccessControl_assertOnlyRole(roleId, account);
-}
-
-export circuit assertCaller(account: Either<Bytes<32>, ContractAddress>): [] {
-  AccessControl_assertCaller(account);
+export circuit assertOnlyRoleAsContract(roleId: Bytes<32>): [] {
+  AccessControl_assertOnlyRoleAsContract(roleId);
 }
 
 export circuit _checkRole(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
@@ -49,16 +50,20 @@ export circuit revokeRole(roleId: Bytes<32>, account: Either<Bytes<32>, Contract
   AccessControl_revokeRole(roleId, account);
 }
 
-export circuit grantRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [] {
-  AccessControl_grantRole(roleId, account, admin);
+export circuit grantRoleAsContract(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_grantRoleAsContract(roleId, account);
 }
 
-export circuit revokeRoleAs(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>, admin: Either<Bytes<32>, ContractAddress>): [] {
-  AccessControl_revokeRole(roleId, account, admin);
+export circuit revokeRoleAsContract(roleId: Bytes<32>, account: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_revokeRoleAsContract(roleId, account);
 }
 
 export circuit renounceRole(roleId: Bytes<32>, callerConfirmation: Either<Bytes<32>, ContractAddress>): [] {
   AccessControl_renounceRole(roleId, callerConfirmation);
+}
+
+export circuit renounceRoleAsContract(roleId: Bytes<32>, callerConfirmation: Either<Bytes<32>, ContractAddress>): [] {
+  AccessControl_renounceRoleAsContract(roleId, callerConfirmation);
 }
 
 export circuit _setRoleAdmin(roleId: Bytes<32>, adminRole: Bytes<32>): [] {
